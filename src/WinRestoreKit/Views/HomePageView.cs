@@ -146,7 +146,7 @@ namespace Views
         private void BuildNoBackups()
         {
             rows.Controls.Add(Line("No backups yet.", Ui.Heading(), Ui.TextPrimary));
-            rows.Controls.Add(Line("Nothing on this PC has been backed up with Appcopier.", Ui.Body(), Ui.Muted));
+            rows.Controls.Add(Line("Nothing on this PC has been backed up with WinRestoreKit.", Ui.Body(), Ui.Muted));
             rows.Controls.Add(Button("Back up this PC", (s, e) => backUpAgain(null)));
         }
 

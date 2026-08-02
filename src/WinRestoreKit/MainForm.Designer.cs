@@ -259,7 +259,7 @@ namespace WinRestoreKit
             this.Name = "MainForm";
             this.ShowIcon = false;
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            this.Text = "Appcopier";
+            this.Text = "WinRestoreKit";
             this.Shown += new System.EventHandler(this.MainForm_Shown);
             this.layoutRoot.ResumeLayout(false);
             this.layoutRoot.PerformLayout();

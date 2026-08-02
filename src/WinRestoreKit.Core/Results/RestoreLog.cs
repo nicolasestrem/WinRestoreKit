@@ -18,7 +18,8 @@ namespace WinRestoreKit
     /// </remarks>
     internal static class RestoreLog
     {
-        internal const string VersionHeader = "# Appcopier restore log v1";
+        // Older backups on disk still carry the Appcopier header, which is fine because readers never parse it.
+        internal const string VersionHeader = "# WinRestoreKit restore log v1";
 
         /// <summary>The name used when the log goes into the snapshot folder, beside the rollback artifact.</summary>
         internal const string FileName = "restore_log.txt";

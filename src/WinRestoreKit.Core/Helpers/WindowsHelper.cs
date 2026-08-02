@@ -852,7 +852,7 @@ namespace WinRestoreKit
         /// Opens an http/https URL in the user's default browser at their normal privilege level.
         /// </summary>
         /// <remarks>
-        /// Routed through explorer.exe deliberately. Appcopier's manifest requests highestAvailable
+        /// Routed through explorer.exe deliberately. WinRestoreKit's manifest requests highestAvailable
         /// because registry export needs it, and ShellExecute hands the parent's elevated token to
         /// the child - so launching the browser directly opens it as Administrator. That leaves
         /// admin-owned files in the browser profile (which can stop it starting normally afterwards)

@@ -7,7 +7,7 @@ namespace Conf
     /// The SSH client's host configuration: <c>.ssh\config</c> and <c>.ssh\known_hosts</c>.
     /// </summary>
     /// <remarks>
-    /// PRIVATE KEYS ARE DELIBERATELY NOT BACKED UP (user decision, 2026-07-21). Appcopier writes
+    /// PRIVATE KEYS ARE DELIBERATELY NOT BACKED UP (user decision, 2026-07-21). WinRestoreKit writes
     /// its backups as ordinary unencrypted files in a folder beside the executable, which is the
     /// wrong home for key material: a copy of id_rsa there is a credential sitting in plaintext,
     /// surviving in every backup folder the user forgets to delete, and it defeats the passphrase

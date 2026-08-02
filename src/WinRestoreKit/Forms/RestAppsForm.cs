@@ -744,7 +744,7 @@ namespace Views
         /// vetoed every other CloseReason too: a mid-install Application.Exit, a close of the
         /// owning MainForm, and an MDI teardown were all silently refused - the app simply appeared
         /// to hang - and WindowsShutDown was refused until Windows overrode it, having first shown
-        /// the user a blocked-shutdown screen naming Appcopier. None of those closes is something
+        /// the user a blocked-shutdown screen naming WinRestoreKit. None of those closes is something
         /// this dialog gets a vote on; only a user closing THIS window is.
         /// </remarks>
         internal static bool ShouldDeferClose(bool installing, CloseReason reason)

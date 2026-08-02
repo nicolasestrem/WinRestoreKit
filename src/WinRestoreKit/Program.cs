@@ -78,9 +78,9 @@ namespace WinRestoreKit
         internal static string DescribeStartupFailure(Exception ex)
         {
             if (ex == null)
-                return "Appcopier could not start. No exception details are available.";
+                return "WinRestoreKit could not start. No exception details are available.";
 
-            return "Appcopier could not start." + Environment.NewLine + Environment.NewLine +
+            return "WinRestoreKit could not start." + Environment.NewLine + Environment.NewLine +
                    ex.GetType().FullName + ": " + (ex.Message ?? string.Empty);
         }
 
@@ -166,7 +166,7 @@ namespace WinRestoreKit
             {
                 MessageBox.Show(
                     DescribeStartupFailure(ex),
-                    "Appcopier",
+                    "WinRestoreKit",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
 

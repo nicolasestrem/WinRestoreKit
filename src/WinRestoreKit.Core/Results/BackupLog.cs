@@ -16,7 +16,8 @@ namespace WinRestoreKit
     /// </remarks>
     internal static class BackupLog
     {
-        internal const string VersionHeader = "# Appcopier backup log v2";
+        // Older backups on disk still carry the Appcopier header, which is fine because readers never parse it.
+        internal const string VersionHeader = "# WinRestoreKit backup log v2";
 
         /// <param name="extraHeaderLines">
         /// Written verbatim between the version header and the timestamp, or null for none. Verbatim

@@ -250,7 +250,7 @@ namespace Conf
             ToolCapture capture = new ToolCapture();
 
             string scratch = Path.Combine(
-                Path.GetTempPath(), "appcopier_powercfg_" + Guid.NewGuid().ToString("N") + ".txt");
+                Path.GetTempPath(), "winrestorekit_powercfg_" + Guid.NewGuid().ToString("N") + ".txt");
 
             try
             {

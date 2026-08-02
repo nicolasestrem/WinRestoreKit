@@ -8,7 +8,7 @@ namespace WinRestoreKit
         /// <summary>Windows' own AutoRestartShell brought the shell back; nothing was started.</summary>
         RestartedByWindows,
 
-        /// <summary>Appcopier started exactly one explorer.exe.</summary>
+        /// <summary>WinRestoreKit started exactly one explorer.exe.</summary>
         Restarted,
 
         /// <summary>A start was attempted and failed. <see cref="ExplorerRestartResult.Error"/> says why.</summary>
@@ -101,7 +101,7 @@ namespace WinRestoreKit
                 case CloseResult.StillRunning:
                     return "File Explorer did not confirm it had closed, and a new one was started anyway.";
                 case CloseResult.AccessDenied:
-                    return "Windows would not let Appcopier close every File Explorer process, and a new one was started anyway.";
+                    return "Windows would not let WinRestoreKit close every File Explorer process, and a new one was started anyway.";
                 default:
                     return "A new File Explorer was started, but how the previous one closed could not be determined.";
             }
@@ -118,7 +118,7 @@ namespace WinRestoreKit
                 case CloseResult.StillRunning:
                     return "File Explorer did not confirm it had closed, and a shell was running afterwards, so nothing was started.";
                 case CloseResult.AccessDenied:
-                    return "Windows would not let Appcopier close every File Explorer process, and a shell was running afterwards, so nothing was started.";
+                    return "Windows would not let WinRestoreKit close every File Explorer process, and a shell was running afterwards, so nothing was started.";
                 default:
                     return "A shell was running after the close attempt, so nothing was started, but how File Explorer closed could not be determined.";
             }
@@ -140,7 +140,7 @@ namespace WinRestoreKit
                     sentence = "File Explorer did not confirm it had closed and could not be started again.";
                     break;
                 case CloseResult.AccessDenied:
-                    sentence = "Windows would not let Appcopier close every File Explorer process, and File Explorer could not be started again.";
+                    sentence = "Windows would not let WinRestoreKit close every File Explorer process, and File Explorer could not be started again.";
                     break;
                 default:
                     sentence = "File Explorer could not be started again.";
@@ -161,7 +161,7 @@ namespace WinRestoreKit
                 case CloseResult.StillRunning:
                     return "File Explorer did not close, so it was not restarted.";
                 case CloseResult.AccessDenied:
-                    return "Windows would not let Appcopier close File Explorer, so it was not restarted.";
+                    return "Windows would not let WinRestoreKit close File Explorer, so it was not restarted.";
                 default:
                     return "File Explorer was not restarted.";
             }
