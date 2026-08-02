@@ -15,8 +15,16 @@ namespace WinRestoreKit
         /// </summary>
         /// <remarks>
         /// Reads AssemblyFileVersion directly, which is the exact attribute Data.ParseLatestVersion
-        /// scrapes out of the remote Properties/AssemblyInfo.cs - so the local and remote sides of the
-        /// version comparison can never disagree. Application.ProductVersion is deliberately not used
+        /// scrapes out of the remote Properties/AssemblyInfo.cs. The two are expected to DIFFER, on
+        /// any install running an older build: that gap is the update. The point of using the same
+        /// attribute on both sides is that a difference is then always a real version difference,
+        /// never an artefact of comparing two different fields.
+        ///
+        /// That holds only for the update check's FALLBACK. Its primary source is the GitHub
+        /// release tag, a separate hand-entered value that never reads this attribute, so a
+        /// difference there can equally well be a mistyped tag. Only the release process keeps the
+        /// tag, this attribute and main in step. See .claude/skills/release/SKILL.md.
+        /// Application.ProductVersion is deliberately not used
         /// as the primary source: on .NET 5+ it prefers AssemblyInformationalVersion, which the SDK may
         /// decorate with a "+&lt;commit-sha&gt;" suffix that would make new Version(...) throw.
         /// </remarks>
