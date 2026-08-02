@@ -1,5 +1,9 @@
 # Phase 4 completion — implementation notes (PRs 5–9 + the modernization items)
 
+> This document predates the rename of Appcopier to WinRestoreKit and is kept as a
+> historical record. Product names, namespaces and paths below refer to the project as
+> it was at the time of writing.
+
 Written 2026-08-02, immediately after the work landed, for whoever picks this up next. The design is in
 [`2026-07-21-phase4-ui-revamp-design.md`](2026-07-21-phase4-ui-revamp-design.md) and is still the
 authority on *intent*. This document records what actually happened when it was built: the decisions the

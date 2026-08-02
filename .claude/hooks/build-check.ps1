@@ -15,7 +15,7 @@ if ($path -match '[\\/](bin|obj)[\\/]') { exit 0 }
 
 # .claude/hooks -> repo root
 $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-$sln = Join-Path $repoRoot 'src\Appcopier.sln'
+$sln = Join-Path $repoRoot 'src\WinRestoreKit.sln'
 if (-not (Test-Path $sln)) { exit 0 }
 
 $dotnet = Get-Command dotnet.exe -ErrorAction SilentlyContinue

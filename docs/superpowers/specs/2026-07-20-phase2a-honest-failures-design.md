@@ -2,6 +2,10 @@
 
 Design record, 2026-07-20. Branch `feat/phase2-honest-failures`.
 
+> This document predates the rename of Appcopier to WinRestoreKit and is kept as a
+> historical record. Product names, namespaces and paths below refer to the project as
+> it was at the time of writing.
+
 ## The problem
 
 Appcopier cannot tell you when a backup or restore fails. Not "does so badly" — cannot. The call chain

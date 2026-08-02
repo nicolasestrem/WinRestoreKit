@@ -5,6 +5,10 @@ four-agent brainstorm that produced four complete and independently grounded dir
 one of them and borrowed a milestone from a second; both choices are recorded below as user decisions
 rather than as conclusions the design arrived at on its own.
 
+> This document predates the rename of Appcopier to WinRestoreKit and is kept as a
+> historical record. Product names, namespaces and paths below refer to the project as
+> it was at the time of writing.
+
 This document covers the UI track only. The two orthogonal Phase 4 items already in `docs/ROADMAP.md` —
 replacing `WebClient` with `HttpClient`, and rewriting the update checker against the GitHub Releases
 API — interleave as separate PRs and are unaffected by anything here.

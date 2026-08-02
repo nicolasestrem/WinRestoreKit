@@ -2,6 +2,10 @@
 
 Design record, 2026-07-20. Branch `feat/phase2b-restore-safety`.
 
+> This document predates the rename of Appcopier to WinRestoreKit and is kept as a
+> historical record. Product names, namespaces and paths below refer to the project as
+> it was at the time of writing.
+
 ## The problem
 
 Phase 2a made restore *report* honestly. It did not make restore *behave* safely, and the restore path
