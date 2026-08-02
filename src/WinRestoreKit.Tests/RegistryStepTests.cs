@@ -22,7 +22,7 @@ namespace WinRestoreKit.Tests
         }
 
         private const string PresentKey = @"HKEY_CURRENT_USER\Control Panel\Mouse";
-        private const string AbsentKey = @"HKEY_CURRENT_USER\Software\Appcopier\NoSuchKeyAtAll";
+        private const string AbsentKey = @"HKEY_CURRENT_USER\Software\WinRestoreKit\NoSuchKeyAtAll";
 
         // Backing up twice in one app session writes into the same folder, so the second run can
         // find the first run's export still sitting at the target path. If the key has since been
@@ -442,7 +442,7 @@ namespace WinRestoreKit.Tests
         public void Import_ProbeIndeterminate_StaysSucceededAndClaimsNoConfirmation()
         {
             StepResult s = Utils.ImportRegistryKey(Valid("unknown-probe.reg"),
-                "HKEY_LOCAL_MACHINE\\Software\\Appcopier", new FakeTool(ProcessOutcome.Ran(0)),
+                "HKEY_LOCAL_MACHINE\\Software\\WinRestoreKit", new FakeTool(ProcessOutcome.Ran(0)),
                 Answers(KeyProbe.Indeterminate));
 
             Assert.Equal(ResultState.Succeeded, s.State);

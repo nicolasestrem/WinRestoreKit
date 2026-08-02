@@ -263,7 +263,7 @@ namespace WinRestoreKit.Tests
         public void MultiKeyModules_ReadTheirKeysAtAccessTimeNotAtConstruction()
         {
             WUpdates m = new WUpdates();
-            m.Keys.Add(@"HKEY_CURRENT_USER\Software\Appcopier\AddedAfterConstruction");
+            m.Keys.Add(@"HKEY_CURRENT_USER\Software\WinRestoreKit\AddedAfterConstruction");
 
             Assert.Equal(m.Keys, m.RestoreTargets.Select(t => t.Path).ToArray());
         }

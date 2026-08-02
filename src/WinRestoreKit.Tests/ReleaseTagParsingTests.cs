@@ -62,8 +62,8 @@ namespace WinRestoreKit.Tests
         public void RealisticReleaseBody_YieldsTheTag()
         {
             const string body = @"{
-              ""url"": ""https://api.github.com/repos/builtbybel/Appcopier/releases/1"",
-              ""html_url"": ""https://github.com/builtbybel/Appcopier/releases/tag/0.31.0"",
+              ""url"": ""https://api.github.com/repos/nicolasestrem/WinRestoreKit/releases/1"",
+              ""html_url"": ""https://github.com/nicolasestrem/WinRestoreKit/releases/tag/0.31.0"",
               ""id"": 1,
               ""tag_name"": ""0.31.0"",
               ""target_commitish"": ""main"",
@@ -72,7 +72,7 @@ namespace WinRestoreKit.Tests
               ""prerelease"": false,
               ""created_at"": ""2026-07-21T10:00:00Z"",
               ""published_at"": ""2026-07-21T10:05:00Z"",
-              ""assets"": [ { ""name"": ""Appcopier.exe"", ""size"": 72351744 } ],
+              ""assets"": [ { ""name"": ""WinRestoreKit.exe"", ""size"": 72351744 } ],
               ""body"": ""Phase 4.""
             }";
 

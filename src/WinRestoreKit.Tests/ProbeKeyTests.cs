@@ -18,7 +18,7 @@ namespace WinRestoreKit.Tests
         [Fact]
         public void ProbeKey_NonexistentKey_IsAbsent()
             => Assert.Equal(KeyProbe.Absent,
-                   Utils.ProbeKey(@"HKEY_CURRENT_USER\Software\Appcopier\NoSuchKeyAtAll"));
+                   Utils.ProbeKey(@"HKEY_CURRENT_USER\Software\WinRestoreKit\NoSuchKeyAtAll"));
 
         [Theory]
         [InlineData(null)]
@@ -40,7 +40,7 @@ namespace WinRestoreKit.Tests
 
         [Fact]
         public void KeyExists_ShimAgreesWithProbeOnAbsent()
-            => Assert.False(Utils.KeyExists(@"HKEY_CURRENT_USER\Software\Appcopier\NoSuchKeyAtAll"));
+            => Assert.False(Utils.KeyExists(@"HKEY_CURRENT_USER\Software\WinRestoreKit\NoSuchKeyAtAll"));
 
         // The shim must never throw - SelectInstalled calls it for every module at tree-build time.
         [Fact]

@@ -9,8 +9,8 @@ namespace WinRestoreKit.Tests
 {
     public class RestoreLogTests
     {
-        private const string Source = @"C:\Appcopier\app\2026-07-20 - 09.15";
-        private const string SnapshotPath = @"C:\Appcopier\app\2026-07-20 - 10.02.41 (pre-restore)";
+        private const string Source = @"C:\WinRestoreKit\app\2026-07-20 - 09.15";
+        private const string SnapshotPath = @"C:\WinRestoreKit\app\2026-07-20 - 10.02.41 (pre-restore)";
 
         private static List<BackupBase> Modules() => new List<BackupBase> { new DMouse(), new DTouchpad() };
 

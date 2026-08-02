@@ -432,7 +432,7 @@ namespace WinRestoreKit.Tests
             }
         }
 
-        // A stray "<name>.appcopier-tmp" in the backup folder must not read as a captured artifact -
+        // A stray "<name>.WinRestoreKit-tmp" in the backup folder must not read as a captured artifact -
         // which would earn a process kill and then restore nothing.
         //
         // Written when Utils.CopyFile staged through exactly such a sibling and renamed it into
@@ -452,7 +452,7 @@ namespace WinRestoreKit.Tests
                 ClosingFileModule m = new ClosingFileModule(Path.Combine(source, "config"));
 
                 Directory.CreateDirectory(Path.Combine(root, m.Title));
-                File.WriteAllText(Path.Combine(root, m.Title, "config.appcopier-tmp"), "half a file");
+                File.WriteAllText(Path.Combine(root, m.Title, "config.WinRestoreKit-tmp"), "half a file");
 
                 Assert.False(m.HasBackupIn(root));
             }
@@ -477,7 +477,7 @@ namespace WinRestoreKit.Tests
                 PlainFileModule m = new PlainFileModule(target);
 
                 Directory.CreateDirectory(Path.Combine(backup, m.Title));
-                File.WriteAllText(Path.Combine(backup, m.Title, "config.appcopier-tmp"), "half a file");
+                File.WriteAllText(Path.Combine(backup, m.Title, "config.WinRestoreKit-tmp"), "half a file");
 
                 ModuleResult r = await m.RestoreAsync(backup);
 

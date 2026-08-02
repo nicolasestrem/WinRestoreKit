@@ -496,7 +496,7 @@ namespace WinRestoreKit.Tests
         [Fact]
         public void ARealExportContainingARawNewline_IsFiltered()
         {
-            const string KeyPath = @"Software\AppcopierFilterProbe";
+            const string KeyPath = @"Software\WinRestoreKitFilterProbe";
 
             string dir = NewTempDir();
             string reg = Path.Combine(dir, "probe.reg");

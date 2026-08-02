@@ -17,7 +17,7 @@ namespace WinRestoreKit.Tests
     /// that: ComposeVersion is a pure function that can only ever see the strings a caller hands it,
     /// so reintroducing the null deref in the reader leaves every one of them green. The tests that
     /// actually fail on the reintroduced bug are the ones that drive OsHelper.GetVersion(openKey)
-    /// against a real key created under HKCU\Software\Appcopier\Tests - in particular
+    /// against a real key created under HKCU\Software\WinRestoreKit\Tests - in particular
     /// GetVersion_KeyHasBuildButNoUbr_ReturnsTheBuildAlone, which is the exact shape of the bug.
     ///
     /// Everything here runs unelevated, opens no dialog and starts no message loop. HKCU is
@@ -29,12 +29,12 @@ namespace WinRestoreKit.Tests
         // -------------------------------------------------------------------------------------
         // The reading path, against a real registry key this test owns. THE regression coverage.
         //
-        // Each test creates a throwaway key under HKCU\Software\Appcopier\Tests\<guid>, shapes it,
+        // Each test creates a throwaway key under HKCU\Software\WinRestoreKit\Tests\<guid>, shapes it,
         // points OsHelper at it through the key-opener seam, and deletes it in a finally. A guid
         // per test keeps concurrent xunit collections from colliding.
         // -------------------------------------------------------------------------------------
 
-        private const string TestRoot = @"Software\Appcopier\Tests";
+        private const string TestRoot = @"Software\WinRestoreKit\Tests";
 
         /// <summary>
         /// Runs <paramref name="body"/> against a freshly created, empty HKCU key, then deletes it.

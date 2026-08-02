@@ -22,7 +22,7 @@ namespace WinRestoreKit
     /// timeout, malformed JSON, or an empty tag. The fallback is the exact pre-Phase-4 behaviour, so
     /// a rate-limited client is no worse off than before rather than being told "no update".
     ///
-    /// All five message texts are unchanged, and both sides of the comparison still go through
+    /// The five message texts name WinRestoreKit clearly, and both sides of the comparison still go through
     /// Program.NormalizeVersion - normalizing only one side makes an up-to-date client report a
     /// phantom update on every check.
     /// </remarks>
@@ -39,7 +39,7 @@ namespace WinRestoreKit
         private static HttpClient CreateClient()
         {
             HttpClient client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("Appcopier");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(Data.UserAgent);
             return client;
         }
 
@@ -62,8 +62,8 @@ namespace WinRestoreKit
                         // behavior, which compared "" against the current version, found them
                         // unequal, and offered a download for a nonexistent release.
                         MessageBox.Show(
-                            "Could not read the latest version number from the update file.",
-                            "Update", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            "Could not read the latest WinRestoreKit version number from the update file.",
+                            "WinRestoreKit Update", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         return;
                     }
 
@@ -76,22 +76,22 @@ namespace WinRestoreKit
 
                     if (latestVersion == currentVersion)                          // Up-to-date
                     {
-                        MessageBox.Show($"No new updates available.", "Update", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        MessageBox.Show("No new WinRestoreKit updates are available.", "WinRestoreKit Update", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                     else                                                          // Update available
                     {
-                        if (MessageBox.Show($"App version {latestVersion} available.\nDo you want to open the Download page?", "App update available", MessageBoxButtons.YesNo, MessageBoxIcon.Information, MessageBoxDefaultButton.Button1) == DialogResult.Yes)
+                        if (MessageBox.Show($"WinRestoreKit version {latestVersion} is available.\nDo you want to open the download page?", "WinRestoreKit Update Available", MessageBoxButtons.YesNo, MessageBoxIcon.Information, MessageBoxDefaultButton.Button1) == DialogResult.Yes)
                             Utils.OpenUrl(Data.Uri.URL_GITLATEST);
                     }
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Checking for App updates failed.\n{ex.Message}");
+                    MessageBox.Show($"Checking for WinRestoreKit updates failed.\n{ex.Message}");
                 }
             }
             else
             {
-                MessageBox.Show($"Problem on Internet connection: Checking for App updates failed");
+                MessageBox.Show("Problem with the internet connection: checking for WinRestoreKit updates failed.");
             }
         }
 

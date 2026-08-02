@@ -3,7 +3,7 @@ using Xunit;
 namespace WinRestoreKit.Tests
 {
     /// <summary>
-    /// Covers the guard on Utils.OpenUrl. Appcopier's manifest requests highestAvailable, so it
+    /// Covers the guard on Utils.OpenUrl. WinRestoreKit's manifest requests highestAvailable, so it
     /// normally runs elevated - and OpenUrl hands its argument to the Windows shell. A string that
     /// is not a web URL is therefore not a harmless bad argument; it is a file or program that gets
     /// launched, at whatever privilege level the app is running with.
@@ -15,10 +15,10 @@ namespace WinRestoreKit.Tests
     public class UrlLaunchTests
     {
         [Theory]
-        [InlineData("https://github.com/builtbybel/Appcopier")]
+        [InlineData("https://github.com/nicolasestrem/WinRestoreKit")]
         [InlineData("http://example.com")]
         [InlineData("https://www.flaticon.com/free-icon/backup_10426480")]
-        [InlineData("https://github.com/builtbybel/Appcopier/releases/latest")]
+        [InlineData("https://github.com/nicolasestrem/WinRestoreKit/releases/latest")]
         public void IsWebUrl_HttpAndHttps_Accepted(string url)
         {
             Assert.True(Utils.IsWebUrl(url));
@@ -32,7 +32,8 @@ namespace WinRestoreKit.Tests
             Assert.True(Utils.IsWebUrl(global::DataHelper.Data.Uri.URL_GITREPO));
             Assert.True(Utils.IsWebUrl(global::DataHelper.Data.Uri.URL_GITLATEST));
             Assert.True(Utils.IsWebUrl(global::DataHelper.Data.Uri.URL_ICONATTRIBUTION));
-            Assert.True(Utils.IsWebUrl(global::DataHelper.Data.Uri.URL_BUILTBYBEL));
+            Assert.True(Utils.IsWebUrl(global::DataHelper.Data.Uri.URL_MAINTAINER));
+            Assert.True(Utils.IsWebUrl(global::DataHelper.Data.Uri.URL_ORIGINAL_PROJECT));
             Assert.True(Utils.IsWebUrl(global::DataHelper.Data.Uri.URL_ASSEMBLY));
         }
 

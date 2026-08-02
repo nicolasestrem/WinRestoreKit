@@ -62,6 +62,9 @@ namespace Views
             => Utils.OpenUrl(DataHelper.Data.Uri.URL_ICONATTRIBUTION);
 
         private void linkURLDev_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
-            => Utils.OpenUrl(DataHelper.Data.Uri.URL_BUILTBYBEL);
+            => Utils.OpenUrl(DataHelper.Data.Uri.URL_MAINTAINER);
+
+        private void linkURLOriginal_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+            => Utils.OpenUrl(DataHelper.Data.Uri.URL_ORIGINAL_PROJECT);
     }
 }

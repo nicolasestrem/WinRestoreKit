@@ -43,6 +43,7 @@
             this.label2 = new System.Windows.Forms.Label();
             this.linkURLDev = new System.Windows.Forms.LinkLabel();
             this.linkURLIcon = new System.Windows.Forms.LinkLabel();
+            this.linkURLOriginal = new System.Windows.Forms.LinkLabel();
             this.root.SuspendLayout();
             this.headerRow.SuspendLayout();
             this.linksRow.SuspendLayout();
@@ -148,7 +149,7 @@
             this.label2.Margin = new System.Windows.Forms.Padding(0, 0, 0, WinRestoreKit.Ui.SpaceM);
             this.label2.Name = "label2";
             this.label2.TabIndex = 238;
-            this.label2.Text = "Back up key things on your Windows PC, perform a reset or simply go back in time.";
+            this.label2.Text = "Back up, copy and restore Windows settings locally.";
             this.label2.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             //
             // linkURLDev
@@ -159,7 +160,7 @@
             this.linkURLDev.Name = "linkURLDev";
             this.linkURLDev.TabIndex = 237;
             this.linkURLDev.TabStop = true;
-            this.linkURLDev.Text = "A Belim app creation (C) 2024.";
+            this.linkURLDev.Text = "Maintained by Nicolas Estrem.";
             this.linkURLDev.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.linkURLDev_LinkClicked);
             //
             // linkURLIcon
@@ -171,8 +172,20 @@
             this.linkURLIcon.Name = "linkURLIcon";
             this.linkURLIcon.TabIndex = 240;
             this.linkURLIcon.TabStop = true;
-            this.linkURLIcon.Text = "Appcopier Icon created by Icon Hubs - Flaticon";
+            this.linkURLIcon.Text = "WinRestoreKit Icon created by Icon Hubs - Flaticon";
             this.linkURLIcon.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.linkURLIcon_LinkClicked);
+            //
+            // linkURLOriginal
+            //
+            this.linkURLOriginal.AutoSize = true;
+            this.linkURLOriginal.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.linkURLOriginal.Font = new System.Drawing.Font("Segoe UI Variable Text Light", 9F);
+            this.linkURLOriginal.LinkColor = WinRestoreKit.Ui.Muted;
+            this.linkURLOriginal.Name = "linkURLOriginal";
+            this.linkURLOriginal.TabIndex = 241;
+            this.linkURLOriginal.TabStop = true;
+            this.linkURLOriginal.Text = "Originally forked from Appcopier by Builtbybel";
+            this.linkURLOriginal.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.linkURLOriginal_LinkClicked);
             //
             // root
             //
@@ -183,15 +196,17 @@
             this.root.Controls.Add(this.label2, 0, 2);
             this.root.Controls.Add(this.linkURLDev, 0, 3);
             this.root.Controls.Add(this.linkURLIcon, 0, 4);
+            this.root.Controls.Add(this.linkURLOriginal, 0, 5);
             this.root.Dock = System.Windows.Forms.DockStyle.Fill;
             this.root.Name = "root";
             this.root.Padding = new System.Windows.Forms.Padding(WinRestoreKit.Ui.SpaceL);
-            this.root.RowCount = 5;
+            this.root.RowCount = 6;
             this.root.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             this.root.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             this.root.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             // The credits sit at the bottom; the slack above them absorbs the window height.
             this.root.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            this.root.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             this.root.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             //
             // AboutPageView
@@ -224,5 +239,6 @@
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.LinkLabel linkURLIcon;
+        private System.Windows.Forms.LinkLabel linkURLOriginal;
     }
 }

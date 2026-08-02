@@ -11,8 +11,8 @@ namespace WinRestoreKit.Tests
     // asserted here. A sentence that only exists inside the Form is a sentence no test can read.
     public class RestorePlanTests
     {
-        private const string Source = @"C:\Appcopier\app\2026-07-19 - 11.02";
-        private const string Snapshot = @"C:\Appcopier\app\2026-07-20 - 09.31.14 (pre-restore)";
+        private const string Source = @"C:\WinRestoreKit\app\2026-07-19 - 11.02";
+        private const string Snapshot = @"C:\WinRestoreKit\app\2026-07-20 - 09.31.14 (pre-restore)";
 
         private sealed class FakeModule : BackupBase
         {

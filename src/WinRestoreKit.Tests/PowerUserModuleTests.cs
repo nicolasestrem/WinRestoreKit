@@ -132,12 +132,12 @@ namespace WinRestoreKit.Tests
         {
             WRegional m = new WRegional();
 
-            m.Keys.Add(@"HKEY_CURRENT_USER\Software\Appcopier\SyntheticRegionalKey");
+            m.Keys.Add(@"HKEY_CURRENT_USER\Software\WinRestoreKit\SyntheticRegionalKey");
 
             IReadOnlyList<RestoreTarget> targets = m.RestoreTargets;
 
             Assert.Equal(3, targets.Count);
-            Assert.Equal(@"HKEY_CURRENT_USER\Software\Appcopier\SyntheticRegionalKey", targets[2].Path);
+            Assert.Equal(@"HKEY_CURRENT_USER\Software\WinRestoreKit\SyntheticRegionalKey", targets[2].Path);
         }
 
         // Restoring writes language and layout IDENTIFIERS; it does not fetch the language packs
@@ -231,7 +231,7 @@ namespace WinRestoreKit.Tests
             Assert.NotEmpty(m.Keys);
 
             m.Folders.Clear();
-            m.Folders.Add(Path.Combine(Path.GetTempPath(), "appcopier-no-such-fonts-" + Guid.NewGuid().ToString("N")));
+            m.Folders.Add(Path.Combine(Path.GetTempPath(), "WinRestoreKit-no-such-fonts-" + Guid.NewGuid().ToString("N")));
 
             Assert.False(m.IsInstalled(),
                 "WFonts reported itself installed with no font folder present. The HKCU fonts key " +
@@ -239,7 +239,7 @@ namespace WinRestoreKit.Tests
                 "constant true and 'select installed' stops meaning anything.");
 
             // And the other direction: a real folder is what makes the answer yes.
-            string real = Path.Combine(Path.GetTempPath(), "appcopier-fonts-" + Guid.NewGuid().ToString("N"));
+            string real = Path.Combine(Path.GetTempPath(), "WinRestoreKit-fonts-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(real);
 
             try

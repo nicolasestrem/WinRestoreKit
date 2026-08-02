@@ -213,11 +213,11 @@ namespace WinRestoreKit.Tests
 
             int before = m.RestoreTargets.Count;
 
-            m.Keys.Add(@"HKEY_CURRENT_USER\Software\Appcopier\SyntheticTaskbarKey");
+            m.Keys.Add(@"HKEY_CURRENT_USER\Software\WinRestoreKit\SyntheticTaskbarKey");
 
             Assert.Equal(before + 1, m.RestoreTargets.Count);
             Assert.Contains(m.RestoreTargets,
-                t => t.Path == @"HKEY_CURRENT_USER\Software\Appcopier\SyntheticTaskbarKey");
+                t => t.Path == @"HKEY_CURRENT_USER\Software\WinRestoreKit\SyntheticTaskbarKey");
         }
 
         /// <summary>

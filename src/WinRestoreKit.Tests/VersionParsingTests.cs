@@ -300,7 +300,7 @@ namespace WinRestoreKit.Tests
 
             Assert.True(
                 informational == null,
-                "Appcopier must not declare AssemblyInformationalVersion. Found: " +
+                "WinRestoreKit must not declare AssemblyInformationalVersion. Found: " +
                 $"'{informational?.InformationalVersion}'. AssemblyInfo.cs's AssemblyFileVersion is the " +
                 "single source of truth read by both sides of the update check; see WinRestoreKit.csproj.");
         }

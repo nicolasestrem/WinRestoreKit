@@ -23,8 +23,8 @@ namespace WinRestoreKit
 
         public async Task FetchStargazersAsync()
         {
-            string repositoryOwner = "builtbybel";
-            string repositoryName = "Appcopier";
+            string repositoryOwner = "nicolasestrem";
+            string repositoryName = "WinRestoreKit";
 
             string apiUrl = $"https://api.github.com/repos/{repositoryOwner}/{repositoryName}";
 
@@ -32,8 +32,8 @@ namespace WinRestoreKit
             {
                 using (HttpClient client = new HttpClient())
                 {
-                    // Add an appropriate user agent header
-                    client.DefaultRequestHeaders.Add("User-Agent", "Appcopier");
+                    // This reports WinRestoreKit's own stars, deliberately excluding the original project's historical count.
+                    client.DefaultRequestHeaders.Add("User-Agent", DataHelper.Data.UserAgent);
 
                     // Make GET request
                     Stream responseStream = await client.GetStreamAsync(apiUrl);

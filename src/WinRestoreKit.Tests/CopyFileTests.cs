@@ -465,7 +465,7 @@ namespace WinRestoreKit.Tests
 
         // A successful copy must leave nothing behind but the destination itself.
         //
-        // Written when CopyFile staged through a `.appcopier-tmp` sibling and a leftover would have
+        // Written when CopyFile staged through a `.WinRestoreKit-tmp` sibling and a leftover would have
         // landed in the backup folder and, on the restore side, in the user's profile. That staging
         // is gone, so today this is a REGRESSION GUARD rather than a live hazard: it fails the
         // moment anyone reintroduces a scratch file next to the destination without cleaning it up.

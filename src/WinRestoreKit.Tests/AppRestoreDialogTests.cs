@@ -451,7 +451,7 @@ namespace WinRestoreKit.Tests
         // The handler checked only the installing flag, so it vetoed EVERY CloseReason. A mid-install
         // Application.Exit or a close of the owning MainForm was silently refused and the app looked
         // hung; WindowsShutDown was refused until Windows overrode it, having first shown the user a
-        // blocked-shutdown screen naming Appcopier.
+        // blocked-shutdown screen naming WinRestoreKit.
         [Fact]
         public void ShouldDeferClose_OnlyAUserClosingThisDialogIsHeldBack()
         {

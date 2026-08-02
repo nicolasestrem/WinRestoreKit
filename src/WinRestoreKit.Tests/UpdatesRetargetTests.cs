@@ -184,7 +184,7 @@ namespace WinRestoreKit.Tests
         /// <remarks>
         /// Added by the Phase 3c review, which caught the first draft closing with "restoring it onto
         /// the same PC it came from is what this item is for". That reads as reassurance for exactly
-        /// the sequence Appcopier exists to serve - back up, reinstall Windows, restore - and it is
+        /// the sequence WinRestoreKit exists to serve - back up, reinstall Windows, restore - and it is
         /// wrong for it: a reinstalled Windows issues a NEW SusClientId, so restoring the old one
         /// re-points the fresh install at an identity already registered with Windows Update. Same
         /// physical machine, same confusion the warning describes for a different PC.

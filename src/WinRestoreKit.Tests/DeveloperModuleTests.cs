@@ -55,7 +55,7 @@ namespace WinRestoreKit.Tests
 
         // --- ESsh: the private-key exclusion ---
 
-        // PRIVATE KEYS ARE DELIBERATELY EXCLUDED (user decision, 2026-07-21). Appcopier writes
+        // PRIVATE KEYS ARE DELIBERATELY EXCLUDED (user decision, 2026-07-21). WinRestoreKit writes
         // backups as ordinary unencrypted files beside the executable, which is the wrong home for
         // key material: a copy of id_rsa there is a credential in plaintext, surviving in every
         // backup folder the user forgets to delete, with the passphrase protection on the original

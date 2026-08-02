@@ -31,11 +31,11 @@ namespace WinRestoreKit.Tests
     /// </remarks>
     public class BackupFileNamingTests
     {
-        private const string SyntheticKey = @"HKEY_CURRENT_USER\Software\Appcopier\SyntheticSecondKey";
+        private const string SyntheticKey = @"HKEY_CURRENT_USER\Software\WinRestoreKit\SyntheticSecondKey";
 
         private static string NewTempDir()
         {
-            string dir = Path.Combine(Path.GetTempPath(), "appcopier-naming-" + Guid.NewGuid().ToString("N"));
+            string dir = Path.Combine(Path.GetTempPath(), "WinRestoreKit-naming-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(dir);
             return dir;
         }

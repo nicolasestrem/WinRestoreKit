@@ -69,19 +69,52 @@ namespace DataHelper
 
         internal static string NowShort = $"{DateTime.Now:yyyy-MM-dd - HH.mm}";
 
+        /// <summary>
+        /// The HTTP User-Agent every GitHub request sends. api.github.com answers 403 to a request
+        /// without one, so this is not decoration. One constant, because the update check and the
+        /// stargazer count are two separate callers and a drifting pair is invisible until one of
+        /// them starts returning 403 in the field.
+        /// </summary>
+        public const string UserAgent = "WinRestoreKit";
+
         public static class Uri
         {
-            public const string URL_BUILTBYBEL = "https://www.builtbybel.com";
-            public const string URL_ASSEMBLY = "https://raw.githubusercontent.com/builtbybel/Appcopier/main/src/Appcopier/Properties/AssemblyInfo.cs";
-            public const string URL_GITREPO = "https://github.com/builtbybel/Appcopier";
+            /// <summary>
+            /// The person who maintains WinRestoreKit now. The About page's credit link points
+            /// here; it deliberately no longer points at the original author, who does not
+            /// maintain this project and should not field its bug reports.
+            /// </summary>
+            public const string URL_MAINTAINER = "https://github.com/nicolasestrem";
+
+            /// <summary>
+            /// Appcopier by Builtbybel, the project WinRestoreKit began as a fork of.
+            /// Acknowledgement only. Nothing operational reads this: it is not the update source,
+            /// not the download page, and not where issues go.
+            /// </summary>
+            public const string URL_ORIGINAL_PROJECT = "https://github.com/builtbybel/Appcopier";
+
+            public const string URL_GITREPO = "https://github.com/nicolasestrem/WinRestoreKit";
+
+            /// <summary>
+            /// The raw AssemblyInfo.cs on main, string-parsed by <see cref="ParseLatestVersion"/>.
+            /// The path is load-bearing: if this file ever moves in the repository, every deployed
+            /// copy loses its update fallback silently, because the fetch simply 404s.
+            /// </summary>
+            public const string URL_ASSEMBLY = "https://raw.githubusercontent.com/nicolasestrem/WinRestoreKit/main/src/WinRestoreKit/Properties/AssemblyInfo.cs";
+
+            /// <summary>
+            /// Kept while the current icon is still in use: the licence it ships under requires
+            /// the attribution, and the icon did not change during the rebrand.
+            /// </summary>
             public const string URL_ICONATTRIBUTION = "https://www.flaticon.com/free-icon/backup_10426480";
+
             public const string URL_GITLATEST = URL_GITREPO + "/releases/latest";
 
             /// <summary>
             /// The GitHub Releases API for the newest published release. Primary source for the
             /// update check; URL_ASSEMBLY stays as the fallback.
             /// </summary>
-            public const string URL_GITAPI_LATEST = "https://api.github.com/repos/builtbybel/Appcopier/releases/latest";
+            public const string URL_GITAPI_LATEST = "https://api.github.com/repos/nicolasestrem/WinRestoreKit/releases/latest";
         }
 
         /// <summary>
