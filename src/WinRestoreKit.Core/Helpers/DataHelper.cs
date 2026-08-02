@@ -121,8 +121,11 @@ namespace DataHelper
         /// Extracts the AssemblyFileVersion value out of the raw text of a Properties/AssemblyInfo.cs.
         /// </summary>
         /// <remarks>
-        /// Pulled verbatim out of <see cref="WinRestoreKit.UpdateCheck.CheckForUpdates"/> so the parse can
-        /// be unit tested without network I/O or MessageBoxes. The logic is intentionally
+        /// Pulled verbatim out of the update check so the parse can be unit tested without network
+        /// I/O or MessageBoxes. Its one caller is <c>UpdateCheck.ReadLatestVersionAsync</c> in the
+        /// WinRestoreKit assembly, named here in plain text rather than as a cref: Core is the lower
+        /// layer and does not reference the application, so the symbol is not resolvable from here.
+        /// The logic is intentionally
         /// byte-for-byte identical to what the
         /// deployed v0.30.0 client does, including its quirks: only lines containing the literal
         /// "[assembly: AssemblyFileVersion" are considered (so AssemblyVersion is correctly ignored),

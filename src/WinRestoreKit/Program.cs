@@ -14,7 +14,7 @@ namespace WinRestoreKit
         /// Get app version
         /// </summary>
         /// <remarks>
-        /// Reads AssemblyFileVersion directly, which is the exact attribute DataHelper.CheckForUpdates
+        /// Reads AssemblyFileVersion directly, which is the exact attribute Data.ParseLatestVersion
         /// scrapes out of the remote Properties/AssemblyInfo.cs - so the local and remote sides of the
         /// version comparison can never disagree. Application.ProductVersion is deliberately not used
         /// as the primary source: on .NET 5+ it prefers AssemblyInformationalVersion, which the SDK may
@@ -35,7 +35,8 @@ namespace WinRestoreKit
         ///
         /// Deliberately NOT substituted with a realistic-looking placeholder like "0.0.0" on
         /// failure. Any unusable version makes the update check offer a phantom update - that much
-        /// is unavoidable here, since the comparison in CheckForUpdates is a string ==. What the
+        /// is unavoidable here, since the comparison in UpdateCheck.CheckForUpdatesAsync is a
+        /// string ==. What the
         /// choice buys is diagnosis: "unknown" in the title bar says the app cannot determine its
         /// own version, whereas "0.0.0" reads as a real installed version and sends whoever
         /// investigates the repeating update prompt looking in the wrong place entirely.

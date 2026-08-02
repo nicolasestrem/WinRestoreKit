@@ -70,7 +70,7 @@ namespace WinRestoreKit.Tests
         [Fact]
         public void ParseLatestVersion_OnRealAssemblyInfo_AgreesWithGetCurrentVersionTostring()
         {
-            // THE load-bearing invariant. CheckForUpdates compares these two values with ==; if they
+            // THE load-bearing invariant. CheckForUpdatesAsync compares these two values with ==; if they
             // can differ for an up-to-date client, the app reports a phantom update forever.
             string remoteSide = global::DataHelper.Data.ParseLatestVersion(RealAssemblyInfoText());
             string localSide = global::WinRestoreKit.Program.GetCurrentVersionTostring();
@@ -157,7 +157,7 @@ namespace WinRestoreKit.Tests
         [Fact]
         public void ParseLatestVersion_NoMatchingLine_ReturnsEmptyString()
         {
-            // Empty string - not null, and no throw. CheckForUpdates then compares "" against the
+            // Empty string - not null, and no throw. CheckForUpdatesAsync then compares "" against the
             // current version, finds them unequal, and offers a bogus update. Documented, not fixed.
             string text = "using System;\n[assembly: AssemblyVersion(\"1.2.3\")]\n";
 
@@ -174,7 +174,7 @@ namespace WinRestoreKit.Tests
         public void ParseLatestVersion_MatchingLineWithoutParentheses_Throws()
         {
             // CURRENT BEHAVIOR: IndexOf returns -1 for both parens, producing a negative Substring
-            // length. In production this is swallowed by CheckForUpdates' catch and surfaces as
+            // length. In production this is swallowed by CheckForUpdatesAsync' catch and surfaces as
             // "Checking for App updates failed."
             string text = "[assembly: AssemblyFileVersion is mentioned in a comment";
 

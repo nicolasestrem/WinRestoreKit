@@ -10,8 +10,9 @@
     <ApplicationIcon>WinRestoreKit.ico</ApplicationIcon>
     <!--
       MANDATORY. src/WinRestoreKit/Properties/AssemblyInfo.cs is downloaded as raw text from GitHub
-      by the update checker's fallback path (Helpers/DataHelper.cs URL_ASSEMBLY +
-      CheckForUpdates), which string-parses [assembly: AssemblyFileVersion("x.y.z")] out of it.
+      by the update checker's fallback path (Helpers/DataHelper.cs URL_ASSEMBLY, fetched by
+      UpdateCheck.ReadLatestVersionAsync), which string-parses
+      [assembly: AssemblyFileVersion("x.y.z")] out of it via Data.ParseLatestVersion.
       That file must stay at its exact path with its exact line format, so the SDK must not
       generate competing assembly attributes (which would also be CS0579 duplicate errors).
       Never set Version/AssemblyVersion/FileVersion/InformationalVersion here either: AssemblyInfo.cs
