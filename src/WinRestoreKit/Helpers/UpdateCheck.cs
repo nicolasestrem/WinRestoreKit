@@ -23,9 +23,15 @@ namespace WinRestoreKit
     ///
     /// The fallback is not legacy baggage inherited from Appcopier: WinRestoreKit is a new
     /// application starting at 0.0.1 and has no deployed clients of its own to keep compatible.
-    /// It earns its place twice over. The rate-limit 403 is common on shared and corporate IPs,
-    /// and until a GitHub Release is actually published the Releases API has nothing to return,
-    /// so the raw AssemblyInfo path is currently the ONLY one that can answer at all.
+    /// It is kept because the rate-limit 403 is common on shared and corporate IPs, and because
+    /// once the repository is public but before the first Release is published it is the only
+    /// source that can answer at all: the Releases API has nothing to return, while main already
+    /// carries an AssemblyFileVersion.
+    ///
+    /// Neither source can answer while nicolasestrem/WinRestoreKit is PRIVATE. Both requests are
+    /// unauthenticated (a User-Agent and nothing else), so api.github.com and
+    /// raw.githubusercontent.com both 404, and the check reports a failure to the user. The whole
+    /// update path only starts working when the repository is published.
     ///
     /// The five message texts name WinRestoreKit clearly, and both sides of the comparison still go through
     /// Program.NormalizeVersion - normalizing only one side makes an up-to-date client report a
