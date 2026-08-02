@@ -125,12 +125,14 @@ namespace DataHelper
         /// I/O or MessageBoxes. Its one caller is <c>UpdateCheck.ReadLatestVersionAsync</c> in the
         /// WinRestoreKit assembly, named here in plain text rather than as a cref: Core is the lower
         /// layer and does not reference the application, so the symbol is not resolvable from here.
-        /// The logic is intentionally
-        /// byte-for-byte identical to what the
-        /// deployed v0.30.0 client does, including its quirks: only lines containing the literal
-        /// "[assembly: AssemblyFileVersion" are considered (so AssemblyVersion is correctly ignored),
-        /// the LAST such line wins, no match yields an empty string, and malformed lines throw.
-        /// Do not "harden" this without also considering that the remote file format is the contract.
+        /// The logic is inherited unchanged from Appcopier, quirks included: only lines containing
+        /// the literal "[assembly: AssemblyFileVersion" are considered (so AssemblyVersion is
+        /// correctly ignored), the LAST such line wins, no match yields an empty string, and
+        /// malformed lines throw. WinRestoreKit starts at 0.0.1 and has no deployed clients of its
+        /// own, so the quirks are no longer a compatibility obligation. They are kept because the
+        /// behaviour is pinned by tests and the remote file format is the contract: this parser and
+        /// the AssemblyInfo.cs it reads have to agree, and changing one side alone breaks the check
+        /// silently, in the field, for everyone.
         /// </remarks>
         internal static string ParseLatestVersion(string assemblyInfoText)
         {
@@ -155,7 +157,10 @@ namespace DataHelper
         /// Malformed JSON throws (JsonReaderException) and the caller catches it to fall back to the
         /// AssemblyInfo path - a broken API response must not be reported as "no update".
         ///
-        /// This repo tags bare x.y.z ("0.12", "0.30.0"); the "v" strip is tolerance, pinned by test.
+        /// This repo tags bare x.y.z ("0.0.1" for WinRestoreKit; "0.12" and "0.30.0" inherited from
+        /// Appcopier); the "v" strip is tolerance, pinned by test. Note that a two-part tag like the
+        /// inherited "0.12" would never compare equal to a three-part version, so new tags must be
+        /// three-part. See .claude/skills/release/SKILL.md.
         /// </remarks>
         internal static string ParseLatestReleaseTag(string json)
         {

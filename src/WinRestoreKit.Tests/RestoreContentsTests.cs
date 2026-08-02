@@ -38,7 +38,7 @@ namespace WinRestoreKit.Tests
         }
 
         private static ManifestData Manifest(string machine, string user, params ManifestModule[] modules)
-            => new ManifestData(1, "0.31.0", "now", machine, user, "build", modules);
+            => new ManifestData(1, "0.0.1", "now", machine, user, "build", modules);
 
         private static ManifestModule Entry(BackupBase module, string state)
             => new ManifestModule(module.GetType().Name, module.Title, state, "");

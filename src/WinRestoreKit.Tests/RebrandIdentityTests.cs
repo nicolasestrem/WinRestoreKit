@@ -74,7 +74,7 @@ namespace WinRestoreKit.Tests
             string path = Path.Combine(AppContext.BaseDirectory, "TestData", "AssemblyInfo.cs");
 
             Assert.True(File.Exists(path), $"Expected AssemblyInfo test data at '{path}'.");
-            Assert.Equal("0.31.0", global::DataHelper.Data.ParseLatestVersion(File.ReadAllText(path)));
+            Assert.Equal("0.0.1", global::DataHelper.Data.ParseLatestVersion(File.ReadAllText(path)));
         }
     }
 }

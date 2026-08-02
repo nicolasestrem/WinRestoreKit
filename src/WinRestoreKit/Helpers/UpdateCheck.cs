@@ -19,8 +19,13 @@ namespace WinRestoreKit
     /// Phase 4 retargeted it at the GitHub Releases API and replaced WebClient with HttpClient. The
     /// Releases API is the PRIMARY source and Properties/AssemblyInfo.cs is the FALLBACK, taken on
     /// any primary failure at all - non-2xx (including the rate-limit 403 that shared IPs hit),
-    /// timeout, malformed JSON, or an empty tag. The fallback is the exact pre-Phase-4 behaviour, so
-    /// a rate-limited client is no worse off than before rather than being told "no update".
+    /// timeout, malformed JSON, or an empty tag.
+    ///
+    /// The fallback is not legacy baggage inherited from Appcopier: WinRestoreKit is a new
+    /// application starting at 0.0.1 and has no deployed clients of its own to keep compatible.
+    /// It earns its place twice over. The rate-limit 403 is common on shared and corporate IPs,
+    /// and until a GitHub Release is actually published the Releases API has nothing to return,
+    /// so the raw AssemblyInfo path is currently the ONLY one that can answer at all.
     ///
     /// The five message texts name WinRestoreKit clearly, and both sides of the comparison still go through
     /// Program.NormalizeVersion - normalizing only one side makes an up-to-date client report a
@@ -115,7 +120,8 @@ namespace WinRestoreKit
             }
             catch (Exception)
             {
-                // Any primary failure falls through to the file the deployed clients already read.
+                // Any primary failure falls through to the raw AssemblyInfo on main, which is the
+                // only source that answers before the first GitHub Release exists.
                 // Swallowed deliberately and narrowly: the fallback below reports its own failure to
                 // the caller's catch, so a total outage is still surfaced rather than hidden.
             }

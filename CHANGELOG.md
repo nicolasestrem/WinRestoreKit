@@ -1,8 +1,43 @@
 # Changelog
 
-Notable changes to Appcopier are documented in this file.
+Notable changes to WinRestoreKit are documented in this file.
+
+WinRestoreKit began as a fork of [Appcopier by Builtbybel](https://github.com/builtbybel/Appcopier)
+and is a new application, versioned from 0.0.1. Entries below 0.0.1 describe Appcopier and keep its
+version numbers, because that is what those releases were called.
 
 ## [Unreleased]
+
+## [0.0.1] - 2026-08-02
+
+First WinRestoreKit version. The application was renamed from Appcopier and moved to a standalone
+repository; the version series restarts here rather than continuing Appcopier's, because this is a
+new application rather than a new Appcopier release.
+
+### Changed - renamed to WinRestoreKit
+
+The product, the executable, the solution, the projects, the assemblies and the namespaces are now
+WinRestoreKit. The published artifact is `WinRestoreKit.exe`.
+
+Development moved to [nicolasestrem/WinRestoreKit](https://github.com/nicolasestrem/WinRestoreKit),
+a standalone repository outside the original fork network. The full commit history came with it, and
+authorship is unchanged. The update checker, the download link, the repository button and the star
+count now point at the new repository; the About screen credits Nicolas Estrem as maintainer and
+acknowledges Appcopier separately as the original project.
+
+The MIT licence is unchanged and the original 2023 Builtbybel copyright is retained, with the 2026
+Nicolas Estrem copyright added alongside it. See `NOTICE.md`.
+
+**Existing backups keep working.** The backup format did not change. The `app\` directory,
+`backup_manifest.json` and every key in it, `manifest_version`, module identifiers, snapshot folder
+naming and `.reg` file naming are all untouched, so an existing Appcopier backup collection is read
+by WinRestoreKit as-is. Place `WinRestoreKit.exe` beside an existing `app\` directory, or copy that
+directory beside the executable. Copy it rather than experimenting on your only backup.
+
+Backup and restore logs written from now on carry a `WinRestoreKit` header line instead of an
+`Appcopier` one. The header is only ever written and displayed, never parsed, so older logs are read
+exactly as before and no backup is invalidated by the difference.
+
 
 ### Fixed — dark mode was largely unreadable
 

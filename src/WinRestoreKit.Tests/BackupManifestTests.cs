@@ -19,7 +19,7 @@ namespace WinRestoreKit.Tests
         private static readonly DateTime When = new DateTime(2026, 8, 1, 14, 22, 3, DateTimeKind.Utc);
 
         private static string Compose(IReadOnlyList<BackupBase> modules, IReadOnlyList<ModuleResult> results)
-            => BackupManifest.Compose(modules, results, When, "DESKTOP-NB01", "nicol", "Build 26100.4652", "0.31.0");
+            => BackupManifest.Compose(modules, results, When, "DESKTOP-NB01", "nicol", "Build 26100.4652", "0.0.1");
 
         // -------------------------------------------------------------------------------------
         // Compose
@@ -51,7 +51,7 @@ namespace WinRestoreKit.Tests
             JObject root = JObject.Parse(Compose(Modules(), new List<ModuleResult> { Ok(), Skip() }));
 
             Assert.Equal(JTokenType.Integer, root["manifest_version"].Type);
-            Assert.Equal("0.31.0", root["app_version"].Value<string>());
+            Assert.Equal("0.0.1", root["app_version"].Value<string>());
         }
 
         [Fact]
@@ -151,7 +151,7 @@ namespace WinRestoreKit.Tests
 
             Assert.NotNull(data);
             Assert.Equal(1, data.ManifestVersion);
-            Assert.Equal("0.31.0", data.AppVersion);
+            Assert.Equal("0.0.1", data.AppVersion);
             Assert.Equal("DESKTOP-NB01", data.MachineName);
             Assert.Equal("nicol", data.UserName);
             Assert.Equal("Build 26100.4652", data.OsBuild);
@@ -333,7 +333,7 @@ namespace WinRestoreKit.Tests
             string json = BackupManifest.Compose(
                 new List<BackupBase> { new DMouse(), new DTouchpad(), new DKeyboard() },
                 new List<ModuleResult> { Ok(), Skip() },   // third module has no result -> unknown
-                When, "m", "u", "b", "0.31.0");
+                When, "m", "u", "b", "0.0.1");
 
             ManifestData data = BackupManifest.TryParse(json);
 

@@ -21,28 +21,28 @@ namespace WinRestoreKit.Tests
         [Fact]
         public void BareTag_IsReturnedAsIs()
         {
-            Assert.Equal("0.31.0", Data.ParseLatestReleaseTag("{\"tag_name\":\"0.31.0\"}"));
+            Assert.Equal("0.0.1", Data.ParseLatestReleaseTag("{\"tag_name\":\"0.0.1\"}"));
         }
 
         // This repo tags bare x.y.z; the v-strip is tolerance for a future tagging habit.
         [Theory]
-        [InlineData("v0.31.0")]
-        [InlineData("V0.31.0")]
+        [InlineData("v0.0.1")]
+        [InlineData("V0.0.1")]
         public void LeadingV_IsStripped(string tag)
         {
-            Assert.Equal("0.31.0", Data.ParseLatestReleaseTag("{\"tag_name\":\"" + tag + "\"}"));
+            Assert.Equal("0.0.1", Data.ParseLatestReleaseTag("{\"tag_name\":\"" + tag + "\"}"));
         }
 
         [Fact]
         public void OnlyOneLeadingV_IsStripped()
         {
-            Assert.Equal("v0.31.0", Data.ParseLatestReleaseTag("{\"tag_name\":\"vv0.31.0\"}"));
+            Assert.Equal("v0.0.1", Data.ParseLatestReleaseTag("{\"tag_name\":\"vv0.0.1\"}"));
         }
 
         [Fact]
         public void MissingTagName_YieldsEmpty()
         {
-            Assert.Equal("", Data.ParseLatestReleaseTag("{\"name\":\"Release 0.31.0\"}"));
+            Assert.Equal("", Data.ParseLatestReleaseTag("{\"name\":\"Release 0.0.1\"}"));
         }
 
         [Fact]
@@ -63,11 +63,11 @@ namespace WinRestoreKit.Tests
         {
             const string body = @"{
               ""url"": ""https://api.github.com/repos/nicolasestrem/WinRestoreKit/releases/1"",
-              ""html_url"": ""https://github.com/nicolasestrem/WinRestoreKit/releases/tag/0.31.0"",
+              ""html_url"": ""https://github.com/nicolasestrem/WinRestoreKit/releases/tag/0.0.1"",
               ""id"": 1,
-              ""tag_name"": ""0.31.0"",
+              ""tag_name"": ""0.0.1"",
               ""target_commitish"": ""main"",
-              ""name"": ""Release 0.31.0"",
+              ""name"": ""Release 0.0.1"",
               ""draft"": false,
               ""prerelease"": false,
               ""created_at"": ""2026-07-21T10:00:00Z"",
@@ -76,7 +76,7 @@ namespace WinRestoreKit.Tests
               ""body"": ""Phase 4.""
             }";
 
-            Assert.Equal("0.31.0", Data.ParseLatestReleaseTag(body));
+            Assert.Equal("0.0.1", Data.ParseLatestReleaseTag(body));
         }
 
         // Malformed JSON throws rather than returning empty: the caller catches it and falls back to

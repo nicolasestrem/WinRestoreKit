@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Release
 
-Arguments: the new version, e.g. `/release 0.31.0`. If omitted, ask for it.
+Arguments: the new version, e.g. `/release 0.0.2`. If omitted, ask for it.
 
 ## Why this flow is delicate
 
@@ -42,8 +42,8 @@ difference real". On that, the two sources are NOT equally safe:
 - **Primary versus local can be meaningless, and nothing in the build stops it.** The tag
   is a separate hand-entered value: `ParseLatestReleaseTag` returns `tag_name` with a
   leading `v` or `V` stripped, and that is all. It never reads `AssemblyFileVersion`. So a
-  difference here may be a real new version, or may just be a mistyped tag. Tag `0.31.1`
-  over an artifact whose `AssemblyFileVersion` is `0.31.0` offers every user of that
+  difference here may be a real new version, or may just be a mistyped tag. Tag `0.0.2`
+  over an artifact whose `AssemblyFileVersion` is `0.0.1` offers every user of that
   release a permanent phantom update, because they will never reach the advertised
   version; a tag behind the file tells users on the old build that they are current.
 
@@ -51,14 +51,14 @@ So the release requirement is explicit: **for one release, the artifact's own
 `AssemblyFileVersion`, the release tag, and the `AssemblyInfo.cs` on `main` must all
 normalize to the same string.** Consequences:
 
-- `AssemblyVersion` and `AssemblyFileVersion` must stay **three-part** (`"0.31.0"`, never `"0.31.0.0"`) or every deployed copy will see a phantom "update available" forever.
+- `AssemblyVersion` and `AssemblyFileVersion` must stay **three-part** (`"0.0.1"`, never `"0.0.1.0"`) or every deployed copy will see a phantom "update available" forever.
 - The tag must be three-part too. `NormalizeVersion` returns the raw input unchanged when fewer than three components parse, so a tag of `0.12` stays `"0.12"` and never equals `"0.12.0"`. A bare `v` prefix is tolerated and pinned by test; nothing else is.
 - The line format `[assembly: AssemblyFileVersion("x.y.z")]` must not change (the parser does raw `IndexOf('(')` / `LastIndexOf(')')` substring math).
 - The update check reads from **main** - the version bump only becomes "live" to users when it lands on main, so the bump must merge together with (not before) the release being available under GitHub releases.
 
 ## Steps
 
-1. **Preflight**: working tree clean, on up-to-date `main`. Create a release branch (e.g. `release/0.31.0`) - never commit to main directly.
+1. **Preflight**: working tree clean, on up-to-date `main`. Create a release branch (e.g. `release/0.0.2`) - never commit to main directly.
 2. **Bump version** in `src/WinRestoreKit/Properties/AssemblyInfo.cs`: update both `AssemblyVersion` and `AssemblyFileVersion` to the same three-part value.
 3. **Update CHANGELOG.md**: move Unreleased entries under the new version heading with today's date.
 4. **Build and publish Release**, pasting the verbatim output of both:
