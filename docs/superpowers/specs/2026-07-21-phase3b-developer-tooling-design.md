@@ -5,6 +5,10 @@ Design record for the second sub-phase of Phase 3. Written 2026-07-21, alongside
 pass over the 3a bases; the two open scope questions it raised were decided by the user and are
 recorded below rather than left implicit in the code.
 
+> This document predates the rename of Appcopier to WinRestoreKit and is kept as a
+> historical record. Product names, namespaces and paths below refer to the project as
+> it was at the time of writing.
+
 ## Goal
 
 Add the developer-facing state a power user would actually miss, on top of the module bases 3a

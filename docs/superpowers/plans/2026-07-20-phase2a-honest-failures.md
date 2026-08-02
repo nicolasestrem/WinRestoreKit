@@ -2,6 +2,10 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> This document predates the rename of Appcopier to WinRestoreKit and is kept as a
+> historical record. Product names, namespaces and paths below refer to the project as
+> it was at the time of writing.
+
 **Goal:** Make Appcopier capable of reporting that a backup or restore failed, by threading a `ModuleResult` (`Succeeded` / `Skipped` / `Failed` + reason) through `BackupBase` → 23 `Conf/` modules → `Utils` → the views.
 
 **Architecture:** Two immutable value types (`StepResult` for one sub-operation, `ModuleResult` for one module's verdict) folded by a single `ModuleResult.Aggregate` entry point. `Utils` primitives stop swallowing exceptions and start returning `StepResult`. `ConfPageView` aggregates module results into a four-state run summary that replaces the unconditional "Back up done." Registry and process launches sit behind narrow interfaces so module logic is testable without elevation.

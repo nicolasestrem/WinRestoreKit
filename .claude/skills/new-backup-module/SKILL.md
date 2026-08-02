@@ -27,7 +27,7 @@ Read `CLAUDE.md`'s "Reporting outcomes" and "Restore safety" sections before wri
 
 ## Step 1a - Single registry key? Inherit `RegistryModule`
 
-The most common case (9 of the 19 shipped modules). It supplies `Backup`, `Restore`, `IsInstalled` and the restore declaration from your data. Its files are named `{Title}.reg` - a compatibility promise with existing backups.
+The most common case (9 of the 29 shipped modules). It supplies `Backup`, `Restore`, `IsInstalled` and the restore declaration from your data. Its files are named `{Title}.reg` - a compatibility promise with existing backups.
 
 ```csharp
 using WinRestoreKit;
@@ -164,7 +164,7 @@ Leave `RestoreMakesChanges` alone unless the module's restore genuinely writes n
 Conventions the bases imply:
 - `Restore` must consume exactly what `Backup` produced - same filename, same key.
 - Keyless artifacts (a `.json`, a `.pow`) are named by a `const` on the class that writes them (`AppStoreApps.ExportFileName` is the pattern); `.reg` names come from `RegFileNameFor`.
-- **Never show a dialog from module code on the restore path.** Modules run on thread-pool threads. Restore consent is gathered by `ConfPageView` before dispatch. There is no backup-time prompt mechanism anymore either (`AllowPrompts` was removed in 3a); if a module ever truly needs one, it takes the permission as a call parameter, never as instance state.
+- **Never show a dialog from module code on the restore path.** Modules run on thread-pool threads. Restore consent is gathered by `BackupRestoreOrchestrator` before dispatch. There is no backup-time prompt mechanism anymore either (`AllowPrompts` was removed in 3a); if a module ever truly needs one, it takes the permission as a call parameter, never as instance state.
 
 The file goes in **`src/WinRestoreKit.Core/Conf/`** - the engine library, not the app project. Since Phase 4 PR 2 the module tests enumerate `typeof(BackupBase).Assembly`, which resolves to `WinRestoreKit.Core.dll`; a module created in the app project is invisible to every one of those sweeps, and `RestoreDeclarationTests.NoModuleIsLeftBehindInTheAppAssembly` is what will tell you so.
 
@@ -180,7 +180,7 @@ In `src/WinRestoreKit.Core/Conf/ModuleCatalog.cs`, method `CreateAll()`, add a `
 new ModuleRegistration(new WExample(), "Settings"),
 ```
 
-The category string must exactly match the tree node name from the table above (a typo silently creates a new top-level category; a genuinely new category is created by spelling it consistently on every module that belongs to it). `ConfPageView.InitializeConfigurations` now just loops over `ModuleCatalog.CreateAll()`, so this single edit is what puts the module in the tree.
+The category string must exactly match the tree node name from the table above (a typo silently creates a new top-level category; a genuinely new category is created by spelling it consistently on every module that belongs to it). `BackupPageView.InitializeConfigurations` loops over `ModuleCatalog.CreateAll()`, so this single edit is what puts the module in the tree.
 
 **Must this module join a preset?** `src/WinRestoreKit/Views/BackupPresets.cs` holds two curated name lists: `DeveloperMachine` and `MinimalPrivacySafeExclusions`. A developer tooling module usually belongs in `DeveloperMachine`; a module that carries identifying data (Windows Update client identity, env vars, Wi-Fi keys) belongs in `MinimalPrivacySafeExclusions` so "Minimal privacy-safe" leaves it out. Add the module's CLR type name to the matching list (and to `BackupPresetsTests`'s pinned literal) if so.
 

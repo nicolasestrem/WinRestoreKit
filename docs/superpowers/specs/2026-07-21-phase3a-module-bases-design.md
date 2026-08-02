@@ -5,6 +5,10 @@ implementation on `feat/phase3a-module-bases`. The plan behind it was produced b
 pass whose adversarial critique confirmed twelve defects in the first draft; the corrections are folded
 in below and marked where they changed the shape of the work.
 
+> This document predates the rename of Appcopier to WinRestoreKit and is kept as a
+> historical record. Product names, namespaces and paths below refer to the project as
+> it was at the time of writing.
+
 ## Goal
 
 The roadmap's "refactor first" gate: extract the shared module shapes before Phase 3b/3c add ~9 new

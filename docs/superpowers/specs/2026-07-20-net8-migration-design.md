@@ -4,6 +4,10 @@ Date: 2026-07-20
 Status: implemented
 Scope: `src/Appcopier` — framework migration only
 
+> This document predates the rename of Appcopier to WinRestoreKit and is kept as a
+> historical record. Product names, namespaces and paths below refer to the project as
+> it was at the time of writing.
+
 ## Context
 
 Appcopier is a WinForms utility that backs up and restores Windows 11 settings by exporting registry keys

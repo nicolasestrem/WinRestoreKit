@@ -1,27 +1,59 @@
-# Appcopier
-### Back up key things on your Windows PC, perform a reset or simply go back in time.
+# WinRestoreKit
 
-https://github.com/builtbybel/Appcopier/assets/57478606/7a713db3-31b4-426b-94a7-54aaac11bfe7
+Back up, copy and restore Windows settings locally.
 
-This small project is still in the making. It allows you to back up and restore your most important Windows 11 preferences and settings offline and locally. The app [mimics the new backup app of Windows 11](https://support.microsoft.com/en-us/windows/back-up-your-windows-pc-87a81f8a-78fa-456e-b521-ac0560e32338) -  which is part of the Windows 11 2023 Update (23H2) - but without the obligation of the cloud. I will certainly expand and enhance it over time.  I, for example, don't understand why one cannot uninstall the new (old) Windows backup app and why it is supposed to be a 'system component'.There is any way to opt out, not even via Group Policy configurable. Even on Enterprise devices but its an consumer targeted app!?  In my eyes, the entire Windows Backup app is essentially a facade, primarily designed to promote the use of OneDrive.  Although the Windows Backup app appears to be merely a front-end for the already 77 existing sync experiences around the OneDrive app. Maybe we can achieve better results with Appcopier.
+## What it does
 
-How does Appcopier works? Quite simple! Only registry entries and/or associated folders and files of the respective area are exported. This process is very quick and lightweight, akin to the weight of a fly. So don't be surprised if the first backups fly through in the nanosecond range. For the future, I could envision an addition of a more dynamic option in the form of scripts/plugins, where even more complex things could be backed up.
+WinRestoreKit exports registry keys as `.reg` files and copies folders and files into a timestamped backup folder. Backups stay offline and local, with no cloud account required.
 
-The project might remind some of you of one of my first public projects - CloneApp. It's been a long time. I wrote CloneApp back in the day with Classic Visual Basic 6 and Delphi, and eventually, I abandoned its maintenance. 
+## Key features
 
-I've written and tested **Appcopier on Windows 11**, but it should also run on Windows 10 (no guarantee from me, though). Give it a try! This is the first release, and there's more to come.
+- Back up and restore selected modules for Windows settings, apps, devices, Wi-Fi credentials, and developer tooling.
+- Review a restore wizard that states what will be overwritten and what it cannot undo before consenting.
+- Create an automatic pre-restore snapshot of the settings about to be overwritten.
+- Browse backups and undo points in a History timeline.
+- Store a machine-readable `backup_manifest.json` beside each backup log for backup metadata and status.
 
 ## Requirements
 
-- Windows 11, 64-bit (Windows 10 should work, untested)
-- Run as administrator. Backing up and restoring registry areas shells out to `regedit.exe`, which needs elevation.
+- Windows 11, 64-bit. Windows 10 should work, but is untested.
+- Run as administrator. Registry export and import shell out to `regedit.exe`, which requires elevation.
 
-No .NET install is required — the runtime is bundled into the executable. Appcopier moved from .NET Framework 4.8 to .NET 8 after v0.30.0, and rather than ask you to install a runtime, releases ship self-contained. That is why the download grew from about 1 MB to about 69 MB; it is still a single `.exe` you can just run.
+No .NET installation is required. The runtime is bundled, which is why the download is around 69 MB rather than about 1 MB. It is still a single `WinRestoreKit.exe` file.
 
+## Download
 
+Download [WinRestoreKit.exe](https://github.com/nicolasestrem/WinRestoreKit/releases/latest) from the latest release.
 
+## Using existing Appcopier backups
 
+WinRestoreKit uses the same backup format, and existing Appcopier backups remain compatible. To reuse an existing backup collection, either place `WinRestoreKit.exe` beside the existing `app\` directory, or copy the existing `app\` directory beside `WinRestoreKit.exe`.
 
+Copy the backup collection before trying this. Do not experiment on the only copy of a backup folder. Older backups can still show an `Appcopier` header line inside `backup_log.txt`; this is expected and harmless.
 
+## Building from source
 
+Build and test the solution:
 
+```powershell
+dotnet build src\WinRestoreKit.sln
+dotnet test src\WinRestoreKit.sln
+```
+
+Publish the self-contained single-file release artifact. This block uses `cmd` line
+continuations (`^`), matching `.claude/skills/release/SKILL.md` verbatim so the two cannot
+drift; in PowerShell, put it on one line instead.
+
+```bat
+dotnet publish src\WinRestoreKit\WinRestoreKit.csproj -c Release -r win-x64 --self-contained true ^
+     -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true ^
+     -p:EnableCompressionInSingleFile=true -p:DebugType=none -o publish
+```
+
+## Project history and attribution
+
+WinRestoreKit began as a fork of [Appcopier by Builtbybel](https://github.com/builtbybel/Appcopier). It has since been substantially rebuilt with a new engine, restore-safety model, test suite and interface. The original project and its copyright remain acknowledged under the MIT licence.
+
+## Licence
+
+WinRestoreKit is available under the MIT licence, retaining the original copyright alongside the new one. See [LICENSE](LICENSE) and [NOTICE.md](NOTICE.md).

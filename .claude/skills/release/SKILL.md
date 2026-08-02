@@ -11,12 +11,9 @@ Arguments: the new version, e.g. `/release 0.31.0`. If omitted, ask for it.
 ## Why this flow is delicate
 
 Every installed copy of WinRestoreKit checks for updates by downloading
-`https://raw.githubusercontent.com/builtbybel/Appcopier/main/src/Appcopier/Properties/AssemblyInfo.cs`
+`https://raw.githubusercontent.com/nicolasestrem/WinRestoreKit/main/src/WinRestoreKit/Properties/AssemblyInfo.cs`
 and string-parsing the `AssemblyFileVersion` line (`DataHelper.Data.CheckForUpdates`). It compares the parsed value against the running app's own `AssemblyFileVersion`, read by reflection and formatted as **three parts** (`Version.ToString(3)` in `Program.GetCurrentVersionTostring`). Both sides therefore resolve to the same attribute and cannot drift. Consequences:
 
-> NOTE: that raw URL still points at `builtbybel/Appcopier`. Phase 5 of the WinRestoreKit rebrand
-> retargets it to `nicolasestrem/WinRestoreKit`; it is left unchanged here deliberately, so this
-> skill keeps describing the endpoint the shipped code actually calls.
 
 - `AssemblyVersion` and `AssemblyFileVersion` must stay **three-part** (`"0.31.0"`, never `"0.31.0.0"`) or every deployed copy will see a phantom "update available" forever.
 - The line format `[assembly: AssemblyFileVersion("x.y.z")]` must not change (the parser does raw `IndexOf('(')` / `LastIndexOf(')')` substring math).

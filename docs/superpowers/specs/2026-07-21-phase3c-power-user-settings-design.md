@@ -4,6 +4,10 @@ Branch `feat/phase3c-power-user-settings`, 2026-07-21. Planned with a multi-agen
 implemented by four parallel agents under strict file ownership, with the shared registration and test
 rosters kept by the lead so no two agents could disagree about a count.
 
+> This document predates the rename of Appcopier to WinRestoreKit and is kept as a
+> historical record. Product names, namespaces and paths below refer to the project as
+> it was at the time of writing.
+
 Scope came from `docs/ROADMAP.md` and was not widened: four new modules in the existing "Settings"
 category, two retargets, and one strengthened warning.
 
