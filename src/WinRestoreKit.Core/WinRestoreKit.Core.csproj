@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <!--
+      Deliberately NO UseWindowsForms. This library being unable to compile against WinForms is the
+      enforcement mechanism of the Core extraction, not an oversight: a MessageBox in a backup module
+      is a build error here rather than something a reviewer has to catch. The three places the
+      engine genuinely needs a human are inverted through seams the app registers at startup -
+      Utils.UrlFailureUi, AppStoreApps.RestoreDialog, and LogHelper's ILogSink.
+    -->
+    <RootNamespace>WinRestoreKit</RootNamespace>
+    <AssemblyName>WinRestoreKit.Core</AssemblyName>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Platforms>AnyCPU</Platforms>
+    <Deterministic>true</Deterministic>
+    <!--
+      GenerateAssemblyInfo stays at its DEFAULT here, unlike in WinRestoreKit.csproj. The constraint that
+      forces it false there is that the update checker's fallback path downloads that project's
+      Properties/AssemblyInfo.cs as raw text; it binds that one file in that one project. No client
+      fetches anything from this assembly.
+
+      Leaving generation on is also what emits [assembly: SupportedOSPlatform("windows7.0")] for the
+      net8.0-windows TFM, which is what keeps CA1416 honest for the registry and Win32 calls in here.
+      The app declares the same attribute by hand (Properties/AssemblyInfo.cs) precisely because it
+      cannot have it generated.
+    -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Same version as the app project. AppStoreApps and WPowerPlans parse JSON. -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Most engine types here are internal and must STAY internal - PR 2's rule is no accessibility
+      changes at all, because widening a type to public is the tempting fix that quietly enlarges the
+      API surface of a refactor whose whole premise is changing nothing. This code and its callers
+      were one assembly until Phase 4 PR 2; these two declarations preserve exactly the visibility
+      they had then, and nothing more.
+    -->
+    <InternalsVisibleTo Include="WinRestoreKit" />
+    <InternalsVisibleTo Include="WinRestoreKit.Tests" />
+  </ItemGroup>
+
+</Project>
