@@ -104,6 +104,15 @@ namespace WinRestoreKit
             SnapshotCompression = compression;
             string backupPath = Path.Combine(destinationPath, Data.NowShort);
 
+            if (DestinationInsideSelectedSource(backupPath, selection, out string containingSource))
+            {
+                ui.ShowSummary(RunSummary.For(new List<ModuleOutcome>(), false, RunVerb.Backup,
+                    "the chosen destination is inside a folder this backup would copy (" + containingSource
+                    + "), which would copy the backup into itself; choose a destination outside the "
+                    + "folders being backed up"), "Backup", new List<ModuleOutcome>());
+                return Task.CompletedTask;
+            }
+
             return RunBackupCore(selection, backupPath, safeSnapshotName, compression, destinationPath);
         }
 
@@ -132,6 +141,87 @@ namespace WinRestoreKit
                     currentRestoreSourcePath = null;
                 }
             }
+        }
+
+        /// <summary>
+        /// Whether the backup destination lies at or beneath a folder that one of the selected
+        /// modules copies wholesale, which would make the backup a descendant of its own source.
+        /// </summary>
+        /// <remarks>
+        /// WindowsHelper.CopyFolderInto creates its destination and then enumerates the source's
+        /// subdirectories, so a destination inside the source is discovered mid-copy and copied into
+        /// itself, recursing until the path length limit or the disk is exhausted. Only folder
+        /// targets are a hazard: registry, file and command targets do not recurse a directory tree.
+        /// The check is a containment test on canonical full paths, and a source path that cannot be
+        /// resolved is skipped rather than allowed to abort a backup over a formatting quirk.
+        /// </remarks>
+        private static bool DestinationInsideSelectedSource(string backupPath,
+            IReadOnlyList<BackupBase> selection, out string containingSource)
+        {
+            containingSource = null;
+
+            if (selection == null || string.IsNullOrWhiteSpace(backupPath))
+                return false;
+
+            string destination;
+
+            try
+            {
+                destination = Path.GetFullPath(backupPath)
+                    .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+
+            foreach (BackupBase module in selection)
+            {
+                if (module == null)
+                    continue;
+
+                IReadOnlyList<RestoreTarget> targets;
+
+                try
+                {
+                    targets = module.RestoreTargets;
+                }
+                catch (Exception)
+                {
+                    continue;
+                }
+
+                if (targets == null)
+                    continue;
+
+                foreach (RestoreTarget target in targets)
+                {
+                    if (target == null || target.Kind != RestoreTargetKind.Folder)
+                        continue;
+
+                    string source;
+
+                    try
+                    {
+                        source = Path.GetFullPath(target.Path)
+                            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                    }
+                    catch (Exception)
+                    {
+                        continue;
+                    }
+
+                    if (destination.Equals(source, StringComparison.OrdinalIgnoreCase)
+                        || destination.StartsWith(source + Path.DirectorySeparatorChar,
+                                                  StringComparison.OrdinalIgnoreCase))
+                    {
+                        containingSource = target.Path;
+                        return true;
+                    }
+                }
+            }
+
+            return false;
         }
 
         // ---------------------------------------------------------------------------------------------
