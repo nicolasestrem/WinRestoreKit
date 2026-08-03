@@ -47,9 +47,7 @@ namespace WinRestoreKit
 
             string probePath = restoreSourcePath;
             BackupPayload.ReadScope payload = null;
-
-            if (BackupPayload.TryPrepareForRead(restoreSourcePath, out payload, out string ignoredError))
-                probePath = payload.Path;
+            bool payloadPrepared = false;
 
             try
             {
@@ -59,6 +57,15 @@ namespace WinRestoreKit
                         continue;
 
                     string state = ManifestStateFor(manifest, module.GetType().Name);
+                    if (!payloadPrepared
+                        && state != BackupManifest.StateSucceeded
+                        && state != BackupManifest.StateSkipped
+                        && state != BackupManifest.StateFailed)
+                    {
+                        payloadPrepared = true;
+                        if (BackupPayload.TryPrepareForRead(restoreSourcePath, out payload, out string ignoredError))
+                            probePath = payload.Path;
+                    }
 
                     rows.Add(new RestoreContentsRow(
                         module,

@@ -60,7 +60,7 @@ namespace WinRestoreKit.Tests
             var detected = DriftDetector.Detect(_directory, new BackupBase[]
             {
                 new ReportedDriftModule(true)
-            });
+            }, out _);
 
             Assert.Single(detected);
         }
@@ -71,7 +71,7 @@ namespace WinRestoreKit.Tests
             var detected = DriftDetector.Detect(_directory, new BackupBase[]
             {
                 new ReportedDriftModule(false)
-            });
+            }, out _);
 
             Assert.Empty(detected);
         }

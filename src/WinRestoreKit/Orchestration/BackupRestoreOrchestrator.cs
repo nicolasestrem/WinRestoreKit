@@ -147,6 +147,9 @@ namespace WinRestoreKit
                 return;
             }
 
+            if (destinationRoot != null)
+                BackupRootRegistry.Remember(destinationRoot);
+
             // Before a single module writes anything. The backup path is built from Data.NowShort
             // by the caller, stamped once per process, so a second Backup click in the same session
             // runs into the SAME folder - and the first run's manifest would otherwise survive
@@ -222,9 +225,6 @@ namespace WinRestoreKit
             WriteBackupManifest(backupPath, running, results, snapshotName, effectiveCompression,
                 archived ? BackupPayload.FileName : null);
 
-            if (destinationRoot != null)
-                BackupRootRegistry.Remember(destinationRoot);
-
             IReadOnlyList<ModuleOutcome> outcomes = ModuleOutcome.Pair(running, results);
 
             ui.ShowSummary(
@@ -239,6 +239,12 @@ namespace WinRestoreKit
         /// Ordinary failures, not exotic ones: the exe under Program Files on a standard-user
         /// account, a full disk, a path over the length limit. This used to be a bare
         /// Directory.CreateDirectory outside any try, in an async void handler.
+        ///
+        /// Directory.CreateDirectory is called unconditionally, so this method does not split its
+        /// own existence probe and creation into separate filesystem operations. A successful call
+        /// means the folder exists and is usable by this process. It does not reserve ownership of
+        /// an existing folder or provide cross-process mutual exclusion, so success must not be
+        /// treated as exclusive access when another process selects the same path.
         /// </remarks>
         private bool TryCreateBackupFolder(string path, out string error)
         {
@@ -246,8 +252,7 @@ namespace WinRestoreKit
 
             try
             {
-                if (!Directory.Exists(path))
-                    Directory.CreateDirectory(path);
+                Directory.CreateDirectory(path);
 
                 return true;
             }

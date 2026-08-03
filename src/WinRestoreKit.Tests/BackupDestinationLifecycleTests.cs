@@ -11,10 +11,10 @@ using Xunit;
 
 namespace WinRestoreKit.Tests
 {
-    public class SnapshotFolderPathTests
+    public class BackupDestinationLifecycleTests
     {
         [Fact]
-        public async Task RunBackup_CustomSnapshotNameKeepsTheFrozenTimestampFolderName()
+        public async Task RunBackup_RemembersCustomDestinationBeforeFirstModuleRuns()
         {
             string root = Path.Combine(Path.GetTempPath(), "WinRestoreKitTests", Guid.NewGuid().ToString("N"));
             object originalRoots = null;
@@ -34,25 +34,15 @@ namespace WinRestoreKit.Tests
 
             try
             {
+                RootObservingModule module = new RootObservingModule(root);
                 BackupRestoreOrchestrator runner = new BackupRestoreOrchestrator(new TestRunUi());
 
-                await runner.RunBackup(new BackupBase[] { new EmptyModule() }, root, "before-driver-update",
-                    SnapshotCompression.None);
+                await runner.RunBackup(new BackupBase[] { module }, root, "remember-early", SnapshotCompression.None);
 
-                string timestampFolder = Path.Combine(root, Data.NowShort);
-                Assert.True(Directory.Exists(timestampFolder));
-                Assert.False(Directory.Exists(Path.Combine(root, "before-driver-update")));
-
-                ManifestData manifest = BackupManifest.TryParse(
-                    File.ReadAllText(Path.Combine(timestampFolder, BackupManifest.FileName)));
-                Assert.Equal("before-driver-update", manifest.SnapshotName);
+                Assert.True(module.RootWasRememberedWhenBackupStarted);
             }
             finally
             {
-                // This overload always remembers a non-null custom destination root (see
-                // BackupRestoreOrchestrator.RunBackup), so this test writes to the real
-                // HKCU\Software\WinRestoreKit BackupRoots value exactly like the sibling test
-                // below, and must restore it the same way.
                 using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\WinRestoreKit"))
                 {
                     if (originalRoots == null)
@@ -67,56 +57,67 @@ namespace WinRestoreKit.Tests
         }
 
         [Fact]
-        public async Task RunBackup_ToCustomDestinationMakesSnapshotDiscoverable()
+        public async Task RunBackup_CancelledInExistingFolderRetainsTheExistingFolder()
         {
             string root = Path.Combine(Path.GetTempPath(), "WinRestoreKitTests", Guid.NewGuid().ToString("N"));
-            object originalRoots = null;
-            RegistryValueKind? originalRootsKind = null;
+            string backupPath = Path.Combine(root, Data.NowShort);
+            Directory.CreateDirectory(backupPath);
+            string sentinelPath = Path.Combine(backupPath, "preexisting.txt");
+            File.WriteAllText(sentinelPath, "preserve existing folder");
 
             try
             {
-                using (RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\WinRestoreKit"))
+                using (RunControl control = new RunControl())
                 {
-                    if (key != null && key.GetValueNames().Contains("BackupRoots"))
-                    {
-                        originalRoots = key.GetValue("BackupRoots", null,
-                            RegistryValueOptions.DoNotExpandEnvironmentNames);
-                        originalRootsKind = key.GetValueKind("BackupRoots");
-                    }
+                    BackupRestoreOrchestrator runner = new BackupRestoreOrchestrator(new TestRunUi(), control);
+
+                    await runner.RunBackup(new BackupBase[] { new CancellingModule(control) }, backupPath);
                 }
 
-                Directory.CreateDirectory(root);
-                BackupRestoreOrchestrator runner = new BackupRestoreOrchestrator(new TestRunUi());
-
-                await runner.RunBackup(new BackupBase[] { new EmptyModule() }, root, "custom-root",
-                    SnapshotCompression.None);
-
-                string timestampFolder = Path.Combine(root, Data.NowShort);
-                BackupFolders folders = BackupFolders.Read();
-
-                Assert.Contains(folders.Backups, folder =>
-                    string.Equals(folder.Path, timestampFolder, StringComparison.OrdinalIgnoreCase));
+                Assert.True(Directory.Exists(backupPath));
+                Assert.True(File.Exists(sentinelPath));
             }
             finally
             {
-                using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\WinRestoreKit"))
-                {
-                    if (originalRoots == null)
-                        key.DeleteValue("BackupRoots", throwOnMissingValue: false);
-                    else
-                        key.SetValue("BackupRoots", originalRoots, originalRootsKind.Value);
-                }
-
                 if (Directory.Exists(root))
                     Directory.Delete(root, true);
             }
         }
 
-        private sealed class EmptyModule : BackupBase
+        private sealed class RootObservingModule : BackupBase
         {
-            internal EmptyModule()
+            private readonly string root;
+
+            internal RootObservingModule(string root)
             {
-                Title = "Empty";
+                this.root = root;
+                Title = "Observe root";
+            }
+
+            internal bool RootWasRememberedWhenBackupStarted { get; private set; }
+
+            public override ModuleResult Backup(string path)
+            {
+                RootWasRememberedWhenBackupStarted = BackupRootRegistry.Read().Any(candidate =>
+                    string.Equals(candidate, root, StringComparison.OrdinalIgnoreCase));
+                return ModuleResult.Aggregate(new[] { StepResult.Succeeded(Title, "observed root") });
+            }
+        }
+
+        private sealed class CancellingModule : BackupBase
+        {
+            private readonly RunControl control;
+
+            internal CancellingModule(RunControl control)
+            {
+                this.control = control;
+                Title = "Cancel";
+            }
+
+            public override ModuleResult Backup(string path)
+            {
+                control.RequestCancellation();
+                return ModuleResult.Aggregate(new[] { StepResult.Succeeded(Title, "requested cancellation") });
             }
         }
 

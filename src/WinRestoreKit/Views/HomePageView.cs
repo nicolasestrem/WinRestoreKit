@@ -91,23 +91,13 @@ namespace Views
                 return;
             }
 
-            if (folders.Backups.Count == 0)
+            BackupFolder latest = FindNewestLocalBackup(folders, out ManifestData latestManifest);
+            if (latest == null)
             {
-                BuildHeader(
-                    "SYSTEM AWAITS A SNAPSHOT",
-                    "No readable user snapshot exists for " + Environment.MachineName + ". Back up this PC to begin protecting "
-                        + registrations.Count + " settings modules across " + watchedGroups.Count + " watched groups.");
-                rows.Controls.Add(BuildStatStrip("0", "Not yet", DescribeStorage(folders, out _), "Not measured"));
-                rows.Controls.Add(BuildActions());
-                rows.Controls.Add(Spacer(Ui.SpaceL));
-                rows.Controls.Add(BuildBottom(
-                    null,
-                    "Take a backup to begin drift detection.",
-                    watchedGroups));
+                BuildAwaitingSnapshot(folders, registrations, watchedGroups);
                 return;
             }
 
-            BackupFolder latest = folders.Backups[0];
             IReadOnlyList<DriftItem> drifted = DetectDrift(latest, registrations, out string driftUnavailableReason);
             string driftCount = drifted == null ? "Unavailable" : drifted.Count.ToString();
             string summary = "Last snapshot \"" + latest.DisplayName + "\" taken " + Ago(latest.Created)
@@ -115,7 +105,11 @@ namespace Views
                 + watchedGroups.Count + " watched groups are under watch; "
                 + (drifted == null ? "drift could not be measured" : drifted.Count + " have drifted since the snapshot") + ".";
 
-            BuildHeader("SYSTEM IS CAPTURED", summary);
+            bool failed = IsEntirelyFailed(latestManifest);
+            BuildHeader(
+                failed ? "LAST BACKUP FAILED" : "SYSTEM IS CAPTURED",
+                summary,
+                failed ? Theme.Current.Accent2_600 : Theme.Current.Text);
             rows.Controls.Add(BuildStatStrip(
                 folders.Backups.Count.ToString(),
                 DescribeLastRun(latest),
@@ -124,6 +118,57 @@ namespace Views
             rows.Controls.Add(BuildActions());
             rows.Controls.Add(Spacer(Ui.SpaceL));
             rows.Controls.Add(BuildBottom(drifted, driftUnavailableReason, watchedGroups));
+        }
+
+        private void BuildAwaitingSnapshot(
+            BackupFolders folders,
+            IReadOnlyList<ModuleRegistration> registrations,
+            IReadOnlyList<WatchedGroupSummary> watchedGroups)
+        {
+            BuildHeader(
+                "SYSTEM AWAITS A SNAPSHOT",
+                "No readable user snapshot exists for " + Environment.MachineName + ". Back up this PC to begin protecting "
+                    + registrations.Count + " settings modules across " + watchedGroups.Count + " watched groups.");
+            rows.Controls.Add(BuildStatStrip("0", "Not yet", DescribeStorage(folders, out _), "Not measured"));
+            rows.Controls.Add(BuildActions());
+            rows.Controls.Add(Spacer(Ui.SpaceL));
+            rows.Controls.Add(BuildBottom(
+                null,
+                "Take a backup to begin drift detection.",
+                watchedGroups));
+        }
+
+        private static BackupFolder FindNewestLocalBackup(BackupFolders folders, out ManifestData manifest)
+        {
+            foreach (BackupFolder folder in folders.Backups)
+            {
+                ManifestData candidate = folder.ReadManifest();
+                if (candidate == null || string.Equals(candidate.MachineName, Environment.MachineName, StringComparison.Ordinal))
+                {
+                    manifest = candidate;
+                    return folder;
+                }
+            }
+
+            manifest = null;
+            return null;
+        }
+
+        private static bool IsEntirelyFailed(ManifestData manifest)
+        {
+            if (manifest == null)
+                return false;
+
+            if (manifest.Modules.Count == 0)
+                return true;
+
+            foreach (ManifestModule module in manifest.Modules)
+            {
+                if (module.State != BackupManifest.StateFailed)
+                    return false;
+            }
+
+            return true;
         }
 
         private void BuildUnavailable(string reason)
@@ -138,6 +183,11 @@ namespace Views
 
         private void BuildHeader(string heading, string summary)
         {
+            BuildHeader(heading, summary, Theme.Current.Text);
+        }
+
+        private void BuildHeader(string heading, string summary, Color headingColor)
+        {
             TableLayoutPanel header = new TableLayoutPanel
             {
                 AutoSize = true,
@@ -149,7 +199,7 @@ namespace Views
             };
             header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
             header.Controls.Add(Line("STATUS", Ui.Kicker(), Theme.Current.Accent700));
-            header.Controls.Add(Line(heading, Ui.Heading(), Theme.Current.Text));
+            header.Controls.Add(Line(heading, Ui.Heading(), headingColor));
             header.Controls.Add(Line(summary, Ui.Body(), Theme.Current.TextMuted));
             rows.Controls.Add(header);
         }
@@ -252,9 +302,13 @@ namespace Views
                 return panel;
             }
 
+            if (unavailableReason != null)
+                panel.Controls.Add(Line(unavailableReason, Ui.Body(), Theme.Current.TextMuted));
+
             if (drifted.Count == 0)
             {
-                panel.Controls.Add(Line("No tracked changes found since this snapshot.", Ui.Body(), Theme.Current.TextMuted));
+                if (unavailableReason == null)
+                    panel.Controls.Add(Line("No tracked changes found since this snapshot.", Ui.Body(), Theme.Current.TextMuted));
                 return panel;
             }
 
@@ -383,9 +437,12 @@ namespace Views
                     unavailableReason = "Drift detection is unavailable because the backup payload could not be prepared: " + error;
                     return null;
                 }
-
-                unavailableReason = null;
-                return DriftDetector.Detect(payload.Path, modules);
+                IReadOnlyList<DriftItem> drifted = DriftDetector.Detect(payload.Path, modules, out IReadOnlyList<DriftItem> unavailable);
+                unavailableReason = unavailable.Count == 0
+                    ? null
+                    : "Drift could not be measured for " + unavailable.Count + " watched "
+                        + (unavailable.Count == 1 ? "module." : "modules.");
+                return drifted;
             }
             catch (Exception ex)
             {
