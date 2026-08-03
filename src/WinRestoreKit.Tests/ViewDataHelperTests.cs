@@ -27,7 +27,7 @@ namespace WinRestoreKit.Tests
         }
 
         [Fact]
-        public void ScopeGroups_Build_UsesEightFixedScopesAndAssignsEachCatalogModuleOnce()
+        public void ScopeGroups_Build_UsesNineFixedScopesAndAssignsEachCatalogModuleOnce()
         {
             IReadOnlyList<ModuleRegistration> registrations = ModuleCatalog.CreateAll();
             IReadOnlyList<ScopeGroupRow> groups = ScopeGroups.Build();
@@ -40,6 +40,7 @@ namespace WinRestoreKit.Tests
                 "Fonts",
                 "Scheduled tasks",
                 "Network profiles",
+                "Environment variables (unfiltered)",
                 "App settings (AppData)"
             ];
             IReadOnlyDictionary<string, Type[]> expectedModules = new Dictionary<string, Type[]>
@@ -71,6 +72,7 @@ namespace WinRestoreKit.Tests
                     typeof(CWiFiConf),
                     typeof(EHosts)
                 ],
+                ["Environment variables (unfiltered)"] = [typeof(EEnvironment)],
                 ["App settings (AppData)"] =
                 [
                     typeof(WPrivacy),
@@ -85,7 +87,6 @@ namespace WinRestoreKit.Tests
                     typeof(ETerminal),
                     typeof(EVSCode),
                     typeof(ESsh),
-                    typeof(EEnvironment),
                     typeof(EEnvironmentFiltered)
                 ]
             };
@@ -95,7 +96,9 @@ namespace WinRestoreKit.Tests
             foreach (ScopeGroupRow group in groups)
             {
                 Assert.Equal(expectedModules[group.Name], group.Modules.Select(module => module.GetType()));
-                Assert.Equal(group.Modules.Any(module => module.IsInstalled()), group.DefaultChecked);
+                Assert.Equal(
+                    group.RequiresExplicitOptIn ? false : group.Modules.Any(module => module.IsInstalled()),
+                    group.DefaultChecked);
                 Assert.Equal("--", group.SizeLabel);
 
                 if (group.Modules.Count == 0)

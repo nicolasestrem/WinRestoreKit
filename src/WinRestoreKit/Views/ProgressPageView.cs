@@ -485,7 +485,7 @@ namespace Views
 
         private void cancelButton_Click(object sender, EventArgs e)
         {
-            if (summaryShown || runControl.IsCancellationRequested)
+            if (summaryShown || !cancelButton.Enabled || runControl.IsCancellationRequested)
                 return;
 
             DialogResult result = MessageBox.Show((IWin32Window)FindForm() ?? this,
@@ -563,10 +563,7 @@ namespace Views
         private void RenderSummary(RunSummary summary, IReadOnlyList<ModuleOutcome> outcomes)
         {
             summaryShown = true;
-            bool cancellationRequested = runControl.IsCancellationRequested;
-            kickerLabel.Text = summary.State == RunState.Canceled
-                ? "RUN CANCELED, NO CHANGES"
-                : cancellationRequested ? "RUN CANCELED, INCOMPLETE" : "RUN COMPLETE";
+            kickerLabel.Text = SummaryKicker(summary);
             titleLabel.Text = summary.Headline.ToUpperInvariant();
             titleLabel.ForeColor = summary.State == RunState.Problems || summary.State == RunState.DidNotRun
                 ? Theme.Current.Accent2_600
@@ -599,6 +596,17 @@ namespace Views
             backToHomeButton.Visible = true;
             AppendLog(summary.Headline);
             AppendLog(summary.Detail);
+        }
+
+        private static string SummaryKicker(RunSummary summary)
+        {
+            if (summary.State == RunState.Canceled)
+                return "RUN CANCELED, NO CHANGES";
+
+            return summary.State == RunState.Problems &&
+                   summary.Headline.IndexOf("canceled, run incomplete", StringComparison.OrdinalIgnoreCase) >= 0
+                ? "RUN CANCELED, INCOMPLETE"
+                : "RUN COMPLETE";
         }
 
         private void UpdateUi(Action action)
@@ -678,6 +686,9 @@ namespace Views
         {
             UpdateUi(() =>
             {
+                if (string.Equals(text, BackupRestoreOrchestrator.ArchiveProgressText, StringComparison.Ordinal))
+                    cancelButton.Enabled = false;
+
                 if (!string.Equals(text, "Choose settings", StringComparison.OrdinalIgnoreCase) &&
                     !string.IsNullOrWhiteSpace(text))
                 {

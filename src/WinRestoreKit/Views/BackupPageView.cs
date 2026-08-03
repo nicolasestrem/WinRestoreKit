@@ -181,9 +181,10 @@ namespace Views
 
         private Panel CreateScopeRow(ScopeGroupRow group, int index, out CustomCheckbox toggle)
         {
+            int rowHeight = string.IsNullOrWhiteSpace(group.CautionNote) ? 68 : 106;
             Panel row = new Panel
             {
-                Height = 68,
+                Height = rowHeight,
                 Width = 480,
                 BackColor = Theme.Current.Surface,
                 Margin = new Padding(0, 0, 0, Ui.SpaceXs),
@@ -196,7 +197,7 @@ namespace Views
             {
                 Name = "scopeToggle" + index,
                 Checked = group.DefaultChecked,
-                Location = new Point(Ui.SpaceM, 26),
+                Location = new Point(Ui.SpaceM, rowHeight == 68 ? 26 : 38),
                 TabIndex = index
             };
             rowToggle.CheckedChanged += (sender, args) => RefreshSelectionSummary();
@@ -222,6 +223,21 @@ namespace Views
                 Text = group.Detail,
                 UseMnemonic = false
             };
+
+            Label caution = null;
+            if (!string.IsNullOrWhiteSpace(group.CautionNote))
+            {
+                caution = new Label
+                {
+                    AutoEllipsis = true,
+                    Font = Ui.MonoSmall(),
+                    ForeColor = Theme.Current.Accent2_600,
+                    Location = new Point(40, 54),
+                    Size = new Size(260, 42),
+                    Text = group.CautionNote,
+                    UseMnemonic = false
+                };
+            }
             Label size = new Label
             {
                 Anchor = AnchorStyles.Top | AnchorStyles.Right,
@@ -238,6 +254,9 @@ namespace Views
                 int detailWidth = Math.Max(120, row.ClientSize.Width - 132);
                 name.Width = detailWidth;
                 detail.Width = detailWidth;
+                if (caution != null)
+                    caution.Width = detailWidth;
+
                 size.Left = row.ClientSize.Width - size.Width - Ui.SpaceM;
             };
 
@@ -246,10 +265,15 @@ namespace Views
             name.Click += toggleRow;
             detail.Click += toggleRow;
             size.Click += toggleRow;
+            if (caution != null)
+                caution.Click += toggleRow;
 
             row.Controls.Add(rowToggle);
             row.Controls.Add(name);
             row.Controls.Add(detail);
+            if (caution != null)
+                row.Controls.Add(caution);
+
             row.Controls.Add(size);
             return row;
         }

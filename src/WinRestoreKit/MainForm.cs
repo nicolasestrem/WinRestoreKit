@@ -25,6 +25,7 @@ namespace WinRestoreKit
         private ProgressPageView progressPage;
         private AboutPageView aboutPage;
         private bool railEnabled = true;
+        private bool hasCompletedProgressResult;
 
         public MainForm()
         {
@@ -183,7 +184,7 @@ namespace WinRestoreKit
             {
                 try
                 {
-                    BeginInvoke((Action)(() => UpdateProgressButton(running)));
+                    BeginInvoke((Action)(() => ApplyRunningState(running)));
                 }
                 catch (InvalidOperationException)
                 {
@@ -192,12 +193,21 @@ namespace WinRestoreKit
                 return;
             }
 
+            ApplyRunningState(running);
+        }
+
+        private void ApplyRunningState(bool running)
+        {
+            if (!running && progressPage != null)
+                hasCompletedProgressResult = true;
+
             UpdateProgressButton(running);
         }
 
         private void UpdateProgressButton(bool running)
         {
-            btnProgress.Enabled = railEnabled && running;
+            bool hasReachableProgressPage = progressPage != null && (running || hasCompletedProgressResult);
+            btnProgress.Enabled = railEnabled && hasReachableProgressPage;
 
             if (!btnProgress.Enabled)
                 btnProgress.IsSelected = false;
@@ -218,7 +228,7 @@ namespace WinRestoreKit
 
         private void btnProgress_Click(object sender, EventArgs e)
         {
-            if (!RunCoordinator.IsRunning || progressPage == null)
+            if (progressPage == null || (!RunCoordinator.IsRunning && !hasCompletedProgressResult))
                 return;
 
             SelectNavigation(btnProgress);
@@ -258,9 +268,12 @@ namespace WinRestoreKit
             if (!RunCoordinator.TryStart())
                 return;
 
+            DismissCompletedProgressResult();
+
             try
             {
                 progressPage = new ProgressPageView(navigation, selectedModules, snapshotName, compression, destination);
+                UpdateProgressButton(RunCoordinator.IsRunning);
                 SelectNavigation(btnProgress);
                 navigation.Push(progressPage);
             }
@@ -275,9 +288,12 @@ namespace WinRestoreKit
             if (!RunCoordinator.TryStart())
                 return;
 
+            DismissCompletedProgressResult();
+
             try
             {
                 progressPage = ProgressPageView.ForRestore(navigation, selectedModules, folder);
+                UpdateProgressButton(RunCoordinator.IsRunning);
                 SelectNavigation(btnProgress);
                 navigation.Push(progressPage);
             }
@@ -286,6 +302,20 @@ namespace WinRestoreKit
                 RunCoordinator.SetRunning(false);
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Removes a completed result from the shell before a newly admitted run installs its replacement page.
+        /// </summary>
+        /// <remarks>
+        /// Rail navigation, including the completed page's Back to Home action, only hides the result so it can
+        /// be reopened. Starting a new backup or restore is the single dismissal point because its outcome
+        /// supersedes the prior page.
+        /// </remarks>
+        private void DismissCompletedProgressResult()
+        {
+            hasCompletedProgressResult = false;
+            progressPage = null;
         }
 
 

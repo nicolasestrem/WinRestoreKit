@@ -24,6 +24,8 @@ namespace WinRestoreKit
     {
         private static readonly LogHelper logger = LogHelper.Instance;
 
+        internal const string ArchiveProgressText = "Archiving backup payload";
+
         private readonly IRunUi ui;
         private readonly RunControl runControl;
 
@@ -192,7 +194,10 @@ namespace WinRestoreKit
                     incompleteOutcomes);
                 return;
             }
-            bool archived = BackupPayload.TryArchive(backupPath, compression, out string archiveError);
+            ui.SetProgressText(ArchiveProgressText);
+            ui.SetProgressPercent(100);
+            string archiveError = null;
+            bool archived = await Task.Run(() => BackupPayload.TryArchive(backupPath, compression, out archiveError));
             SnapshotCompression effectiveCompression = archived ? compression : SnapshotCompression.None;
 
             if (compression != SnapshotCompression.None && !archived)

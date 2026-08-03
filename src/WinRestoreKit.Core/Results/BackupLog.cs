@@ -19,6 +19,9 @@ namespace WinRestoreKit
         // Older backups on disk still carry the Appcopier header, which is fine because readers never parse it.
         internal const string VersionHeader = "# WinRestoreKit backup log v2";
 
+        /// <summary>The human-readable backup log stored at the backup root.</summary>
+        internal const string FileName = "backup_log.txt";
+
         /// <param name="extraHeaderLines">
         /// Written verbatim between the version header and the timestamp, or null for none. Verbatim
         /// because the caller - RestoreLog - owns how its lines read; prefixing them here would put

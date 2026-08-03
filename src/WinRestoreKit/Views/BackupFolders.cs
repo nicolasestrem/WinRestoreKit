@@ -43,6 +43,22 @@ namespace Views
         /// </remarks>
         internal string UnreadableReason { get; }
 
+        /// <summary>
+        /// Reads the default root and every remembered custom root without letting one removable
+        /// destination erase the results already obtained from another.
+        /// </summary>
+        /// <remarks>
+        /// The default root is owned by this application, so every child remains eligible for legacy
+        /// restore compatibility. A custom root can be Documents, a drive root or a network share,
+        /// where treating every child as a backup would make unrelated user data restorable and make
+        /// Home measure it as application storage. Its children therefore need evidence that this
+        /// application wrote them.
+        ///
+        /// A remembered removable destination can disappear after a successful backup. That failure
+        /// says nothing about a readable root, so it is retained only when no root could be inspected.
+        /// The default root remains fatal because no fallback can distinguish an access failure there
+        /// from an empty root the application has successfully listed.
+        /// </remarks>
         internal static BackupFolders Read()
         {
             List<BackupFolder> backups = new List<BackupFolder>();
@@ -62,8 +78,13 @@ namespace Views
                 roots.Add(root);
             }
 
-            foreach (string root in roots)
+            int inspectedRoots = 0;
+            string unreadableCustomRootReason = null;
+
+            for (int rootIndex = 0; rootIndex < roots.Count; rootIndex++)
             {
+                string root = roots[rootIndex];
+                bool isDefaultRoot = rootIndex == 0;
                 string[] paths;
 
                 try
@@ -73,6 +94,7 @@ namespace Views
                     // indistinguishable from one that was never created - which is how an unreadable
                     // root came to be reported as "no backups yet".
                     paths = Directory.GetDirectories(root);
+                    inspectedRoots++;
                 }
                 catch (DirectoryNotFoundException)
                 {
@@ -82,11 +104,18 @@ namespace Views
                 }
                 catch (Exception ex)
                 {
-                    return new BackupFolders(backups, snapshots, ex.Message);
+                    if (isDefaultRoot)
+                        return new BackupFolders(backups, snapshots, ex.Message);
+
+                    unreadableCustomRootReason ??= ex.Message;
+                    continue;
                 }
 
                 foreach (string path in paths)
                 {
+                    if (!isDefaultRoot && !IsRecognizableCustomFolder(path))
+                        continue;
+
                     BackupFolder folder = new BackupFolder(path);
 
                     if (IsSnapshot(folder.Name))
@@ -96,10 +125,112 @@ namespace Views
                 }
             }
 
+            if (inspectedRoots == 0 && unreadableCustomRootReason != null)
+                return new BackupFolders(backups, snapshots, unreadableCustomRootReason);
+
             backups.Sort(NewestFirst);
             snapshots.Sort(NewestFirst);
 
             return new BackupFolders(backups, snapshots, null);
+        }
+
+        /// <summary>
+        /// Whether a child of a custom root carries metadata or a frozen name shape that this
+        /// application writes.
+        /// </summary>
+        /// <remarks>
+        /// A custom root is often chosen for free space rather than dedicated to backups. Metadata
+        /// admits complete and interrupted backups, while the timestamp shape preserves old loose
+        /// folders whose manifest was never written. Both paths are needed because excluding an
+        /// interrupted backup is safer than presenting every unrelated folder as a restore source.
+        /// </remarks>
+        private static bool IsRecognizableCustomFolder(string path)
+        {
+            return File.Exists(Path.Combine(path, BackupManifest.FileName))
+                || File.Exists(Path.Combine(path, BackupLog.FileName))
+                || File.Exists(Path.Combine(path, BackupPayload.FileName))
+                || HasFrozenTimestampShape(Path.GetFileName(path));
+        }
+
+        private static bool HasFrozenTimestampShape(string folderName)
+        {
+            if (string.IsNullOrEmpty(folderName))
+                return false;
+
+            int snapshotStart = folderName.IndexOf(SnapshotNaming.Suffix, StringComparison.OrdinalIgnoreCase);
+            string timestamp;
+
+            if (snapshotStart >= 0)
+            {
+                if (!IsCollisionSuffix(folderName.Substring(snapshotStart + SnapshotNaming.Suffix.Length)))
+                    return false;
+
+                timestamp = folderName.Substring(0, snapshotStart);
+            }
+            else
+            {
+                timestamp = folderName;
+                TryRemoveCollisionSuffix(folderName, out timestamp);
+            }
+
+            return MatchesDataRootTimestampShape(timestamp);
+        }
+
+        private static bool IsCollisionSuffix(string suffix)
+        {
+            if (suffix.Length == 0)
+                return true;
+
+            return TryRemoveCollisionSuffix("x" + suffix, out _);
+        }
+
+        private static bool TryRemoveCollisionSuffix(string folderName, out string withoutCollision)
+        {
+            withoutCollision = folderName;
+
+            int marker = folderName.LastIndexOf(" (", StringComparison.Ordinal);
+
+            if (marker < 0
+                || !folderName.EndsWith(")", StringComparison.Ordinal)
+                || !int.TryParse(folderName.Substring(marker + 2, folderName.Length - marker - 3),
+                    NumberStyles.None, CultureInfo.InvariantCulture, out int collision)
+                || collision < 2)
+            {
+                return false;
+            }
+
+            withoutCollision = folderName.Substring(0, marker);
+            return true;
+        }
+
+        private static bool MatchesDataRootTimestampShape(string timestamp)
+        {
+            string template = Data.NowShort;
+
+            if (string.IsNullOrEmpty(template)
+                || (timestamp.Length != template.Length && timestamp.Length != template.Length + 3))
+            {
+                return false;
+            }
+
+            for (int index = 0; index < template.Length; index++)
+            {
+                if (char.IsDigit(template[index]))
+                {
+                    if (!char.IsDigit(timestamp[index]))
+                        return false;
+                }
+                else if (timestamp[index] != template[index])
+                {
+                    return false;
+                }
+            }
+
+            return timestamp.Length == template.Length
+                || (template.Length >= 3
+                    && timestamp[template.Length] == template[template.Length - 3]
+                    && char.IsDigit(timestamp[template.Length + 1])
+                    && char.IsDigit(timestamp[template.Length + 2]));
         }
 
         /// <summary>

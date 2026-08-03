@@ -21,7 +21,7 @@ namespace WinRestoreKit
         private static readonly HashSet<string> RootMetadata = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             BackupManifest.FileName,
-            "backup_log.txt",
+            BackupLog.FileName,
             FileName
         };
 
