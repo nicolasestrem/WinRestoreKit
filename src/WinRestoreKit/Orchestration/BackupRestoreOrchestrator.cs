@@ -170,7 +170,14 @@ namespace WinRestoreKit
             // alongside files the second run has already replaced. That is the confidently-green
             // failure the whole-and-last write exists to prevent, arriving by a different route: an
             // interrupted second run must read as unknown, not as the first run's verdict.
-            InvalidateBackupManifest(backupPath);
+            if (InvalidateBackupManifest(backupPath))
+            {
+                ui.ShowSummary(RunSummary.For(new List<ModuleOutcome>(), false, RunVerb.Backup,
+                    "a previous compressed backup in this folder is locked and could not be replaced. " +
+                    "This backup was not started, so its manifest and payload cannot disagree."),
+                    "Backup", new List<ModuleOutcome>());
+                return;
+            }
 
             // A private copy for the run. RunModulesBackup enumerates this list across awaits, and
             // the caller's selection list is mutable - so a re-entrant handler that rebuilt it while
@@ -521,16 +528,17 @@ namespace WinRestoreKit
         /// Deleting can itself fail - a read-only attribute, or a file held open by a backup tool or
         /// an editor - so there are two more attempts before giving up: clear the attribute and
         /// retry, then truncate the file to nothing. An empty file is not valid JSON, so TryParse
-        /// refuses it and the reader says "details unavailable", which is the honest answer. That
-        /// leaves only "locked against writing too" unhandled, and there the backup still proceeds:
-        /// refusing to protect the user's data because a stale index file is locked would trade a
-        /// bookkeeping problem for a real one. It is logged loudly instead.
+        /// refuses it and the reader says "details unavailable", which is the honest answer. A stale
+        /// manifest can still be treated as unknown, but a stale payload could later be paired with
+        /// a newly written manifest. That mismatch risks restoring a previous backup, so callers
+        /// must not start a run when the old payload cannot be removed or emptied.
         /// </remarks>
-        private void InvalidateBackupManifest(string backupFolderPath)
+        private bool InvalidateBackupManifest(string backupFolderPath)
         {
             string finalPath = Path.Combine(backupFolderPath, BackupManifest.FileName);
-
             string payloadPath = Path.Combine(backupFolderPath, BackupPayload.FileName);
+            bool payloadExisted = File.Exists(payloadPath);
+            bool payloadSurvived = false;
 
             foreach (string path in new[] { finalPath, TempManifestPath(finalPath), payloadPath })
             {
@@ -539,8 +547,13 @@ namespace WinRestoreKit
                     logger.LogMessage(
                         "The previous backup metadata or payload at " + path + " could not be removed or emptied. "
                         + "If this run does not finish, that file still describes the PREVIOUS run.");
+
+                    if (payloadExisted && path == payloadPath)
+                        payloadSurvived = true;
                 }
             }
+
+            return payloadSurvived;
         }
 
         private bool TryRemove(string path)

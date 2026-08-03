@@ -122,6 +122,85 @@ namespace WinRestoreKit.Tests
             });
         }
 
+        [Fact]
+        public void Read_NestedRememberedRootExcludesDefaultRootContainerAndListsBackupOnce()
+        {
+            string parent = NewTempDirectory();
+            string defaultRoot = Directory.CreateDirectory(Path.Combine(parent, "default")).FullName;
+            string archive = Directory.CreateDirectory(Path.Combine(defaultRoot, "Archive")).FullName;
+            string customRoot = Directory.CreateDirectory(Path.Combine(archive, "remembered-root")).FullName;
+            string backup = Directory.CreateDirectory(
+                Path.Combine(customRoot, "2024-01-02 - 03.04")).FullName;
+
+            try
+            {
+                RunWithConfiguredRoots(defaultRoot, new[] { customRoot }, () =>
+                {
+                    BackupFolders folders = BackupFolders.Read();
+
+                    Assert.DoesNotContain(folders.Backups, folder =>
+                        string.Equals(folder.Path, archive, StringComparison.OrdinalIgnoreCase));
+                    Assert.Equal(1, folders.Backups.Count(folder =>
+                        string.Equals(folder.Path, backup, StringComparison.OrdinalIgnoreCase)));
+                });
+            }
+            finally
+            {
+                Directory.Delete(parent, true);
+            }
+        }
+
+        [Fact]
+        public void Read_NestedRememberedRootKeepsOrdinaryDefaultRootBackup()
+        {
+            string parent = NewTempDirectory();
+            string defaultRoot = Directory.CreateDirectory(Path.Combine(parent, "default")).FullName;
+            string archive = Directory.CreateDirectory(Path.Combine(defaultRoot, "Archive")).FullName;
+            string customRoot = Directory.CreateDirectory(Path.Combine(archive, "remembered-root")).FullName;
+            string ordinaryBackup = Directory.CreateDirectory(
+                Path.Combine(defaultRoot, "2024-01-03 - 04.05")).FullName;
+
+            try
+            {
+                RunWithConfiguredRoots(defaultRoot, new[] { customRoot }, () =>
+                {
+                    BackupFolders folders = BackupFolders.Read();
+
+                    Assert.Contains(folders.Backups, folder =>
+                        string.Equals(folder.Path, ordinaryBackup, StringComparison.OrdinalIgnoreCase));
+                });
+            }
+            finally
+            {
+                Directory.Delete(parent, true);
+            }
+        }
+
+        [Fact]
+        public void Read_RememberedRootOutsideDefaultRootIsStillListed()
+        {
+            string parent = NewTempDirectory();
+            string defaultRoot = Directory.CreateDirectory(Path.Combine(parent, "default")).FullName;
+            string customRoot = Directory.CreateDirectory(Path.Combine(parent, "custom")).FullName;
+            string backup = Directory.CreateDirectory(
+                Path.Combine(customRoot, "2024-01-04 - 05.06")).FullName;
+
+            try
+            {
+                RunWithConfiguredRoots(defaultRoot, new[] { customRoot }, () =>
+                {
+                    BackupFolders folders = BackupFolders.Read();
+
+                    Assert.Equal(1, folders.Backups.Count(folder =>
+                        string.Equals(folder.Path, backup, StringComparison.OrdinalIgnoreCase)));
+                });
+            }
+            finally
+            {
+                Directory.Delete(parent, true);
+            }
+        }
+
         private static void RunWithRoots(Action<string, string> action)
         {
             string parent = NewTempDirectory();

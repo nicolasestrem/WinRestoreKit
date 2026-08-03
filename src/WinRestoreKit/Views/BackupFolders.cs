@@ -113,6 +113,11 @@ namespace Views
 
                 foreach (string path in paths)
                 {
+                    // A custom destination can live below the default root. Its parent is not a
+                    // legacy backup, it is a container whose children the custom-root pass owns.
+                    if (isDefaultRoot && IsRememberedCustomRootOrContainer(path, roots))
+                        continue;
+
                     if (!isDefaultRoot && !IsRecognizableCustomFolder(path))
                         continue;
 
@@ -132,6 +137,34 @@ namespace Views
             snapshots.Sort(NewestFirst);
 
             return new BackupFolders(backups, snapshots, null);
+        }
+
+        private static bool IsRememberedCustomRootOrContainer(string path, IReadOnlyList<string> roots)
+        {
+            if (!BackupRootRegistry.TryCanonicalize(path, out string canonicalPath))
+                return false;
+
+            for (int rootIndex = 1; rootIndex < roots.Count; rootIndex++)
+            {
+                string rememberedRoot = roots[rootIndex];
+
+                if (string.Equals(canonicalPath, rememberedRoot, StringComparison.OrdinalIgnoreCase))
+                    return true;
+
+                if (rememberedRoot.Length > canonicalPath.Length
+                    && rememberedRoot.StartsWith(canonicalPath, StringComparison.OrdinalIgnoreCase)
+                    && IsDirectorySeparator(rememberedRoot[canonicalPath.Length]))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool IsDirectorySeparator(char value)
+        {
+            return value == Path.DirectorySeparatorChar || value == Path.AltDirectorySeparatorChar;
         }
 
         /// <summary>

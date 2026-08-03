@@ -123,6 +123,27 @@ namespace WinRestoreKit
 
             if (!File.Exists(payloadPath))
             {
+                // Read guarded, exactly like BackupFolder.ReadManifest and every other manifest
+                // read in this codebase: File.ReadAllText can throw on a sharing violation, an ACL
+                // denial, or a TOCTOU delete between the File.Exists check above and this read, which
+                // is reachable in the same-minute concurrent-instance case this code acknowledges
+                // elsewhere. An unreadable manifest is treated as no manifest, so this run cannot
+                // prove an archive was declared and falls back to the loose-folder scope rather than
+                // throwing into callers that build the wizard page with no catch of their own.
+                ManifestData manifest = TryReadManifest(Path.Combine(backupPath, BackupManifest.FileName));
+
+                bool declaresPayload = manifest != null
+                    && (!string.IsNullOrWhiteSpace(manifest.PayloadFile)
+                        || (!string.IsNullOrWhiteSpace(manifest.Compression)
+                            && !string.Equals(manifest.Compression, SnapshotCompression.None.ToString(),
+                                              StringComparison.OrdinalIgnoreCase)));
+
+                if (declaresPayload)
+                {
+                    error = "The backup's compressed payload file is missing, so it cannot be restored.";
+                    return false;
+                }
+
                 payload = new ReadScope(backupPath, null);
                 return true;
             }
@@ -183,6 +204,31 @@ namespace WinRestoreKit
                 }
 
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Parses the manifest at <paramref name="manifestPath"/>, or null when it is absent,
+        /// unreadable, or not valid.
+        /// </summary>
+        /// <remarks>
+        /// Absent file, unreadable file and a document TryParse refuses all collapse to null,
+        /// because they are the same answer to the caller: this run cannot prove what the folder
+        /// declares. The same shape as BackupFolder.ReadManifest, kept here so the payload reader
+        /// never throws a raw IO exception into a caller that builds a wizard page with no catch.
+        /// </remarks>
+        private static ManifestData TryReadManifest(string manifestPath)
+        {
+            try
+            {
+                if (!File.Exists(manifestPath))
+                    return null;
+
+                return BackupManifest.TryParse(File.ReadAllText(manifestPath));
+            }
+            catch (Exception)
+            {
+                return null;
             }
         }
 
