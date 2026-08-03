@@ -27,6 +27,54 @@ namespace Views
         /// </remarks>
         private bool installing;
 
+        private readonly string restoreSourcePath;
+
+        private sealed class BackupSource
+        {
+            public BackupSource(string path, bool isRestoreSource)
+            {
+                Path = path;
+                IsRestoreSource = isRestoreSource;
+            }
+
+            public string Path { get; }
+
+            public bool IsRestoreSource { get; }
+
+            public override string ToString()
+            {
+                if (IsRestoreSource)
+                    return "Selected restore source";
+
+                return System.IO.Path.GetFileName(Path.TrimEnd(
+                    System.IO.Path.DirectorySeparatorChar,
+                    System.IO.Path.AltDirectorySeparatorChar));
+            }
+        }
+
+        public RestAppsForm() : this(null)
+        {
+        }
+
+        internal RestAppsForm(string restoreSourcePath)
+        {
+            this.restoreSourcePath = restoreSourcePath;
+
+            InitializeComponent();
+
+            // Load back ups. This reaches comboBackups.SelectedIndex = 0, which fires the
+            // Designer-wired SelectedIndexChanged and so populates the list.
+            //
+            // There is deliberately no second subscription of that handler to comboBackups.Click.
+            // The combo is a DropDownList, so ANY click on it fired Click; the handler begins by
+            // clearing listApps, which is a CheckedListBox. Opening the dropdown therefore wiped
+            // every box the user had ticked, inside a dialog whose only purpose is ticking a subset.
+            LoadBackups();
+
+            // Load styling
+            SetStyle();
+        }
+
         /// <summary>Set by Cancel or by closing the window: stop after the current package.</summary>
         /// <remarks>
         /// Deliberately "after the current one" rather than an abort. A winget install that is
@@ -46,21 +94,56 @@ namespace Views
         /// </summary>
         private string pendingProblemMessage;
 
-        public RestAppsForm()
+        /// <summary>
+        /// Adds the selected restore source before the legacy backup folders without duplicates.
+        /// </summary>
+        internal static IReadOnlyList<string> BackupSources(
+            string restoreSourcePath,
+            IEnumerable<string> legacyBackupPaths)
         {
-            InitializeComponent();
+            List<string> sources = new List<string>();
 
-            // Load back ups. This reaches comboBackups.SelectedIndex = 0, which fires the
-            // Designer-wired SelectedIndexChanged and so populates the list.
-            //
-            // There is deliberately no second subscription of that handler to comboBackups.Click.
-            // The combo is a DropDownList, so ANY click on it fired Click; the handler begins by
-            // clearing listApps, which is a CheckedListBox. Opening the dropdown therefore wiped
-            // every box the user had ticked, inside a dialog whose only purpose is ticking a subset.
-            LoadBackups();
+            AddSource(sources, restoreSourcePath);
 
-            // Load styling
-            SetStyle();
+            if (legacyBackupPaths != null)
+            {
+                foreach (string legacyBackupPath in legacyBackupPaths)
+                    AddSource(sources, legacyBackupPath);
+            }
+
+            return sources;
+        }
+
+        private static void AddSource(ICollection<string> sources, string path)
+        {
+            if (string.IsNullOrWhiteSpace(path)
+                || sources.Any(source => string.Equals(source, path, StringComparison.OrdinalIgnoreCase)))
+            {
+                return;
+            }
+
+            sources.Add(path);
+        }
+
+        internal void LoadBackups()
+        {
+            comboBackups.Items.Clear();
+
+            IEnumerable<string> legacyBackups = Directory.Exists(Data.DataRootDir)
+                ? Directory.GetDirectories(Data.DataRootDir)
+                : Enumerable.Empty<string>();
+
+            IReadOnlyList<string> sources = BackupSources(restoreSourcePath, legacyBackups);
+
+            for (int i = 0; i < sources.Count; i++)
+            {
+                comboBackups.Items.Add(new BackupSource(
+                    sources[i],
+                    i == 0 && !string.IsNullOrWhiteSpace(restoreSourcePath)));
+            }
+
+            if (comboBackups.Items.Count > 0)
+                comboBackups.SelectedIndex = 0;
         }
 
         // Some UI nicety
@@ -74,28 +157,9 @@ namespace Views
                 Ui.RailSurface;
         }
 
-        internal void LoadBackups()
-        {
-            comboBackups.Items.Clear();
-
-            if (Directory.Exists(Data.DataRootDir))
-            {
-                string[] backups = Directory.GetDirectories(Data.DataRootDir);
-
-                foreach (string backup in backups)
-                {
-                    comboBackups.Items.Add(Path.GetFileName(backup));
-                }
-
-                if (comboBackups.Items.Count > 0)
-                {
-                    comboBackups.SelectedIndex = 0;
-                }
-            }
-        }
 
         /// <summary>
-        /// Where the app export lives for the backup folder named <paramref name="backupName"/>.
+        /// Where the app export lives for the backup folder at <paramref name="backupFolder"/>.
         /// </summary>
         /// <remarks>
         /// Goes through AppStoreApps.ExportPathIn so this reader cannot disagree with the writer
@@ -103,8 +167,8 @@ namespace Views
         /// looked for ".JSON" and built its path by concatenating a separator, the other for
         /// ".json" via Path.Combine.
         /// </remarks>
-        internal static string ExportPathFor(string backupName)
-            => AppStoreApps.ExportPathIn(Path.Combine(Data.DataRootDir, backupName ?? string.Empty));
+        internal static string ExportPathFor(string backupFolder)
+            => AppStoreApps.ExportPathIn(backupFolder ?? string.Empty);
 
         /// <summary>
         /// Whether an app export was read, was simply not there, or could not be used.
@@ -308,15 +372,15 @@ namespace Views
 
         private void comboBackups_SelectedIndexChanged(object sender, EventArgs e)
         {
-            string selectedBackup = comboBackups.SelectedItem?.ToString();
+            BackupSource selectedBackup = comboBackups.SelectedItem as BackupSource;
 
-            if (string.IsNullOrEmpty(selectedBackup))
+            if (selectedBackup == null)
             {
                 ApplyExport(AppExport.Absent(null));
                 return;
             }
 
-            ApplyExport(AppExport.Read(ExportPathFor(selectedBackup)));
+            ApplyExport(AppExport.Read(ExportPathFor(selectedBackup.Path)));
         }
 
         private void ApplyExport(AppExport export)

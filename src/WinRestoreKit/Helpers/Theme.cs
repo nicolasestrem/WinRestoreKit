@@ -6,35 +6,163 @@ using System.Windows.Forms;
 
 namespace WinRestoreKit
 {
-    /// <summary>One theme's colour tokens. Two instances exist: <see cref="Theme.Light"/> and Dark.</summary>
-    internal sealed class Palette
+    /// <summary>User-selectable palette mode. Persisted under HKCU\Software\WinRestoreKit\PaletteMode.</summary>
+    internal enum PaletteMode
     {
+        FollowSystem = 0,
+        Voltage = 1,
+        Flux = 2
+    }
+
+    /// <summary>Industry design-system colour tokens for one palette (Voltage or Flux).</summary>
+    internal sealed class PaletteV2
+    {
+        internal Color Bg;
         internal Color Surface;
-        internal Color RailSurface;
-        internal Color CardSurface;
-        internal Color TextPrimary;
-        internal Color TextMuted;
-        internal Color Border;
-        internal Color Danger;
-        internal Color Caution;
-        internal Color ChipSucceededBack;
-        internal Color ChipSucceededFore;
-        internal Color ChipSkippedBack;
-        internal Color ChipSkippedFore;
-        internal Color ChipFailedBack;
-        internal Color ChipFailedFore;
-        internal Color InputBack;
+        internal Color Text;
+        internal Color Accent;
+        internal Color Accent2;
+        internal Color Divider;
+
+        internal Color Neutral100;
+        internal Color Neutral200;
+        internal Color Neutral300;
+        internal Color Neutral400;
+        internal Color Neutral500;
+        internal Color Neutral600;
+        internal Color Neutral700;
+        internal Color Neutral800;
+        internal Color Neutral900;
+
+        internal Color Accent100;
+        internal Color Accent200;
+        internal Color Accent300;
+        internal Color Accent400;
+        internal Color Accent500;
+        internal Color Accent600;
+        internal Color Accent700;
+        internal Color Accent800;
+        internal Color Accent900;
+
+        internal Color Accent2_100;
+        internal Color Accent2_200;
+        internal Color Accent2_300;
+        internal Color Accent2_400;
+        internal Color Accent2_500;
+        internal Color Accent2_600;
+        internal Color Accent2_700;
+        internal Color Accent2_800;
+        internal Color Accent2_900;
+
+        /// <summary>Muted body text. Voltage Neutral600 / Flux Neutral600.</summary>
+        internal Color TextMuted => Neutral600;
+
+        /// <summary>Voltage (light) palette. Exact hex from ds-industry-volt.css.</summary>
+        internal static PaletteV2 Voltage() => new PaletteV2
+        {
+            Bg = Hex("#f4f6f8"),
+            Surface = Hex("#e9edf1"),
+            Text = Hex("#1d1f20"),
+            Accent = Hex("#1f6fff"),
+            Accent2 = Hex("#f78f00"),
+            // Text at ~16% over Bg, solid approximation.
+            Divider = Hex("#cbd2d8"),
+
+            Neutral100 = Hex("#f5f5f8"),
+            Neutral200 = Hex("#e7e7ea"),
+            Neutral300 = Hex("#d4d4d7"),
+            Neutral400 = Hex("#b7b7ba"),
+            Neutral500 = Hex("#98989b"),
+            Neutral600 = Hex("#7a7a7d"),
+            Neutral700 = Hex("#5d5d60"),
+            Neutral800 = Hex("#424244"),
+            Neutral900 = Hex("#2b2b2d"),
+
+            Accent100 = Hex("#eaf1ff"),
+            Accent200 = Hex("#cfe0ff"),
+            Accent300 = Hex("#a8c6ff"),
+            Accent400 = Hex("#76a2ff"),
+            Accent500 = Hex("#3d7dff"),
+            Accent600 = Hex("#0b53e8"),
+            Accent700 = Hex("#0a3cae"),
+            Accent800 = Hex("#0a2b7a"),
+            Accent900 = Hex("#0d1f4d"),
+
+            Accent2_100 = Hex("#fff4e0"),
+            Accent2_200 = Hex("#ffe2b3"),
+            Accent2_300 = Hex("#ffcb7a"),
+            Accent2_400 = Hex("#ffae38"),
+            Accent2_500 = Hex("#f78f00"),
+            Accent2_600 = Hex("#cc7000"),
+            Accent2_700 = Hex("#9c5400"),
+            Accent2_800 = Hex("#6f3c00"),
+            Accent2_900 = Hex("#452700"),
+        };
+
+        /// <summary>Flux (dark) palette. Exact hex from ds-industry-flux.css.</summary>
+        internal static PaletteV2 Flux() => new PaletteV2
+        {
+            Bg = Hex("#0f1418"),
+            Surface = Hex("#161d23"),
+            Text = Hex("#e6edf3"),
+            Accent = Hex("#22d3ee"),
+            Accent2 = Hex("#e0388a"),
+            // white at ~24% over Bg, solid approximation.
+            Divider = Hex("#3c4148"),
+
+            Neutral100 = Hex("#1b232a"),
+            Neutral200 = Hex("#232c34"),
+            Neutral300 = Hex("#2c3740"),
+            Neutral400 = Hex("#465360"),
+            Neutral500 = Hex("#697787"),
+            Neutral600 = Hex("#8b98a6"),
+            Neutral700 = Hex("#adb8c4"),
+            Neutral800 = Hex("#cfd7e0"),
+            Neutral900 = Hex("#e8eef4"),
+
+            Accent100 = Hex("#0b2b33"),
+            Accent200 = Hex("#0f3b47"),
+            Accent300 = Hex("#155e6e"),
+            Accent400 = Hex("#1b8399"),
+            Accent500 = Hex("#22b8d6"),
+            Accent600 = Hex("#4ee0f5"),
+            Accent700 = Hex("#7ce9f8"),
+            Accent800 = Hex("#a9f2fb"),
+            Accent900 = Hex("#d7f9fd"),
+
+            Accent2_100 = Hex("#330f22"),
+            Accent2_200 = Hex("#4d1531"),
+            Accent2_300 = Hex("#73204a"),
+            Accent2_400 = Hex("#a02a66"),
+            Accent2_500 = Hex("#e0388a"),
+            Accent2_600 = Hex("#f45fa4"),
+            Accent2_700 = Hex("#fb8fc0"),
+            Accent2_800 = Hex("#ffb8d6"),
+            Accent2_900 = Hex("#ffdbea"),
+        };
+
+        internal static PaletteV2 FromMode(PaletteMode mode)
+        {
+            if (mode == PaletteMode.FollowSystem)
+                return Theme.IsDarkOs() ? Flux() : Voltage();
+
+            return mode == PaletteMode.Flux ? Flux() : Voltage();
+        }
+
+        private static Color Hex(string hex)
+        {
+            string h = hex.TrimStart('#');
+            int r = Convert.ToInt32(h.Substring(0, 2), 16);
+            int g = Convert.ToInt32(h.Substring(2, 2), 16);
+            int b = Convert.ToInt32(h.Substring(4, 2), 16);
+            return Color.FromArgb(r, g, b);
+        }
     }
 
     /// <summary>
     /// Controls that paint themselves - state chips, backup cards, the primary action button - and
     /// which <see cref="Theme.Apply"/> therefore steps over.
     /// </summary>
-    /// <remarks>
-    /// A marker TYPE rather than a registry of instances: chips and cards are rebuilt on every
-    /// render, so a HashSet of opted-out controls would grow without bound and hold disposed
-    /// controls alive. The walker still recurses into their children.
-    /// </remarks>
     internal sealed class AccentLabel : Label { }
 
     /// <inheritdoc cref="AccentLabel"/>
@@ -44,86 +172,47 @@ namespace WinRestoreKit
     internal sealed class AccentPanel : TableLayoutPanel { }
 
     /// <summary>
-    /// Light and dark colour tokens plus the control-tree walker that applies them.
+    /// Voltage / Flux / FollowSystem palettes plus the control-tree walker that applies them.
     /// </summary>
-    /// <remarks>
-    /// Hand-rolled on purpose. <c>Application.SetColorMode</c> is .NET 9+ and experimental
-    /// (WFO5001); it is not available on net8.0-windows. .NET 8 reaches end of life in November
-    /// 2026, and a later retarget would let SetColorMode replace most of this - so this class is
-    /// deliberately thin and disposable rather than a framework to grow.
-    ///
-    /// Light is today's values moved, not chosen, so switching to it is a no-op against the
-    /// pre-Phase-4 look. Skipped is amber in BOTH palettes and never green: the styling has to keep
-    /// the distinction the engine's three-state result fought for.
-    ///
-    /// MessageBoxes and common dialogs stay light no matter what. That is disclosed, not chased -
-    /// owner-drawing our way out of it is a budget this phase does not have, and Path D already cut
-    /// the remaining MessageBoxes down to the consent-class prompts.
-    /// </remarks>
     internal static class Theme
     {
-        internal static readonly Palette Light = new Palette
+        private const string RegistryKeyPath = @"Software\WinRestoreKit";
+        private const string RegistryValueName = "PaletteMode";
+
+        internal static PaletteV2 Current { get; private set; } = PaletteV2.Voltage();
+
+        internal static PaletteMode Mode { get; private set; } = PaletteMode.FollowSystem;
+
+        /// <summary>True when the active palette is the dark (Flux) one.</summary>
+        internal static bool IsDark => Current.Bg.GetBrightness() < 0.5f;
+
+        /// <summary>
+        /// Reads the persisted palette mode from the registry and sets <see cref="Current"/>.
+        /// Call from Program.Main before constructing MainForm.
+        /// </summary>
+        internal static void Initialize()
         {
-            Surface = Color.FromArgb(243, 243, 243),
-            RailSurface = Color.FromArgb(245, 241, 249),
-            CardSurface = Color.FromArgb(250, 250, 250),
-            TextPrimary = Color.Black,
-            TextMuted = Color.DimGray,
-            Border = Color.FromArgb(220, 220, 220),
-            Danger = Color.FromArgb(168, 34, 34),
-            Caution = Color.FromArgb(150, 92, 0),
-            ChipSucceededBack = Color.FromArgb(39, 124, 74),
-            ChipSucceededFore = Color.White,
-            ChipSkippedBack = Color.FromArgb(150, 92, 0),
-            ChipSkippedFore = Color.White,
-            ChipFailedBack = Color.FromArgb(168, 34, 34),
-            ChipFailedFore = Color.White,
-            InputBack = Color.FromArgb(250, 250, 250),
-        };
+            Mode = ReadMode();
+            Current = PaletteV2.FromMode(Mode);
+        }
 
-        internal static readonly Palette Dark = new Palette
+        /// <summary>Switches the active palette and persists the choice.</summary>
+        internal static void SetMode(PaletteMode mode)
         {
-            Surface = Color.FromArgb(32, 32, 32),
-            RailSurface = Color.FromArgb(50, 50, 50),
-            CardSurface = Color.FromArgb(56, 56, 56),
-            TextPrimary = Color.FromArgb(240, 240, 240),
-            TextMuted = Color.FromArgb(170, 170, 170),
-            // 3.2:1 against Surface. The first pass used (65,65,65) - 1.6:1 - which is invisible,
-            // and since CardSurface was 1.15:1 against Surface as well, nothing on a dark screen had
-            // an edge: backup cards, result rows and text boxes all dissolved into the background.
-            // The text was never the problem; every foreground token here clears 6:1. Borders are
-            // what make a surface a surface, and 3:1 is the floor for a boundary that carries
-            // meaning rather than decoration.
-            Border = Color.FromArgb(110, 110, 110),
-            Danger = Color.FromArgb(255, 120, 120),
-            Caution = Color.FromArgb(240, 190, 90),
-            ChipSucceededBack = Color.FromArgb(38, 104, 66),
-            ChipSucceededFore = Color.White,
-            ChipSkippedBack = Color.FromArgb(140, 96, 20),
-            ChipSkippedFore = Color.White,
-            ChipFailedBack = Color.FromArgb(150, 48, 48),
-            ChipFailedFore = Color.White,
-            InputBack = Color.FromArgb(56, 56, 56),
-        };
+            Mode = mode;
+            Current = PaletteV2.FromMode(mode);
+            WriteMode(mode);
+        }
 
-        internal static Palette Current { get; private set; } = Light;
-
-        internal static bool IsDark { get; private set; }
-
-        /// <summary>Switches the active palette. Callers re-apply afterwards.</summary>
-        internal static void Use(bool dark)
+        /// <summary>Recomputes Current from the current Mode (e.g. after an OS light/dark flip).</summary>
+        internal static void RefreshFromMode()
         {
-            IsDark = dark;
-            Current = dark ? Dark : Light;
+            Current = PaletteV2.FromMode(Mode);
         }
 
         /// <summary>
         /// Whether Windows is in dark app mode. Any failure reads as light.
         /// </summary>
-        /// <remarks>
-        /// AppsUseLightTheme (0 = dark) rather than SystemUsesLightTheme: the former is the app
-        /// setting, the latter is the taskbar/Start setting, and they are set independently.
-        /// </remarks>
         internal static bool IsDarkOs()
         {
             try
@@ -143,13 +232,47 @@ namespace WinRestoreKit
             }
         }
 
+        private static PaletteMode ReadMode()
+        {
+            try
+            {
+                using (RegistryKey key = Registry.CurrentUser.OpenSubKey(RegistryKeyPath))
+                {
+                    if (key == null)
+                        return PaletteMode.FollowSystem;
+
+                    object raw = key.GetValue(RegistryValueName);
+                    if (raw is int i && Enum.IsDefined(typeof(PaletteMode), i))
+                        return (PaletteMode)i;
+                }
+            }
+            catch (Exception)
+            {
+                // Fall through to default.
+            }
+
+            return PaletteMode.FollowSystem;
+        }
+
+        private static void WriteMode(PaletteMode mode)
+        {
+            try
+            {
+                using (RegistryKey key = Registry.CurrentUser.CreateSubKey(RegistryKeyPath))
+                {
+                    if (key != null)
+                        key.SetValue(RegistryValueName, (int)mode, RegistryValueKind.DWord);
+                }
+            }
+            catch (Exception)
+            {
+                // Persistence is best-effort.
+            }
+        }
+
         /// <summary>
         /// Paints a control tree with the current palette, by control kind.
         /// </summary>
-        /// <remarks>
-        /// Called by MainForm for the whole shell and by the two dialogs on themselves, since they
-        /// are constructed after startup and are not in the shell's tree.
-        /// </remarks>
         internal static void Apply(Control root)
         {
             if (root == null)
@@ -164,68 +287,67 @@ namespace WinRestoreKit
                 return;
             }
 
-            Palette p = Current;
+            // Blueprint frames and Keyed marks paint themselves.
+            string typeName = root.GetType().Name;
+            if (typeName == "BlueprintFrame" || typeName == "KeyedMark" || typeName == "NavButton"
+                || typeName == "CustomCheckbox" || typeName == "SegmentedControl" || typeName == "TagChip")
+            {
+                foreach (Control child in root.Controls)
+                    Apply(child);
+                return;
+            }
+
+            PaletteV2 p = Current;
 
             switch (root)
             {
                 case TextBox textBox:
-                    textBox.BackColor = textBox.ReadOnly ? p.Surface : p.InputBack;
-                    // Remapped, not flattened: the wizard's inline warnings and the results panel's
-                    // reasons are read-only TextBoxes precisely so they stay selectable, and they
-                    // carry Caution and Muted. Assigning TextPrimary here would drop the distinction
-                    // on a live theme switch.
+                    textBox.BackColor = textBox.ReadOnly ? p.Bg : p.Surface;
                     textBox.ForeColor = RemapSemantic(textBox.ForeColor, p);
                     break;
 
                 case RichTextBox richTextBox:
-                    richTextBox.BackColor = p.Surface;
+                    richTextBox.BackColor = p.Bg;
                     richTextBox.ForeColor = p.TextMuted;
                     break;
 
                 case TreeView tree:
-                    tree.BackColor = p.Surface;
-                    tree.ForeColor = p.TextPrimary;
+                    tree.BackColor = p.Bg;
+                    tree.ForeColor = p.Text;
                     ApplyExplorerTheme(tree);
                     break;
 
                 case ListBox list:
-                    list.BackColor = p.InputBack;
-                    list.ForeColor = p.TextPrimary;
+                    list.BackColor = p.Surface;
+                    list.ForeColor = p.Text;
                     ApplyExplorerTheme(list);
                     break;
 
                 case ComboBox combo:
-                    combo.BackColor = p.InputBack;
-                    combo.ForeColor = p.TextPrimary;
+                    combo.BackColor = p.Surface;
+                    combo.ForeColor = p.Text;
                     break;
 
                 case LinkLabel link:
                     link.BackColor = Color.Transparent;
-                    // Remapped for the same reason labels are: History's "Open folder" is muted so
-                    // it reads as secondary to "Restore from this backup" beside it. Flattening both
-                    // to TextPrimary here collapsed that hierarchy on every refresh.
                     link.LinkColor = RemapSemantic(link.LinkColor, p);
                     link.ActiveLinkColor = link.LinkColor;
                     break;
 
                 case Button button:
-                    // Chips and the primary action button paint themselves; leave any control that
-                    // has opted out of the palette alone rather than flattening it.
-                    button.ForeColor = p.TextPrimary;
-                    button.BackColor = p.CardSurface;
-                    button.FlatAppearance.BorderColor = p.Border;
+                    button.ForeColor = p.Text;
+                    button.BackColor = p.Surface;
+                    button.FlatAppearance.BorderColor = p.Divider;
                     break;
 
                 case CheckBox check:
                     check.BackColor = Color.Transparent;
-                    // Muted here means the row is inert - "(nothing in this backup)" in restore
-                    // step 2 - so it has to survive a repaint like any other semantic colour.
                     check.ForeColor = RemapSemantic(check.ForeColor, p);
                     break;
 
                 case RadioButton radio:
                     radio.BackColor = Color.Transparent;
-                    radio.ForeColor = p.TextPrimary;
+                    radio.ForeColor = p.Text;
                     break;
 
                 case Label label:
@@ -234,18 +356,21 @@ namespace WinRestoreKit
                     break;
 
                 case Panel panel:
-                    // A hairline separator is a Border-coloured Panel, so it has to survive the walk
-                    // like any other semantic colour - the default below would repaint it Surface
-                    // and leave an invisible 1px gap where a divider should be.
-                    panel.BackColor = panel.BackColor == Light.Border || panel.BackColor == Dark.Border
-                        ? p.Border
-                        : p.Surface;
-                    panel.ForeColor = p.TextPrimary;
+                    // A hairline separator is a Divider-coloured Panel.
+                    panel.BackColor = IsDividerColor(panel.BackColor)
+                        ? p.Divider
+                        : p.Bg;
+                    panel.ForeColor = p.Text;
+                    break;
+
+                case Form form:
+                    form.BackColor = p.Bg;
+                    form.ForeColor = p.Text;
                     break;
 
                 default:
-                    root.BackColor = p.Surface;
-                    root.ForeColor = p.TextPrimary;
+                    root.BackColor = p.Bg;
+                    root.ForeColor = p.Text;
                     break;
             }
 
@@ -257,35 +382,41 @@ namespace WinRestoreKit
         /// Carries a label's MEANING across a palette change: muted stays muted, caution stays
         /// caution, danger stays danger, and anything else becomes ordinary body text.
         /// </summary>
-        /// <remarks>
-        /// This used to skip semantic labels instead of remapping them, on the assumption that the
-        /// view would re-apply its own colours afterwards. No view does - every <c>Ui.Caution</c> is
-        /// read once in a constructor and the views are built once and reused. So on a live OS
-        /// switch a banner built in light mode kept <see cref="Light"/>'s dark amber (150,92,0) and
-        /// sat on dark mode's (32,32,32) surface, which is the one combination the amber was chosen
-        /// to avoid.
-        ///
-        /// Both palettes are checked for each token because this runs AFTER <c>Current</c> has
-        /// already flipped, so the colour being matched is the outgoing one.
-        /// </remarks>
-        private static Color RemapSemantic(Color current, Palette p)
+        private static Color RemapSemantic(Color current, PaletteV2 p)
         {
-            if (current == Light.TextMuted || current == Dark.TextMuted)
+            PaletteV2 v = PaletteV2.Voltage();
+            PaletteV2 f = PaletteV2.Flux();
+
+            if (current == v.TextMuted || current == f.TextMuted
+                || current == v.Neutral600 || current == f.Neutral600)
                 return p.TextMuted;
 
-            if (current == Light.Caution || current == Dark.Caution)
-                return p.Caution;
+            // Caution / danger both map to Accent2-600 in the new system.
+            if (current == v.Accent2_600 || current == f.Accent2_600
+                || current == Color.FromArgb(150, 92, 0) || current == Color.FromArgb(240, 190, 90)
+                || current == Color.FromArgb(168, 34, 34) || current == Color.FromArgb(255, 120, 120))
+                return p.Accent2_600;
 
-            if (current == Light.Danger || current == Dark.Danger)
-                return p.Danger;
+            if (current == v.Accent700 || current == f.Accent700)
+                return p.Accent700;
 
-            return p.TextPrimary;
+            if (current == v.Accent || current == f.Accent)
+                return p.Accent;
+
+            return p.Text;
+        }
+
+        private static bool IsDividerColor(Color c)
+        {
+            PaletteV2 v = PaletteV2.Voltage();
+            PaletteV2 f = PaletteV2.Flux();
+            return c == v.Divider || c == f.Divider
+                || c == Color.FromArgb(220, 220, 220)
+                || c == Color.FromArgb(110, 110, 110);
         }
 
         // ---------------------------------------------------------------------------------------------
-        //  Cosmetic P/Invokes. BOTH are wrapped: these are decoration in an elevated process and must
-        //  never be able to throw. If a future Windows build breaks them, deleting the calls is safe -
-        //  nothing depends on them.
+        //  Cosmetic P/Invokes.
         // ---------------------------------------------------------------------------------------------
 
         private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
@@ -314,8 +445,7 @@ namespace WinRestoreKit
         }
 
         /// <summary>
-        /// Dark scrollbars on a TreeView/ListBox. Undocumented but stable, and used by essentially
-        /// every dark WinForms app.
+        /// Dark scrollbars on a TreeView/ListBox.
         /// </summary>
         private static void ApplyExplorerTheme(Control control)
         {

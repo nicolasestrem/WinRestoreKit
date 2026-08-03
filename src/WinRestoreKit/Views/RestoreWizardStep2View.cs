@@ -10,51 +10,29 @@ using System.Windows.Forms;
 
 namespace Views
 {
-    /// <summary>
-    /// Restore wizard step 2: contents &amp; portability. One row per module showing whether the
-    /// backup holds it and what the manifest recorded, then the consent dialog and the in-page result.
-    /// </summary>
-    /// <remarks>
-    /// Implements <see cref="IRunUi"/> exactly as the backup page does - same modal consent, same
-    /// default-No snapshot override, results into its own <see cref="RunResultsPanel"/> - and owns a
-    /// <see cref="BackupRestoreOrchestrator"/> so a restore runs here rather than back on the backup
-    /// page. Default ticks every module the folder actually holds (restore-what's-in-it).
-    /// </remarks>
-    internal sealed partial class RestoreWizardStep2View : UserControl, IRunUi
+    /// <summary>Restore wizard step 2: select eligible components, then open the safe confirmation modal.</summary>
+    internal sealed partial class RestoreWizardStep2View : UserControl
     {
         private readonly NavigationService navigation;
-        private readonly Action<bool> runStateChanged;
-        private readonly BackupRestoreOrchestrator runner;
-
-        private readonly Label headerLabel;
-        private readonly Label provenanceBanner;
         private readonly FlowLayoutPanel rows;
-        private readonly Label progressLabel;
-        private readonly FlowLayoutPanel actionRow;
+        private readonly Label sourceName;
+        private readonly Label sourceDetail;
+        private readonly Label warningText;
+        private readonly Label selectionLabel;
         private readonly Button btnBack;
         private readonly Button btnNext;
-        private readonly RunResultsPanel resultsPanel;
+        private readonly List<RowCheck> rowChecks = new List<RowCheck>();
 
         private BackupFolder folder;
-        /// <summary>
-        /// One step-2 row: its checkbox, its module, and whether the folder actually holds anything
-        /// for it.
-        /// </summary>
-        /// <remarks>
-        /// <see cref="Eligible"/> is tracked here rather than read back off <c>CheckBox.Enabled</c>
-        /// because those are two different facts that only happened to coincide. Eligibility is a
-        /// statement about the BACKUP; Enabled is a statement about the control, and the control's
-        /// state is also driven by the run - the whole page is disabled while a restore is in
-        /// flight. Deriving one from the other means any future change to how an inert row is
-        /// painted silently changes which modules get restored.
-        /// </remarks>
+
+        internal Action<IReadOnlyList<BackupBase>, BackupFolder> StartRestoreRequested { get; set; }
         private sealed class RowCheck
         {
-            internal CheckBox Box { get; }
+            internal CustomCheckbox Box { get; }
             internal BackupBase Module { get; }
             internal bool Eligible { get; }
 
-            internal RowCheck(CheckBox box, BackupBase module, bool eligible)
+            internal RowCheck(CustomCheckbox box, BackupBase module, bool eligible)
             {
                 Box = box;
                 Module = module;
@@ -62,94 +40,196 @@ namespace Views
             }
         }
 
-        private readonly List<RowCheck> rowChecks = new List<RowCheck>();
-
-        public RestoreWizardStep2View(NavigationService navigation, Action<bool> runStateChanged)
+        public RestoreWizardStep2View(NavigationService navigation)
         {
-            this.navigation = navigation;
-            this.runStateChanged = runStateChanged;
-            runner = new BackupRestoreOrchestrator(this);
-
-            BackColor = Ui.Surface;
+            this.navigation = navigation ?? throw new ArgumentNullException(nameof(navigation));
             AutoScroll = true;
+            BackColor = Theme.Current.Bg;
 
-            headerLabel = new Label
+            Label stepIndicator = new Label
             {
                 AutoSize = true,
-                Dock = DockStyle.Top,
-                Font = Ui.Title(),
-                ForeColor = Ui.TextPrimary,
-                Margin = new Padding(Ui.SpaceM, Ui.SpaceM, Ui.SpaceM, Ui.SpaceXs),
-                Text = "Restore contents",
+                Font = Ui.Kicker(),
+                ForeColor = Theme.Current.Accent700,
+                Text = "1. SNAPSHOT   ->   2. COMPONENTS   ->   3. CONFIRM",
             };
 
-            provenanceBanner = new Label
+            Label kicker = new Label
             {
                 AutoSize = true,
-                Dock = DockStyle.Top,
-                Font = Ui.BodyBold(),
-                ForeColor = Ui.Caution,
-                Margin = new Padding(Ui.SpaceM, 0, Ui.SpaceM, Ui.SpaceS),
-                Visible = false,
+                Font = Ui.Kicker(),
+                ForeColor = Theme.Current.Accent700,
+                Margin = new Padding(0, Ui.SpaceM, 0, Ui.SpaceXs),
+                Text = "RESTORE",
             };
 
-            progressLabel = new Label
+            Label title = new Label
             {
                 AutoSize = true,
-                Dock = DockStyle.Top,
-                Font = Ui.Body(),
-                ForeColor = Ui.Muted,
-                Margin = new Padding(Ui.SpaceM, 0, Ui.SpaceM, Ui.SpaceS),
-                Text = "Choose what to restore",
+                Font = Ui.Heading(),
+                ForeColor = Theme.Current.Text,
+                Margin = new Padding(0, 0, 0, Ui.SpaceM),
+                Text = "PICK WHAT COMES BACK",
             };
 
-            rows = new FlowLayoutPanel
-            {
-                FlowDirection = FlowDirection.TopDown,
-                WrapContents = false,
-                AutoScroll = true,
-                Dock = DockStyle.Fill,
-                Padding = new Padding(Ui.SpaceM),
-            };
-
-            btnBack = new Button { AutoSize = true, Font = Ui.Body(), Text = "\u2190 Back", UseVisualStyleBackColor = true };
-            btnBack.Click += (s, e) => navigation.Pop();
-
-            btnNext = new Button
+            sourceName = new Label
             {
                 AutoSize = true,
-                Enabled = false,
-                Font = Ui.BodyBold(),
-                Text = "Next",
-                UseVisualStyleBackColor = true,
+                Font = Ui.Heading2(),
+                ForeColor = Theme.Current.Text,
             };
-            btnNext.Click += btnNext_Click;
+            sourceDetail = new Label
+            {
+                AutoSize = true,
+                Font = Ui.MonoSmall(),
+                ForeColor = Theme.Current.TextMuted,
+                Margin = new Padding(0, Ui.SpaceXs, 0, 0),
+            };
 
-            // FlowLayoutPanel, not Panel. A plain Panel lays nothing out, so both buttons kept their
-            // default (0,0) and Next - added first, so topmost in z-order - covered Back completely,
-            // leaving no way back to the picker except the rail. Back is added first here so it
-            // reads left-to-right.
-            actionRow = new FlowLayoutPanel
+            BlueprintFrame sourceFrame = new BlueprintFrame
             {
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 Dock = DockStyle.Top,
-                FlowDirection = FlowDirection.LeftToRight,
-                Padding = new Padding(Ui.SpaceM),
-                WrapContents = false,
+                Margin = new Padding(0, 0, Ui.SpaceM, Ui.SpaceM),
             };
-            actionRow.Controls.Add(btnBack);
-            actionRow.Controls.Add(btnNext);
+            Label sourceKicker = new Label
+            {
+                AutoSize = true,
+                Font = Ui.Kicker(),
+                ForeColor = Theme.Current.Accent700,
+                Margin = new Padding(0, 0, 0, Ui.SpaceS),
+                Text = "SOURCE SNAPSHOT",
+            };
+            FlowLayoutPanel sourceContent = CreateVerticalFlow();
+            sourceContent.Controls.Add(sourceKicker);
+            sourceContent.Controls.Add(sourceName);
+            sourceContent.Controls.Add(sourceDetail);
+            sourceFrame.Controls.Add(sourceContent);
 
-            resultsPanel = new RunResultsPanel { Dock = DockStyle.Top };
+            warningText = new AccentLabel
+            {
+                AutoSize = true,
+                Font = Ui.Body(),
+                ForeColor = Theme.Current.Accent2_700,
+                MaximumSize = new Size(360, 0),
+            };
+            AccentPanel warningPanel = new AccentPanel
+            {
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                BackColor = Theme.Current.Accent2_100,
+                Dock = DockStyle.Top,
+                Margin = new Padding(0, 0, Ui.SpaceM, 0),
+                Padding = new Padding(Ui.SpaceM),
+            };
+            AccentLabel cautionGlyph = new AccentLabel
+            {
+                AutoSize = true,
+                Font = Ui.Heading2(),
+                ForeColor = Theme.Current.Accent2_700,
+                Text = "\u26A0",
+            };
+            TableLayoutPanel warningContent = new TableLayoutPanel
+            {
+                AutoSize = true,
+                ColumnCount = 2,
+                Dock = DockStyle.Top,
+            };
+            warningContent.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            warningContent.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            warningContent.Controls.Add(cautionGlyph, 0, 0);
+            warningContent.Controls.Add(warningText, 1, 0);
+            warningPanel.Controls.Add(warningContent);
 
-            Controls.Add(rows);
-            Controls.Add(actionRow);
-            Controls.Add(progressLabel);
-            Controls.Add(provenanceBanner);
-            Controls.Add(headerLabel);
-            // resultsPanel is shown on top of the stack once a run reports (docked top, hidden until then).
-            Controls.Add(resultsPanel);
+            FlowLayoutPanel leftColumn = CreateVerticalFlow();
+            leftColumn.Dock = DockStyle.Fill;
+            leftColumn.Controls.Add(sourceFrame);
+            leftColumn.Controls.Add(warningPanel);
+
+            rows = CreateVerticalFlow();
+            rows.AutoScroll = true;
+            rows.Dock = DockStyle.Fill;
+            rows.Padding = new Padding(0, 0, Ui.SpaceXs, 0);
+
+            BlueprintFrame componentsFrame = new BlueprintFrame
+            {
+                Dock = DockStyle.Fill,
+                Margin = new Padding(Ui.SpaceM, 0, 0, 0),
+            };
+            Label componentsKicker = new Label
+            {
+                AutoSize = true,
+                Dock = DockStyle.Top,
+                Font = Ui.Kicker(),
+                ForeColor = Theme.Current.Accent700,
+                Margin = new Padding(0, 0, 0, Ui.SpaceS),
+                Text = "COMPONENTS",
+            };
+            componentsFrame.Controls.Add(rows);
+            componentsFrame.Controls.Add(componentsKicker);
+
+            TableLayoutPanel body = new TableLayoutPanel
+            {
+                ColumnCount = 2,
+                Dock = DockStyle.Fill,
+                Margin = new Padding(0),
+            };
+            body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40F));
+            body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60F));
+            body.Controls.Add(leftColumn, 0, 0);
+            body.Controls.Add(componentsFrame, 1, 0);
+
+            btnBack = CreateSecondaryButton("BACK");
+            btnBack.Click += (s, e) => navigation.Pop();
+            btnNext = CreatePrimaryButton("CONTINUE");
+            btnNext.Enabled = false;
+            btnNext.Click += btnNext_Click;
+
+            selectionLabel = new Label
+            {
+                AutoSize = true,
+                Anchor = AnchorStyles.Left,
+                Font = Ui.MonoSmall(),
+                ForeColor = Theme.Current.TextMuted,
+                Text = "0 components selected",
+            };
+
+            TableLayoutPanel footer = new TableLayoutPanel
+            {
+                AutoSize = true,
+                ColumnCount = 3,
+                Dock = DockStyle.Top,
+                Margin = new Padding(0, Ui.SpaceM, 0, 0),
+                Padding = new Padding(0, Ui.SpaceS, 0, 0),
+            };
+            footer.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            footer.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            footer.Controls.Add(btnBack, 0, 0);
+            footer.Controls.Add(selectionLabel, 1, 0);
+            footer.Controls.Add(btnNext, 2, 0);
+
+
+            TableLayoutPanel layout = new TableLayoutPanel
+            {
+                ColumnCount = 1,
+                Dock = DockStyle.Fill,
+                Padding = new Padding(30, 26, 30, 26),
+                RowCount = 5,
+            };
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            layout.Controls.Add(stepIndicator, 0, 0);
+            layout.Controls.Add(kicker, 0, 1);
+            layout.Controls.Add(title, 0, 2);
+            layout.Controls.Add(body, 0, 3);
+            layout.Controls.Add(footer, 0, 4);
+            Controls.Add(layout);
         }
 
         internal void LoadFolder(BackupFolder folder)
@@ -157,236 +237,144 @@ namespace Views
             this.folder = folder;
             rows.Controls.Clear();
             rowChecks.Clear();
-            resultsPanel.Clear();
-            resultsPanel.Visible = false;
-            btnNext.Enabled = false;
 
-            headerLabel.Text = "Restore from " + folder.Name;
+            sourceName.Text = folder.DisplayName;
+            sourceDetail.Text = folder.Created == DateTime.MinValue
+                ? "DATE UNKNOWN"
+                : folder.Created.ToString("yyyy-MM-dd HH.mm");
 
             string provenance = RestoreContents.DescribeProvenance(
                 folder.ReadManifest(), Environment.MachineName, Environment.UserName);
-            provenanceBanner.Visible = provenance != null;
-            provenanceBanner.Text = provenance ?? "";
+            warningText.Text = provenance ?? "Restoring replaces the selected settings with values saved in this snapshot. Continue only if this is the source you intend to use.";
 
-            IReadOnlyList<BackupBase> modules = ModuleCatalog.CreateAll().Select(r => r.Module).ToList();
+            IReadOnlyList<BackupBase> modules = ModuleCatalog.CreateAll().Select(registration => registration.Module).ToList();
             IReadOnlyList<RestoreContentsRow> contents = RestoreContents.For(modules, folder.Path, folder.ReadManifest());
-
             foreach (RestoreContentsRow row in contents)
                 rows.Controls.Add(MakeRow(row));
 
-            RefreshNextEnabled();
-
-            // These rows did not exist when MainForm themed this page, and WinForms defaults are
-            // LIGHT - a TextBox nobody assigns a BackColor to is white. That is why the inline
-            // warning rendered as a white slab in dark mode. Anything built after startup has to be
-            // re-walked; the walker steps over the chips, so their colours survive.
+            RefreshSelectionState();
             Theme.Apply(this);
         }
 
         private Control MakeRow(RestoreContentsRow row)
         {
-            // The glyph only - the text lives on the Label beside it. A DISABLED CheckBox paints its
-            // own Text with the system grey and ignores ForeColor entirely, so the muted colour set
-            // here in the first version did nothing: every "(nothing in this backup)" row rendered at
-            // about 3:1 against the dark surface, which is where "can't read the greyed rows" came
-            // from. A Label is not disabled, so its colour is ours and lands at 7:1.
-            // Splitting glyph from words costs the checkbox its accessible name - a WinForms Label
-            // is NOT automatically associated with the control beside it, so a screen reader would
-            // announce "checked" with nothing to say WHAT is checked. Named explicitly instead, with
-            // the same words the label shows.
             string caption = row.HasBackup
                 ? row.Module.Title
-                : row.Module.Title + " (nothing in this backup)";
+                : row.Module.Title + " (nothing in this snapshot)";
 
-            CheckBox check = new CheckBox
+            CustomCheckbox checkbox = new CustomCheckbox
             {
-                AutoSize = true,
-                Anchor = AnchorStyles.Left,
                 AccessibleName = caption,
-                AccessibleRole = AccessibleRole.CheckButton,
                 Checked = row.HasBackup,
                 Enabled = row.HasBackup,
-                Margin = new Padding(0, 0, Ui.SpaceXs, 0),
+                LabelText = string.Empty,
+                Margin = new Padding(0, 2, Ui.SpaceS, 0),
                 Tag = row.Module,
-                Text = "",
             };
-            check.CheckedChanged += (s, e) => RefreshNextEnabled();
+            checkbox.CheckedChanged += (s, e) => RefreshSelectionState();
 
-            Label title = new Label
+            Label name = new Label
             {
                 AutoSize = true,
                 Anchor = AnchorStyles.Left,
-                Font = Ui.Body(),
-                ForeColor = row.HasBackup ? Ui.TextPrimary : Ui.Muted,
-                Margin = new Padding(0, 3, Ui.SpaceS, 0),
-                // Not announced: the checkbox beside it already carries these words as its
-                // accessible name, so exposing them twice would make Narrator read every row twice.
-                AccessibleRole = AccessibleRole.StaticText,
-                Text = row.HasBackup
-                    ? row.Module.Title
-                    : row.Module.Title + "   (nothing in this backup)",
+                Font = Ui.BodyBold(),
+                ForeColor = row.HasBackup ? Theme.Current.Text : Theme.Current.TextMuted,
+                Margin = new Padding(0, 0, Ui.SpaceS, 0),
+                Text = caption,
             };
-
             if (row.HasBackup)
             {
-                // The label now carries the words, so it has to carry the click that used to land on
-                // the checkbox's own text.
-                title.Cursor = Cursors.Hand;
-                title.Click += (s, e) => check.Checked = !check.Checked;
+                name.Cursor = Cursors.Hand;
+                name.Click += (s, e) =>
+                {
+                    if (checkbox.Enabled)
+                        checkbox.Checked = !checkbox.Checked;
+                };
             }
 
-            rowChecks.Add(new RowCheck(check, row.Module, row.HasBackup));
+            Label itemCount = new Label
+            {
+                AutoSize = true,
+                Anchor = AnchorStyles.Right,
+                Font = Ui.MonoSmall(),
+                ForeColor = Theme.Current.TextMuted,
+                Margin = new Padding(Ui.SpaceS, 0, 0, 0),
+                Text = DescribeItemCount(row.Module),
+            };
 
-            Control chip = MakeStateChip(row.ManifestState);
+            TagChip restartChip = row.Module.RequiresExplorerRestart
+                ? new TagChip
+                {
+                    Text = "RESTART REQUIRED",
+                    Variant = TagVariant.Accent2,
+                    Margin = new Padding(Ui.SpaceS, 0, 0, 0),
+                }
+                : null;
 
-            TableLayoutPanel content = new TableLayoutPanel
+            TableLayoutPanel rowTop = new TableLayoutPanel
+            {
+                AutoSize = true,
+                ColumnCount = restartChip == null ? 3 : 4,
+                Dock = DockStyle.Top,
+                Margin = new Padding(0),
+            };
+            rowTop.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            rowTop.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            if (restartChip != null)
+                rowTop.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            rowTop.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            rowTop.Controls.Add(checkbox, 0, 0);
+            rowTop.Controls.Add(name, 1, 0);
+            if (restartChip != null)
+                rowTop.Controls.Add(restartChip, 2, 0);
+            rowTop.Controls.Add(itemCount, restartChip == null ? 2 : 3, 0);
+
+            FlowLayoutPanel content = CreateVerticalFlow();
+            content.Controls.Add(rowTop);
+
+            if (row.HasBackup && !string.IsNullOrWhiteSpace(row.Warning))
+            {
+                AccentLabel rowWarning = new AccentLabel
+                {
+                    AutoSize = true,
+                    Font = Ui.MonoSmall(),
+                    ForeColor = Theme.Current.Accent2_700,
+                    Margin = new Padding(24, Ui.SpaceXs, 0, 0),
+                    MaximumSize = new Size(680, 0),
+                    Text = "\u26A0 " + row.Warning,
+                };
+                content.Controls.Add(rowWarning);
+            }
+
+            BlueprintFrame frame = new BlueprintFrame
             {
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                ColumnCount = chip == null ? 2 : 3,
-                RowCount = 1,
-                Dock = DockStyle.Fill,
-                Margin = new Padding(0),
+                Margin = new Padding(0, 0, 0, Ui.SpaceS),
+                MinimumSize = new Size(0, 48),
+                Width = 640,
             };
-            content.Controls.Add(check, 0, 0);
-            content.Controls.Add(title, 1, 0);
-
-            // ColumnStyles are positional - index 0 is the first column, not the first Add. Order
-            // here is checkbox, title, chip, and it must be added in exactly that order or the title
-            // takes the chip's fixed 120px and the chip takes the stretch.
-            content.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));   // 0 - checkbox glyph
-            content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F)); // 1 - title
-
-            if (chip != null)
-            {
-                content.Controls.Add(chip, 2, 0);
-                content.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120F)); // 2 - chip
-            }
-
-            // Only for rows that can actually run. A warning describes what restoring this WOULD do,
-            // which is noise under a row the folder holds nothing for - and expensive noise: before
-            // the presence check was fixed nothing was ever greyed, so this never showed, and now
-            // twelve inert warnings would push the one restorable row off the bottom of the screen.
-            if (row.HasBackup && !string.IsNullOrEmpty(row.Warning))
-            {
-                // Height MEASURED, not left to default. A multiline TextBox does not auto-size to
-                // its content, so the default height showed roughly one and a half lines and cut
-                // the rest off mid-word - visible in every screenshot once the text was legible
-                // enough to read. Same approach RunResultsPanel uses for failure reasons.
-                const int WarningWidth = 620;
-                string warningText = "\u26A0 " + row.Warning;
-                Font warningFont = Ui.Body();
-                Size measured = TextRenderer.MeasureText(
-                    warningText, warningFont,
-                    new Size(WarningWidth, int.MaxValue),
-                    TextFormatFlags.WordBreak);
-
-                TextBox warning = new TextBox
-                {
-                    BorderStyle = BorderStyle.None,
-                    Font = warningFont,
-                    ForeColor = Ui.Caution,
-                    Margin = new Padding(24, Ui.SpaceXs, 0, 0),
-                    Multiline = true,
-                    ReadOnly = true,
-                    ScrollBars = ScrollBars.None,
-                    Text = warningText,
-                    Width = WarningWidth,
-                    Height = measured.Height + Ui.SpaceXs,
-                    WordWrap = true,
-                };
-                TableLayoutPanel wrap = new TableLayoutPanel
-                {
-                    AutoSize = true,
-                    AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                    ColumnCount = 1,
-                    RowCount = 2,
-                    Dock = DockStyle.Top,
-                    Margin = new Padding(0, 0, 0, Ui.SpaceS),
-                };
-                wrap.Controls.Add(content, 0, 0);
-                wrap.Controls.Add(warning, 0, 1);
-                wrap.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-                wrap.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-                wrap.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-                return wrap;
-            }
-
-            content.Margin = new Padding(0, 0, 0, Ui.SpaceS);
-            return content;
+            frame.Controls.Add(content);
+            rowChecks.Add(new RowCheck(checkbox, row.Module, row.HasBackup));
+            return frame;
         }
 
-        private static Control MakeStateChip(string state)
+        private static string DescribeItemCount(BackupBase module)
         {
-            Color back;
-            Color fore;
-            string text;
-
-            switch (state)
-            {
-                case BackupManifest.StateSucceeded:
-                    back = Ui.ChipSucceededBack;
-                    fore = Ui.ChipSucceededFore;
-                    text = "OK in backup";
-                    break;
-                case BackupManifest.StateFailed:
-                    back = Ui.ChipFailedBack;
-                    fore = Ui.ChipFailedFore;
-                    text = "failed in backup";
-                    break;
-                case BackupManifest.StateSkipped:
-                    // Amber, never green.
-                    back = Ui.ChipSkippedBack;
-                    fore = Ui.ChipSkippedFore;
-                    text = "skipped";
-                    break;
-                default:
-                    // Unknown (no manifest, retired type, "unknown" state) shows no chip.
-                    return null;
-            }
-
-            // AccentLabel so the theme walker steps over the chip instead of flattening it.
-            return new AccentLabel
-            {
-                AutoSize = false,
-                BackColor = back,
-                BorderStyle = BorderStyle.None,
-                Font = Ui.BodyBold(),
-                ForeColor = fore,
-                Margin = new Padding(0, 2, 0, 2),
-                Size = new Size(112, 22),
-                Text = text,
-                TextAlign = ContentAlignment.MiddleCenter,
-            };
+            int count = module.RestoreTargets.Count;
+            return count + (count == 1 ? " ITEM" : " ITEMS");
         }
 
-        private void RefreshNextEnabled()
+        private void RefreshSelectionState()
         {
-            foreach (RowCheck row in rowChecks)
-            {
-                if (row.Eligible && row.Box.Checked)
-                {
-                    btnNext.Enabled = true;
-                    return;
-                }
-            }
-
-            btnNext.Enabled = false;
+            int selected = SelectedModules().Count;
+            selectionLabel.Text = selected + (selected == 1 ? " component selected" : " components selected");
+            btnNext.Enabled = selected > 0;
         }
 
-        /// <summary>
-        /// The modules to restore: ticked AND backed by something in this folder.
-        /// </summary>
-        /// <remarks>
-        /// The eligibility half is not redundant. This used to test <c>Checked</c> alone and was
-        /// correct only by accident - an ineligible box was disabled, so nothing could tick it. That
-        /// made the guarantee a property of how the row is PAINTED, one restyle away from letting a
-        /// module the backup has nothing for into a real restore. It is now a property of the row.
-        /// </remarks>
         private IReadOnlyList<BackupBase> SelectedModules()
         {
             List<BackupBase> selected = new List<BackupBase>();
-
             foreach (RowCheck row in rowChecks)
             {
                 if (row.Eligible && row.Box.Checked)
@@ -396,9 +384,8 @@ namespace Views
             return selected;
         }
 
-        private async void btnNext_Click(object sender, EventArgs e)
+        private void btnNext_Click(object sender, EventArgs e)
         {
-            // Deleted between step 1 and Next: fail back to the picker rather than into a restore.
             if (folder == null || !Directory.Exists(folder.Path))
             {
                 MessageBox.Show(this, "This backup folder no longer exists.", "Restore",
@@ -411,63 +398,48 @@ namespace Views
             if (selection.Count == 0)
                 return;
 
-            btnNext.Enabled = false;
-            Enabled = false;
-            runStateChanged?.Invoke(true);
-
-            try
-            {
-                await runner.RunRestore(selection, folder.Path + "\\");
-            }
-            finally
-            {
-                Enabled = true;
-                // Next has to come back too - the backup page already does this for its own button.
-                // Cancelling the consent dialog returns here normally, and without this the user
-                // lands back on their still-valid ticked list with the only way forward greyed out,
-                // recoverable only by leaving the wizard and re-picking the folder. Via
-                // RefreshNextEnabled rather than a bare true so an empty selection stays disabled.
-                RefreshNextEnabled();
-                runStateChanged?.Invoke(false);
-            }
+            StartRestoreRequested?.Invoke(selection, folder);
         }
 
-        // ---------------------------------------------------------------------------------------------
-        //  IRunUi - identical contract to the backup page: consent stays modal and Cancel-focused,
-        //  the snapshot override defaults to No, results render in-page.
-        // ---------------------------------------------------------------------------------------------
-
-        void IRunUi.SetProgressText(string text) => progressLabel.Text = text;
-
-        IWin32Window IRunUi.Owner => FindForm();
-
-        void IRunUi.ShowSummary(RunSummary summary, string caption, IReadOnlyList<ModuleOutcome> outcomes)
+        private static FlowLayoutPanel CreateVerticalFlow()
         {
-            LogHelper.Instance.LogMessage(summary.Headline);
-            LogHelper.Instance.LogMessage(summary.Detail);
-            resultsPanel.ShowRun(summary, caption, outcomes);
-        }
-
-        IReadOnlyList<string> IRunUi.ShowConsentDialog(RestorePlan plan)
-        {
-            Form owner = FindForm();
-
-            using (RestoreConfirmForm confirm = new RestoreConfirmForm(plan))
+            return new FlowLayoutPanel
             {
-                if (confirm.ShowDialog(owner) != DialogResult.OK)
-                    return null;
-
-                return confirm.ConsentedProcessNames;
-            }
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                FlowDirection = FlowDirection.TopDown,
+                WrapContents = false,
+            };
         }
 
-        bool IRunUi.ConfirmSnapshotOverride(string text, string caption)
-            => MessageBox.Show(FindForm(), text, caption, MessageBoxButtons.YesNo, MessageBoxIcon.Warning,
-                MessageBoxDefaultButton.Button2) == DialogResult.Yes;
+        private static Button CreatePrimaryButton(string text)
+        {
+            return new AccentButton
+            {
+                AutoSize = true,
+                BackColor = Theme.Current.Accent,
+                FlatStyle = FlatStyle.Flat,
+                Font = Ui.Kicker(),
+                ForeColor = Theme.Current.Bg,
+                Padding = new Padding(16, 8, 16, 8),
+                Text = text,
+                UseVisualStyleBackColor = false,
+            };
+        }
 
-        void IRunUi.ShowPlanCompositionError(string text, string caption)
-            => MessageBox.Show(FindForm(), text, caption, MessageBoxButtons.OK, MessageBoxIcon.Error);
-
-        void IRunUi.SetExplorerRestartVisible(bool visible) => resultsPanel.SetExplorerRestartVisible(visible);
+        private static Button CreateSecondaryButton(string text)
+        {
+            return new Button
+            {
+                AutoSize = true,
+                BackColor = Theme.Current.Surface,
+                FlatStyle = FlatStyle.Flat,
+                Font = Ui.Kicker(),
+                ForeColor = Theme.Current.Text,
+                Padding = new Padding(16, 8, 16, 8),
+                Text = text,
+                UseVisualStyleBackColor = false,
+            };
+        }
     }
 }

@@ -8,7 +8,28 @@ version numbers, because that is what those releases were called.
 
 ## [Unreleased]
 
+### Design
+
+- Started a three-direction visual identity and WinUI 3 Home-screen exploration around the
+  positioning "Backup and retrieve the little details that make your system yours." The light Fluent
+  direction now pairs granular selection of Windows and app settings with a quiet solid-color system:
+  warm neutral surfaces, softened slate navigation, muted mineral-blue actions, gentler type, and
+  calmer spacing. Logo exploration remains unselected and no runtime or backup-format behavior has
+  changed.
+
+### Changed
+
+- Rebuilt the app shell and all primary views with the Industry design system: bundled Barlow, Barlow Condensed, and IBM Plex Mono typography; Voltage, Flux, and Follow system palettes; blueprint frames; icon rail navigation; and a dedicated progress view.
+- Added snapshot display names, selectable destination folders, Fast and Max archive compression, archive-backed restore discovery, live registry drift detection, rich backup progress metrics, and safe pause or cancel controls.
+- Reworked backup, restore, History, Home, and About around real manifest and module data. Existing backup folders and frozen manifest keys remain compatible.
+
 ## [0.0.1] - 2026-08-02
+### Changed
+
+- Rebuilt the app shell and all primary views with the Industry design system: bundled Barlow, Barlow Condensed, and IBM Plex Mono typography; Voltage, Flux, and Follow system palettes; blueprint frames; icon rail navigation; and a dedicated progress view.
+- Added snapshot display names, selectable destination folders, Fast and Max archive compression, archive-backed restore discovery, live registry drift detection, rich backup progress metrics, and safe pause or cancel controls.
+- Reworked backup, restore, History, Home, and About around real manifest and module data. Existing backup folders and frozen manifest keys remain compatible.
+
 
 First WinRestoreKit version. The application was renamed from Appcopier and moved to a standalone
 repository; the version series restarts here rather than continuing Appcopier's, because this is a

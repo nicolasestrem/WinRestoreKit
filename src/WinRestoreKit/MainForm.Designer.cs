@@ -2,290 +2,345 @@ namespace WinRestoreKit
 {
     partial class MainForm
     {
-        /// <summary>
-        /// Erforderliche Designervariable.
-        /// </summary>
         private System.ComponentModel.IContainer components = null;
 
-        /// <summary>
-        /// Verwendete Ressourcen bereinigen.
-        /// </summary>
-        /// <param name="disposing">True, wenn verwaltete Ressourcen gelöscht werden sollen; andernfalls False.</param>
         protected override void Dispose(bool disposing)
         {
-            if (disposing && (components != null))
-            {
+            if (disposing && components != null)
                 components.Dispose();
-            }
+
             base.Dispose(disposing);
         }
 
-        #region Vom Windows Form-Designer generierter Code
+        #region Windows Form Designer generated code
 
-        /// <summary>
-        /// Erforderliche Methode für die Designerunterstützung.
-        /// Der Inhalt der Methode darf nicht mit dem Code-Editor geändert werden.
-        /// </summary>
-        /// <remarks>
-        /// Hand-written rather than round-tripped through the Designer, and laid out entirely with
-        /// TableLayoutPanel and Dock. Absolute Location/Size coordinates do not survive a
-        /// WM_DPICHANGED rescale, and PR 9 flips HighDpiMode to PerMonitorV2 - the containers have to
-        /// land first, or the resulting breakage gets attributed to DPI when it is really the 2023
-        /// layout.
-        /// </remarks>
         private void InitializeComponent()
         {
-            this.layoutRoot = new System.Windows.Forms.TableLayoutPanel();
-            this.pnlRail = new System.Windows.Forms.TableLayoutPanel();
-            this.btnHome = new System.Windows.Forms.Button();
-            this.btnBackUp = new System.Windows.Forms.Button();
-            this.btnRestore = new System.Windows.Forms.Button();
-            this.btnHistory = new System.Windows.Forms.Button();
-            this.railSpacer = new System.Windows.Forms.Panel();
-            this.btnAbout = new System.Windows.Forms.Button();
-            this.pnlContentArea = new System.Windows.Forms.TableLayoutPanel();
-            this.pnlStatusBar = new System.Windows.Forms.TableLayoutPanel();
-            this.lblDiskSpace = new System.Windows.Forms.Label();
-            this.checkVersion = new System.Windows.Forms.CheckBox();
-            this.pnlForm = new System.Windows.Forms.Panel();
-            this.layoutRoot.SuspendLayout();
-            this.pnlRail.SuspendLayout();
-            this.pnlContentArea.SuspendLayout();
-            this.pnlStatusBar.SuspendLayout();
+            this.titleBar = new System.Windows.Forms.Panel();
+            this.keyedMark = new KeyedMark();
+            this.lblWordmarkPrefix = new AccentLabel();
+            this.lblWordmarkSuffix = new System.Windows.Forms.Label();
+            this.lblVersion = new System.Windows.Forms.Label();
+            this.btnPalette = new System.Windows.Forms.Button();
+            this.contentSplit = new System.Windows.Forms.TableLayoutPanel();
+            this.railPanel = new System.Windows.Forms.Panel();
+            this.lblKit = new AccentLabel();
+            this.railButtons = new System.Windows.Forms.FlowLayoutPanel();
+            this.btnHome = new NavButton();
+            this.btnBackUp = new NavButton();
+            this.btnProgress = new NavButton();
+            this.btnRestore = new NavButton();
+            this.btnHistory = new NavButton();
+            this.btnAbout = new NavButton();
+            this.railFooter = new System.Windows.Forms.Panel();
+            this.railFooterDivider = new System.Windows.Forms.Panel();
+            this.lblDestinationLabel = new AccentLabel();
+            this.lblDestinationPath = new System.Windows.Forms.Label();
+            this.dotActive = new System.Windows.Forms.Panel();
+            this.lblDestinationSpace = new System.Windows.Forms.Label();
+            this.railDivider = new System.Windows.Forms.Panel();
+            this.contentPanel = new System.Windows.Forms.Panel();
+            this.titleBar.SuspendLayout();
+            this.contentSplit.SuspendLayout();
+            this.railPanel.SuspendLayout();
+            this.railButtons.SuspendLayout();
+            this.railFooter.SuspendLayout();
             this.SuspendLayout();
             // 
-            // layoutRoot
+            // titleBar
             // 
-            this.layoutRoot.ColumnCount = 2;
-            // Absolute, not AutoSize. An AutoSize rail column is as wide as its widest child, and
-            // the flexible spacer that pushes About to the bottom carries Panel's 200px default -
-            // which silently made the rail a third of the window and squeezed the content host.
-            // TableLayoutPanel scales absolute column widths on a DPI change, so this survives PR 9.
-            this.layoutRoot.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 180F));
-            this.layoutRoot.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.layoutRoot.Controls.Add(this.pnlRail, 0, 0);
-            this.layoutRoot.Controls.Add(this.pnlContentArea, 1, 0);
-            this.layoutRoot.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.layoutRoot.Name = "layoutRoot";
-            this.layoutRoot.RowCount = 1;
-            this.layoutRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.layoutRoot.TabIndex = 0;
+            this.titleBar.Controls.Add(this.keyedMark);
+            this.titleBar.Controls.Add(this.lblWordmarkPrefix);
+            this.titleBar.Controls.Add(this.lblWordmarkSuffix);
+            this.titleBar.Controls.Add(this.lblVersion);
+            this.titleBar.Controls.Add(this.btnPalette);
+            this.titleBar.Dock = System.Windows.Forms.DockStyle.Top;
+            this.titleBar.Height = 44;
+            this.titleBar.Name = "titleBar";
+            this.titleBar.TabIndex = 0;
             // 
-            // pnlRail
+            // keyedMark
             // 
-            this.pnlRail.ColumnCount = 1;
-            this.pnlRail.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.pnlRail.Controls.Add(this.btnHome, 0, 0);
-            this.pnlRail.Controls.Add(this.btnBackUp, 0, 1);
-            this.pnlRail.Controls.Add(this.btnRestore, 0, 2);
-            this.pnlRail.Controls.Add(this.btnHistory, 0, 3);
-            this.pnlRail.Controls.Add(this.railSpacer, 0, 4);
-            this.pnlRail.Controls.Add(this.btnAbout, 0, 5);
-            this.pnlRail.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.pnlRail.Name = "pnlRail";
-            this.pnlRail.Padding = new System.Windows.Forms.Padding(8);
-            this.pnlRail.RowCount = 6;
-            this.pnlRail.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
-            this.pnlRail.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
-            this.pnlRail.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
-            this.pnlRail.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
-            this.pnlRail.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.pnlRail.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
-            this.pnlRail.TabIndex = 0;
+            this.keyedMark.BackColor = System.Drawing.Color.Transparent;
+            this.keyedMark.Location = new System.Drawing.Point(14, 12);
+            this.keyedMark.Name = "keyedMark";
+            this.keyedMark.Size = new System.Drawing.Size(20, 20);
+            this.keyedMark.TabIndex = 0;
+            this.keyedMark.TabStop = false;
+            // 
+            // lblWordmarkPrefix
+            // 
+            this.lblWordmarkPrefix.AutoSize = true;
+            this.lblWordmarkPrefix.Location = new System.Drawing.Point(42, 13);
+            this.lblWordmarkPrefix.Name = "lblWordmarkPrefix";
+            this.lblWordmarkPrefix.Size = new System.Drawing.Size(28, 17);
+            this.lblWordmarkPrefix.TabIndex = 1;
+            this.lblWordmarkPrefix.Text = "Win";
+            // 
+            // lblWordmarkSuffix
+            // 
+            this.lblWordmarkSuffix.AutoSize = true;
+            this.lblWordmarkSuffix.Location = new System.Drawing.Point(69, 13);
+            this.lblWordmarkSuffix.Name = "lblWordmarkSuffix";
+            this.lblWordmarkSuffix.Size = new System.Drawing.Size(75, 17);
+            this.lblWordmarkSuffix.TabIndex = 2;
+            this.lblWordmarkSuffix.Text = "RestoreKit";
+            // 
+            // lblVersion
+            // 
+            this.lblVersion.AutoSize = true;
+            this.lblVersion.Location = new System.Drawing.Point(150, 15);
+            this.lblVersion.Name = "lblVersion";
+            this.lblVersion.Size = new System.Drawing.Size(47, 15);
+            this.lblVersion.TabIndex = 3;
+            this.lblVersion.Text = "Version";
+            // 
+            // btnPalette
+            // 
+            this.btnPalette.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
+            this.btnPalette.Cursor = System.Windows.Forms.Cursors.Hand;
+            this.btnPalette.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnPalette.Location = new System.Drawing.Point(924, 9);
+            this.btnPalette.Name = "btnPalette";
+            this.btnPalette.Size = new System.Drawing.Size(104, 26);
+            this.btnPalette.TabIndex = 0;
+            this.btnPalette.Text = "VOLTAGE";
+            this.btnPalette.UseVisualStyleBackColor = false;
+            this.btnPalette.Click += new System.EventHandler(this.btnPalette_Click);
+            // 
+            // contentSplit
+            // 
+            this.contentSplit.ColumnCount = 3;
+            this.contentSplit.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 214F));
+            this.contentSplit.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 1F));
+            this.contentSplit.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            this.contentSplit.Controls.Add(this.railPanel, 0, 0);
+            this.contentSplit.Controls.Add(this.railDivider, 1, 0);
+            this.contentSplit.Controls.Add(this.contentPanel, 2, 0);
+            this.contentSplit.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.contentSplit.Name = "contentSplit";
+            this.contentSplit.RowCount = 1;
+            this.contentSplit.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            this.contentSplit.TabIndex = 1;
+            // 
+            // railPanel
+            // 
+            this.railPanel.Controls.Add(this.lblKit);
+            this.railPanel.Controls.Add(this.railButtons);
+            this.railPanel.Controls.Add(this.railFooter);
+            this.railPanel.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.railPanel.Name = "railPanel";
+            this.railPanel.TabIndex = 0;
+            // 
+            // lblKit
+            // 
+            this.lblKit.AutoSize = true;
+            this.lblKit.Location = new System.Drawing.Point(12, 17);
+            this.lblKit.Name = "lblKit";
+            this.lblKit.Size = new System.Drawing.Size(19, 15);
+            this.lblKit.TabIndex = 0;
+            this.lblKit.Text = "KIT";
+            // 
+            // railButtons
+            // 
+            this.railButtons.Controls.Add(this.btnHome);
+            this.railButtons.Controls.Add(this.btnBackUp);
+            this.railButtons.Controls.Add(this.btnProgress);
+            this.railButtons.Controls.Add(this.btnRestore);
+            this.railButtons.Controls.Add(this.btnHistory);
+            this.railButtons.Controls.Add(this.btnAbout);
+            this.railButtons.FlowDirection = System.Windows.Forms.FlowDirection.TopDown;
+            this.railButtons.Location = new System.Drawing.Point(12, 42);
+            this.railButtons.Margin = new System.Windows.Forms.Padding(0);
+            this.railButtons.Name = "railButtons";
+            this.railButtons.Padding = new System.Windows.Forms.Padding(0);
+            this.railButtons.Size = new System.Drawing.Size(190, 240);
+            this.railButtons.TabIndex = 1;
+            this.railButtons.WrapContents = false;
             // 
             // btnHome
             // 
-            this.btnHome.AutoSize = true;
-            this.btnHome.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
             this.btnHome.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.btnHome.Dock = System.Windows.Forms.DockStyle.Top;
-            this.btnHome.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnHome.Margin = new System.Windows.Forms.Padding(0, 0, 0, 4);
+            this.btnHome.Label = "Home";
+            this.btnHome.LucidePath = "M3.5 10.6 12 3.6l8.5 7v9.8h-17z";
+            this.btnHome.Margin = new System.Windows.Forms.Padding(0, 0, 0, 2);
             this.btnHome.Name = "btnHome";
-            this.btnHome.Padding = new System.Windows.Forms.Padding(12, 8, 12, 8);
+            this.btnHome.Size = new System.Drawing.Size(190, 38);
             this.btnHome.TabIndex = 0;
-            this.btnHome.Text = "Home";
-            this.btnHome.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            this.btnHome.UseVisualStyleBackColor = false;
             this.btnHome.Click += new System.EventHandler(this.btnHome_Click);
             // 
             // btnBackUp
             // 
-            this.btnBackUp.AutoSize = true;
-            this.btnBackUp.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
             this.btnBackUp.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.btnBackUp.Dock = System.Windows.Forms.DockStyle.Top;
-            this.btnBackUp.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnBackUp.Margin = new System.Windows.Forms.Padding(0, 0, 0, 4);
+            this.btnBackUp.Label = "Back up";
+            this.btnBackUp.LucidePath = "M12 16.5V8m0 0-3.4 3.4M12 8l3.4 3.4M5 17.5a4.2 4.2 0 0 1 1.4-8.2 6 6 0 0 1 11.4-1.4A4.1 4.1 0 0 1 19.4 17.5";
+            this.btnBackUp.Margin = new System.Windows.Forms.Padding(0, 0, 0, 2);
             this.btnBackUp.Name = "btnBackUp";
-            this.btnBackUp.Padding = new System.Windows.Forms.Padding(12, 8, 12, 8);
+            this.btnBackUp.Size = new System.Drawing.Size(190, 38);
             this.btnBackUp.TabIndex = 1;
-            this.btnBackUp.Text = "Back up";
-            this.btnBackUp.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            this.btnBackUp.UseVisualStyleBackColor = false;
             this.btnBackUp.Click += new System.EventHandler(this.btnBackUp_Click);
+            // 
+            // btnProgress
+            // 
+            this.btnProgress.Enabled = false;
+            this.btnProgress.Label = "In progress";
+            this.btnProgress.LucidePath = "M3 12h3.6L9 5l4 14 2.3-7H21";
+            this.btnProgress.Margin = new System.Windows.Forms.Padding(0, 0, 0, 2);
+            this.btnProgress.Name = "btnProgress";
+            this.btnProgress.Size = new System.Drawing.Size(190, 38);
+            this.btnProgress.TabIndex = 2;
+            this.btnProgress.Click += new System.EventHandler(this.btnProgress_Click);
             // 
             // btnRestore
             // 
-            this.btnRestore.AutoSize = true;
-            this.btnRestore.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
             this.btnRestore.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.btnRestore.Dock = System.Windows.Forms.DockStyle.Top;
-            this.btnRestore.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnRestore.Margin = new System.Windows.Forms.Padding(0, 0, 0, 4);
+            this.btnRestore.Label = "Restore";
+            this.btnRestore.LucidePath = "M3.6 12a8.4 8.4 0 1 0 2.9-6.3M3.2 4.3v5h5";
+            this.btnRestore.Margin = new System.Windows.Forms.Padding(0, 0, 0, 2);
             this.btnRestore.Name = "btnRestore";
-            this.btnRestore.Padding = new System.Windows.Forms.Padding(12, 8, 12, 8);
-            this.btnRestore.TabIndex = 2;
-            this.btnRestore.Text = "Restore";
-            this.btnRestore.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            this.btnRestore.UseVisualStyleBackColor = false;
+            this.btnRestore.Size = new System.Drawing.Size(190, 38);
+            this.btnRestore.TabIndex = 3;
             this.btnRestore.Click += new System.EventHandler(this.btnRestore_Click);
-            //
+            // 
             // btnHistory
-            //
-            this.btnHistory.AutoSize = true;
-            this.btnHistory.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
+            // 
             this.btnHistory.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.btnHistory.Dock = System.Windows.Forms.DockStyle.Top;
-            this.btnHistory.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnHistory.Margin = new System.Windows.Forms.Padding(0, 0, 0, 4);
+            this.btnHistory.Label = "History";
+            this.btnHistory.LucidePath = "M4.5 6.5h15M4.5 12h15M4.5 17.5h9.5";
+            this.btnHistory.Margin = new System.Windows.Forms.Padding(0, 0, 0, 2);
             this.btnHistory.Name = "btnHistory";
-            this.btnHistory.Padding = new System.Windows.Forms.Padding(12, 8, 12, 8);
-            this.btnHistory.TabIndex = 3;
-            this.btnHistory.Text = "History";
-            this.btnHistory.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            this.btnHistory.UseVisualStyleBackColor = false;
+            this.btnHistory.Size = new System.Drawing.Size(190, 38);
+            this.btnHistory.TabIndex = 4;
             this.btnHistory.Click += new System.EventHandler(this.btnHistory_Click);
-            // 
-            // railSpacer
-            // 
-            this.railSpacer.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.railSpacer.Margin = new System.Windows.Forms.Padding(0);
-            this.railSpacer.Name = "railSpacer";
-            this.railSpacer.TabIndex = 3;
-            this.railSpacer.TabStop = false;
             // 
             // btnAbout
             // 
-            this.btnAbout.AutoSize = true;
-            this.btnAbout.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
             this.btnAbout.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.btnAbout.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.btnAbout.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnAbout.Margin = new System.Windows.Forms.Padding(0, 12, 0, 0);
+            this.btnAbout.Label = "About";
+            this.btnAbout.LucidePath = "M12 10.8V17M12 7.6h.01M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z";
+            this.btnAbout.Margin = new System.Windows.Forms.Padding(0);
             this.btnAbout.Name = "btnAbout";
-            this.btnAbout.Padding = new System.Windows.Forms.Padding(12, 8, 12, 8);
-            this.btnAbout.TabIndex = 4;
-            this.btnAbout.Text = "About";
-            this.btnAbout.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            this.btnAbout.UseVisualStyleBackColor = false;
+            this.btnAbout.Size = new System.Drawing.Size(190, 38);
+            this.btnAbout.TabIndex = 5;
             this.btnAbout.Click += new System.EventHandler(this.btnAbout_Click);
             // 
-            // pnlContentArea
+            // railFooter
             // 
-            this.pnlContentArea.ColumnCount = 1;
-            this.pnlContentArea.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.pnlContentArea.Controls.Add(this.pnlForm, 0, 0);
-            this.pnlContentArea.Controls.Add(this.pnlStatusBar, 0, 1);
-            this.pnlContentArea.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.pnlContentArea.Margin = new System.Windows.Forms.Padding(0);
-            this.pnlContentArea.Name = "pnlContentArea";
-            this.pnlContentArea.RowCount = 2;
-            this.pnlContentArea.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.pnlContentArea.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
-            this.pnlContentArea.TabIndex = 1;
+            this.railFooter.Controls.Add(this.lblDestinationSpace);
+            this.railFooter.Controls.Add(this.dotActive);
+            this.railFooter.Controls.Add(this.lblDestinationPath);
+            this.railFooter.Controls.Add(this.lblDestinationLabel);
+            this.railFooter.Controls.Add(this.railFooterDivider);
+            this.railFooter.Dock = System.Windows.Forms.DockStyle.Bottom;
+            this.railFooter.Height = 108;
+            this.railFooter.Name = "railFooter";
+            this.railFooter.TabIndex = 2;
             // 
-            // pnlStatusBar
+            // railFooterDivider
             // 
-            this.pnlStatusBar.AutoSize = true;
-            this.pnlStatusBar.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
-            this.pnlStatusBar.ColumnCount = 2;
-            this.pnlStatusBar.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.pnlStatusBar.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.AutoSize));
-            this.pnlStatusBar.Controls.Add(this.lblDiskSpace, 0, 0);
-            this.pnlStatusBar.Controls.Add(this.checkVersion, 1, 0);
-            this.pnlStatusBar.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.pnlStatusBar.Margin = new System.Windows.Forms.Padding(0);
-            this.pnlStatusBar.Name = "pnlStatusBar";
-            this.pnlStatusBar.Padding = new System.Windows.Forms.Padding(8, 4, 8, 4);
-            this.pnlStatusBar.RowCount = 1;
-            this.pnlStatusBar.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
-            this.pnlStatusBar.TabIndex = 1;
+            this.railFooterDivider.Dock = System.Windows.Forms.DockStyle.Top;
+            this.railFooterDivider.Height = 1;
+            this.railFooterDivider.Name = "railFooterDivider";
+            this.railFooterDivider.TabIndex = 0;
             // 
-            // lblDiskSpace
+            // lblDestinationLabel
             // 
-            this.lblDiskSpace.Anchor = System.Windows.Forms.AnchorStyles.Left;
-            this.lblDiskSpace.AutoSize = true;
-            this.lblDiskSpace.Margin = new System.Windows.Forms.Padding(0);
-            this.lblDiskSpace.Name = "lblDiskSpace";
-            this.lblDiskSpace.TabIndex = 0;
-            this.lblDiskSpace.Text = "Storage estimate";
+            this.lblDestinationLabel.AutoSize = true;
+            this.lblDestinationLabel.Location = new System.Drawing.Point(12, 15);
+            this.lblDestinationLabel.Name = "lblDestinationLabel";
+            this.lblDestinationLabel.Size = new System.Drawing.Size(78, 15);
+            this.lblDestinationLabel.TabIndex = 1;
+            this.lblDestinationLabel.Text = "DESTINATION";
             // 
-            // checkVersion
+            // lblDestinationPath
             // 
-            this.checkVersion.Anchor = System.Windows.Forms.AnchorStyles.Right;
-            this.checkVersion.Appearance = System.Windows.Forms.Appearance.Button;
-            this.checkVersion.AutoSize = true;
-            this.checkVersion.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.checkVersion.FlatAppearance.BorderSize = 0;
-            this.checkVersion.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.checkVersion.Margin = new System.Windows.Forms.Padding(8, 0, 0, 0);
-            this.checkVersion.Name = "checkVersion";
-            this.checkVersion.TabIndex = 1;
-            this.checkVersion.Text = "loading";
-            this.checkVersion.UseVisualStyleBackColor = false;
-            this.checkVersion.CheckedChanged += new System.EventHandler(this.checkVersion_CheckedChanged);
+            this.lblDestinationPath.AutoEllipsis = true;
+            this.lblDestinationPath.Location = new System.Drawing.Point(12, 37);
+            this.lblDestinationPath.Name = "lblDestinationPath";
+            this.lblDestinationPath.Size = new System.Drawing.Size(190, 19);
+            this.lblDestinationPath.TabIndex = 2;
+            this.lblDestinationPath.Text = "app";
             // 
-            // pnlForm
+            // dotActive
             // 
-            this.pnlForm.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.pnlForm.Margin = new System.Windows.Forms.Padding(0);
-            this.pnlForm.Name = "pnlForm";
-            this.pnlForm.TabIndex = 0;
+            this.dotActive.Location = new System.Drawing.Point(12, 71);
+            this.dotActive.Name = "dotActive";
+            this.dotActive.Size = new System.Drawing.Size(6, 6);
+            this.dotActive.TabIndex = 3;
+            // 
+            // lblDestinationSpace
+            // 
+            this.lblDestinationSpace.AutoEllipsis = true;
+            this.lblDestinationSpace.Location = new System.Drawing.Point(26, 65);
+            this.lblDestinationSpace.Name = "lblDestinationSpace";
+            this.lblDestinationSpace.Size = new System.Drawing.Size(176, 19);
+            this.lblDestinationSpace.TabIndex = 4;
+            this.lblDestinationSpace.Text = "Storage unavailable";
+            // 
+            // railDivider
+            // 
+            this.railDivider.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.railDivider.Name = "railDivider";
+            this.railDivider.TabIndex = 1;
+            // 
+            // contentPanel
+            // 
+            this.contentPanel.AutoScroll = true;
+            this.contentPanel.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.contentPanel.Name = "contentPanel";
+            this.contentPanel.Padding = new System.Windows.Forms.Padding(30, 26, 30, 26);
+            this.contentPanel.TabIndex = 2;
             // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(96F, 96F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi;
-            // Grown by the width of the rail plus the height of the status strip, so the content
-            // host keeps the 878x758 the pages were laid out against. ConfPageView is designed at
-            // 824 wide with Left|Right-anchored children, which means a narrower host does not
-            // reflow it - it shrinks every child by the shortfall, and at a 180px deficit the tree
-            // and log pane collapse into an unusable column. PR 6 rebuilds that page; until then the
-            // shell adds chrome around it rather than eating into it.
-            this.ClientSize = new System.Drawing.Size(1058, 790);
-            this.Controls.Add(this.layoutRoot);
-            this.MinimumSize = new System.Drawing.Size(1074, 600);
+            this.ClientSize = new System.Drawing.Size(1080, 790);
+            this.Controls.Add(this.contentSplit);
+            this.Controls.Add(this.titleBar);
+            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.Sizable;
+            this.MinimumSize = new System.Drawing.Size(920, 600);
             this.Name = "MainForm";
             this.ShowIcon = false;
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "WinRestoreKit";
             this.Shown += new System.EventHandler(this.MainForm_Shown);
-            this.layoutRoot.ResumeLayout(false);
-            this.layoutRoot.PerformLayout();
-            this.pnlRail.ResumeLayout(false);
-            this.pnlRail.PerformLayout();
-            this.pnlContentArea.ResumeLayout(false);
-            this.pnlContentArea.PerformLayout();
-            this.pnlStatusBar.ResumeLayout(false);
-            this.pnlStatusBar.PerformLayout();
+            this.titleBar.ResumeLayout(false);
+            this.titleBar.PerformLayout();
+            this.contentSplit.ResumeLayout(false);
+            this.railPanel.ResumeLayout(false);
+            this.railPanel.PerformLayout();
+            this.railButtons.ResumeLayout(false);
+            this.railFooter.ResumeLayout(false);
+            this.railFooter.PerformLayout();
             this.ResumeLayout(false);
         }
 
         #endregion
 
-        private System.Windows.Forms.TableLayoutPanel layoutRoot;
-        private System.Windows.Forms.TableLayoutPanel pnlRail;
-        private System.Windows.Forms.Button btnHome;
-        private System.Windows.Forms.Button btnBackUp;
-        private System.Windows.Forms.Button btnRestore;
-        private System.Windows.Forms.Button btnHistory;
-        private System.Windows.Forms.Panel railSpacer;
-        private System.Windows.Forms.Button btnAbout;
-        private System.Windows.Forms.TableLayoutPanel pnlContentArea;
-        private System.Windows.Forms.TableLayoutPanel pnlStatusBar;
-        private System.Windows.Forms.Label lblDiskSpace;
-        private System.Windows.Forms.CheckBox checkVersion;
-        private System.Windows.Forms.Panel pnlForm;
+        private System.Windows.Forms.Panel titleBar;
+        private KeyedMark keyedMark;
+        private AccentLabel lblWordmarkPrefix;
+        private System.Windows.Forms.Label lblWordmarkSuffix;
+        private System.Windows.Forms.Label lblVersion;
+        private System.Windows.Forms.Button btnPalette;
+        private System.Windows.Forms.TableLayoutPanel contentSplit;
+        private System.Windows.Forms.Panel railPanel;
+        private AccentLabel lblKit;
+        private System.Windows.Forms.FlowLayoutPanel railButtons;
+        private NavButton btnHome;
+        private NavButton btnBackUp;
+        private NavButton btnProgress;
+        private NavButton btnRestore;
+        private NavButton btnHistory;
+        private NavButton btnAbout;
+        private System.Windows.Forms.Panel railFooter;
+        private System.Windows.Forms.Panel railFooterDivider;
+        private AccentLabel lblDestinationLabel;
+        private System.Windows.Forms.Label lblDestinationPath;
+        private System.Windows.Forms.Panel dotActive;
+        private System.Windows.Forms.Label lblDestinationSpace;
+        private System.Windows.Forms.Panel railDivider;
+        private System.Windows.Forms.Panel contentPanel;
     }
 }

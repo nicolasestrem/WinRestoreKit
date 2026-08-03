@@ -54,14 +54,14 @@ namespace Views
             //
             this.txtPlan.BorderStyle = System.Windows.Forms.BorderStyle.None;
             this.txtPlan.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.txtPlan.Font = new System.Drawing.Font("Segoe UI Variable Display", 9.75F);
+            this.txtPlan.Font = WinRestoreKit.Ui.Mono();
+            this.txtPlan.ForeColor = WinRestoreKit.Theme.Current.Text;
             this.txtPlan.Margin = new System.Windows.Forms.Padding(0, 0, 0, WinRestoreKit.Ui.SpaceM);
             this.txtPlan.Multiline = true;
             this.txtPlan.Name = "txtPlan";
             this.txtPlan.ReadOnly = true;
             this.txtPlan.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
             this.txtPlan.TabIndex = 1;
-            //
             // pnlConsent
             //
             this.pnlConsent.AutoScroll = true;
@@ -76,20 +76,19 @@ namespace Views
             //
             this.lblCaveat.AutoSize = true;
             this.lblCaveat.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.lblCaveat.Font = new System.Drawing.Font("Segoe UI Variable Display", 9.75F, System.Drawing.FontStyle.Bold);
-            this.lblCaveat.ForeColor = WinRestoreKit.Ui.Danger;
+            this.lblCaveat.Font = WinRestoreKit.Ui.BodyBold();
+            this.lblCaveat.ForeColor = WinRestoreKit.Theme.Current.Accent2_700;
             this.lblCaveat.Margin = new System.Windows.Forms.Padding(0, 0, 0, WinRestoreKit.Ui.SpaceM);
             this.lblCaveat.Name = "lblCaveat";
             this.lblCaveat.TabIndex = 3;
-            //
             // btnRestore
             //
             this.btnRestore.AutoEllipsis = true;
             this.btnRestore.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.btnRestore.FlatAppearance.BorderSize = 0;
+            this.btnRestore.FlatAppearance.BorderSize = 1;
             this.btnRestore.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnRestore.Font = new System.Drawing.Font("Segoe UI Variable Display", 12F, System.Drawing.FontStyle.Bold);
-            this.btnRestore.ForeColor = WinRestoreKit.Ui.Danger;
+            this.btnRestore.Font = WinRestoreKit.Ui.BodyBold();
+            this.btnRestore.ForeColor = WinRestoreKit.Theme.Current.Accent2_700;
             this.btnRestore.Margin = new System.Windows.Forms.Padding(0, 0, WinRestoreKit.Ui.SpaceS, 0);
             this.btnRestore.Name = "btnRestore";
             this.btnRestore.Padding = new System.Windows.Forms.Padding(0, WinRestoreKit.Ui.SpaceXs, 0, WinRestoreKit.Ui.SpaceXs);
@@ -103,9 +102,10 @@ namespace Views
             //
             this.btnCancel.AutoEllipsis = true;
             this.btnCancel.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.btnCancel.FlatAppearance.BorderSize = 0;
+            this.btnCancel.FlatAppearance.BorderSize = 1;
             this.btnCancel.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnCancel.Font = new System.Drawing.Font("Segoe UI Variable Display", 12F, System.Drawing.FontStyle.Bold);
+            this.btnCancel.Font = WinRestoreKit.Ui.BodyBold();
+            this.btnCancel.ForeColor = WinRestoreKit.Theme.Current.Bg;
             this.btnCancel.Margin = new System.Windows.Forms.Padding(WinRestoreKit.Ui.SpaceS, 0, 0, 0);
             this.btnCancel.Name = "btnCancel";
             this.btnCancel.Padding = new System.Windows.Forms.Padding(0, WinRestoreKit.Ui.SpaceXs, 0, WinRestoreKit.Ui.SpaceXs);

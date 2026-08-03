@@ -21,3 +21,5 @@ publish/
 # The rest of .claude/ - hooks, skills, agents - is shared project tooling and is tracked.
 .claude/settings.local.json
 WATCHDOG.yml
+/.logs
+/.superpowers

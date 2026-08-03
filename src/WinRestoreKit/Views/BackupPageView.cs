@@ -1,548 +1,587 @@
-using WinRestoreKit;
 using Conf;
 using DataHelper;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Drawing;
+using System.Globalization;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Windows.Forms;
+using WinRestoreKit;
 
 namespace Views
 {
     /// <summary>
-    /// The Backup page: presets + the full module tree, and the backup run. Renamed from
-    /// ConfPageView in Phase 4 PR 7 once the restore flow moved to the wizard and this page lost its
-    /// restore role.
+    /// Collects the scope and storage choices for a new snapshot.
     /// </summary>
-    public partial class BackupPageView : UserControl, IRunUi
+    /// <remarks>
+    /// Backup execution belongs to <see cref="ProgressPageView"/>. The shell wires
+    /// <see cref="StartBackupRequested"/> to navigate to that runner.
+    /// </remarks>
+    public partial class BackupPageView : UserControl
     {
-        private static readonly LogHelper logger = LogHelper.Instance;
+        private readonly IReadOnlyList<ScopeGroupRow> scopeGroups;
+        private readonly Dictionary<ScopeGroupRow, CustomCheckbox> scopeToggles = new();
+        private readonly Label selectionSummary;
+        private readonly Label estimateValue;
+        private readonly Label validationMessage;
+        private readonly TextBox snapshotNameInput;
+        private readonly TextBox destinationInput;
+        private readonly SegmentedControl compressionSelector;
 
         /// <summary>
-        /// The greeting shown in the info pane. {0} is the OS build string from OsHelper.GetVersion.
+        /// The shell handles this request by opening the progress view, which owns the backup runner.
         /// </summary>
-        /// <remarks>
-        /// A const rather than an inline interpolation so the composition is testable without
-        /// constructing the control. GetVersion degrades to a self-describing token rather than to
-        /// an empty string precisely so this sentence cannot come out with a double space or a
-        /// stray " ." in it; OsVersionTests asserts that for every degraded shape.
-        /// </remarks>
-        internal const string IntroTemplate =
-            "This app supports you in backing up, sharing, and restoring your key settings of your Windows 11 {0} on this or another system.";
-
-        internal string CurrentBackupPath = Data.DataRootDir + Data.NowShort + "\\";
-
-        internal List<BackupBase> selectedConfigs = new List<BackupBase>();
+        internal Action<IReadOnlyList<BackupBase>, string, SnapshotCompression, string> StartBackupRequested;
 
         /// <summary>
-        /// Runs a backup, routing every progress update, result, consent prompt and Explorer-restart
-        /// toggle back here through <see cref="IRunUi"/>. Constructed once with this control as the
-        /// UI surface. (Restore runs in the wizard, which owns its own orchestrator.)
+        /// Retained for callers that supply the restore-wizard navigation seam.
         /// </summary>
-        private readonly BackupRestoreOrchestrator runner;
-
-        // root TableLayoutPanel row indices for the collapsible sections.
-        private const int ResultsRow = 4;
-        private const int LogRow = 6;
-
-        // leftColumn row that hosts the (collapsible) full module tree.
-        private const int TreeRow = 1;
-
-        private bool isSelectAll = false;
-
-        // True while a preset is programmatically ticking the tree, so AfterCheck does not read those
-        // ticks as the user choosing Custom.
-        private bool applyingPreset;
-
-        // Whether the full module tree is expanded under the "Advanced" toggle.
-        private bool treeExpanded;
+        internal Action ShowRestoreView = () => { };
 
         public BackupPageView()
         {
-            InitializeComponent();
-            InitializeConfigurations();
-            SetStyle();
+            scopeGroups = ScopeGroups.Build();
 
-            runner = new BackupRestoreOrchestrator(this);
+            BackColor = Theme.Current.Bg;
+            Dock = DockStyle.Fill;
+            MinimumSize = new Size(740, 0);
 
-            // A hidden docked/row control must not reserve space. The results panel, the activity log
-            // and the (collapsed) full module tree each follow their own visibility, so their rows do.
-            resultsPanel.VisibleChanged += (s, e) => SetRowCollapsed(root, ResultsRow, !resultsPanel.Visible);
-            rtbLog.VisibleChanged += (s, e) => SetRowCollapsed(root, LogRow, !rtbLog.Visible);
-            treeConfigurations.VisibleChanged += (s, e) => SetRowCollapsed(leftColumn, TreeRow, !treeConfigurations.Visible);
-            rtbLog.Visible = false;
-            SetRowCollapsed(root, ResultsRow, !resultsPanel.Visible);
-            ExpandTree(false);
+            TableLayoutPanel page = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Theme.Current.Bg,
+                ColumnCount = 1,
+                RowCount = 2,
+                Margin = Padding.Empty,
+                Padding = Padding.Empty
+            };
+            page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            page.RowStyles.Add(new RowStyle(SizeType.Absolute, 82f));
+            page.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
-            // "Everything on this PC" is the default; its radio applies Select-available on check.
-            rbEverything.Text = "Everything on this PC   (" + CountInstalled() + " items found)";
-            rbEverything.Checked = true;
+            Panel heading = new Panel
+            {
+                Dock = DockStyle.Fill,
+                Margin = Padding.Empty
+            };
+            heading.Controls.Add(CreateHeading());
+            page.Controls.Add(heading, 0, 0);
+
+            TableLayoutPanel content = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 1,
+                Margin = Padding.Empty,
+                Padding = Padding.Empty
+            };
+            content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 58.333f));
+            content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 41.667f));
+            content.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+            Panel scopes = CreateScopesPanel(out selectionSummary);
+            content.Controls.Add(scopes, 0, 0);
+
+            BlueprintFrame options = CreateOptionsPanel(out snapshotNameInput, out destinationInput,
+                out compressionSelector, out estimateValue, out validationMessage);
+            options.Margin = new Padding(Ui.SpaceL, 0, 0, 0);
+            content.Controls.Add(options, 1, 0);
+
+            page.Controls.Add(content, 0, 1);
+            Controls.Add(page);
+
+            RefreshSelectionSummary();
         }
 
-        private void SetStyle()
+        private static Control CreateHeading()
         {
-            BackColor = Ui.Surface;
-
-            headerLabel.Font = Ui.Title();
-            headerLabel.ForeColor = Ui.TextPrimary;
-
-            linkSubHeader.Font = Ui.BodyBold();
-            linkSubHeader.ForeColor = Ui.TextPrimary;
-
-            treeConfigurations.Font = Ui.Body();
-
-            txtInfo.Font = Ui.Body();
-            txtInfo.BackColor = Ui.Surface;
-            txtInfo.ForeColor = Ui.TextPrimary;
-
-            logToggle.Font = Ui.Body();
-
-            foreach (RadioButton rb in new[] { rbEverything, rbDeveloper, rbMinimal, rbCustom })
+            Panel panel = new Panel { Dock = DockStyle.Fill, Margin = Padding.Empty };
+            Label kicker = new Label
             {
-                rb.Font = Ui.Body();
-                rb.ForeColor = Ui.TextPrimary;
+                AutoSize = true,
+                Text = "NEW SNAPSHOT",
+                Font = Ui.Kicker(),
+                ForeColor = Theme.Current.Accent700,
+                Location = new Point(0, 0),
+                Margin = Padding.Empty
+            };
+            Label title = new Label
+            {
+                AutoSize = true,
+                Text = "CHOOSE WHAT TO CAPTURE",
+                Font = Ui.Heading(),
+                ForeColor = Theme.Current.Text,
+                Location = new Point(0, 16),
+                Margin = Padding.Empty
+            };
+            panel.Controls.Add(kicker);
+            panel.Controls.Add(title);
+            return panel;
+        }
+
+        private Panel CreateScopesPanel(out Label summary)
+        {
+            Panel panel = new Panel { Dock = DockStyle.Fill, Margin = Padding.Empty };
+            Panel toolbar = new Panel { Dock = DockStyle.Top, Height = 36, Margin = Padding.Empty };
+
+            summary = new Label
+            {
+                AutoSize = true,
+                Font = Ui.MonoSmall(),
+                ForeColor = Theme.Current.Text,
+                Location = new Point(0, 8),
+                Margin = Padding.Empty
+            };
+            toolbar.Controls.Add(summary);
+
+            Button selectAll = CreateGhostButton("SELECT ALL", (sender, args) => SetAllScopes(true));
+            selectAll.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            selectAll.Location = new Point(0, 0);
+            toolbar.Controls.Add(selectAll);
+
+            Button clear = CreateGhostButton("CLEAR", (sender, args) => SetAllScopes(false));
+            clear.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            clear.Location = new Point(0, 0);
+            toolbar.Controls.Add(clear);
+
+            toolbar.SizeChanged += (sender, args) =>
+            {
+                clear.Left = toolbar.ClientSize.Width - clear.Width;
+                selectAll.Left = clear.Left - selectAll.Width - Ui.SpaceXs;
+            };
+
+            FlowLayoutPanel rows = new FlowLayoutPanel
+            {
+                Name = "scopeGroups",
+                Dock = DockStyle.Fill,
+                FlowDirection = FlowDirection.TopDown,
+                WrapContents = false,
+                AutoScroll = true,
+                Padding = new Padding(0, Ui.SpaceXs, Ui.SpaceS, 0),
+                Margin = Padding.Empty
+            };
+            rows.SizeChanged += (sender, args) =>
+            {
+                foreach (Control row in rows.Controls)
+                    row.Width = Math.Max(0, rows.ClientSize.Width - rows.Padding.Horizontal - SystemInformation.VerticalScrollBarWidth);
+            };
+
+            for (int index = 0; index < scopeGroups.Count; index++)
+            {
+                ScopeGroupRow group = scopeGroups[index];
+                Panel row = CreateScopeRow(group, index, out CustomCheckbox toggle);
+                scopeToggles.Add(group, toggle);
+                rows.Controls.Add(row);
             }
 
-            lblWarnings.Font = Ui.Body();
-            lnkAdvanced.Font = Ui.Body();
-
-            // Segoe MDL2 Assets glyphs on the icon buttons.
-            btnMenuMore.Text = "\uE712";
-            btnMenuRestore.Text = "\uE777";
-
-            // The primary action is deliberately inverted against the surface, so it stays the
-            // highest-contrast thing on the page in BOTH palettes rather than a black-on-black block.
-            btnBackup.Font = Ui.BodyBold();
-            btnBackup.BackColor = Ui.TextPrimary;
-            btnBackup.ForeColor = Ui.Surface;
-
-            // The info pane opens on the greeting so the right column is informative before any
-            // selection; AfterSelect replaces it with the chosen item's details.
-            txtInfo.Text = string.Format(IntroTemplate, OsHelper.GetVersion());
-
-            rtbLog.BackColor = Ui.Surface;
-            logger.SetTarget(rtbLog);
+            panel.Controls.Add(rows);
+            panel.Controls.Add(toolbar);
+            return panel;
         }
 
-        private void InitializeConfigurations()
+        private Panel CreateScopeRow(ScopeGroupRow group, int index, out CustomCheckbox toggle)
         {
-            foreach (ModuleRegistration registration in ModuleCatalog.CreateAll())
+            int rowHeight = string.IsNullOrWhiteSpace(group.CautionNote) ? 68 : 106;
+            Panel row = new Panel
             {
-                AddConfiguration(registration.Module, registration.Category);
+                Height = rowHeight,
+                Width = 480,
+                BackColor = Theme.Current.Surface,
+                Margin = new Padding(0, 0, 0, Ui.SpaceXs),
+                Cursor = Cursors.Hand,
+                AccessibleRole = AccessibleRole.CheckButton,
+                AccessibleName = group.Name
+            };
+
+            CustomCheckbox rowToggle = new CustomCheckbox
+            {
+                Name = "scopeToggle" + index,
+                Checked = group.DefaultChecked,
+                Location = new Point(Ui.SpaceM, rowHeight == 68 ? 26 : 38),
+                TabIndex = index
+            };
+            rowToggle.CheckedChanged += (sender, args) => RefreshSelectionSummary();
+            toggle = rowToggle;
+
+            Label name = new Label
+            {
+                AutoEllipsis = true,
+                Font = Ui.BodyBold(),
+                ForeColor = Theme.Current.Text,
+                Location = new Point(40, 8),
+                Size = new Size(260, 22),
+                Text = group.Name,
+                UseMnemonic = false
+            };
+            Label detail = new Label
+            {
+                AutoEllipsis = true,
+                Font = Ui.MonoSmall(),
+                ForeColor = Theme.Current.TextMuted,
+                Location = new Point(40, 33),
+                Size = new Size(260, 20),
+                Text = group.Detail,
+                UseMnemonic = false
+            };
+
+            Label caution = null;
+            if (!string.IsNullOrWhiteSpace(group.CautionNote))
+            {
+                caution = new Label
+                {
+                    AutoEllipsis = true,
+                    Font = Ui.MonoSmall(),
+                    ForeColor = Theme.Current.Accent2_600,
+                    Location = new Point(40, 54),
+                    Size = new Size(260, 42),
+                    Text = group.CautionNote,
+                    UseMnemonic = false
+                };
+            }
+            Label size = new Label
+            {
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                Font = Ui.MonoSmall(),
+                ForeColor = Theme.Current.TextMuted,
+                Location = new Point(0, 25),
+                Size = new Size(74, 20),
+                Text = group.SizeLabel,
+                TextAlign = ContentAlignment.MiddleRight,
+                UseMnemonic = false
+            };
+            row.SizeChanged += (sender, args) =>
+            {
+                int detailWidth = Math.Max(120, row.ClientSize.Width - 132);
+                name.Width = detailWidth;
+                detail.Width = detailWidth;
+                if (caution != null)
+                    caution.Width = detailWidth;
+
+                size.Left = row.ClientSize.Width - size.Width - Ui.SpaceM;
+            };
+
+            EventHandler toggleRow = (sender, args) => rowToggle.Checked = !rowToggle.Checked;
+            row.Click += toggleRow;
+            name.Click += toggleRow;
+            detail.Click += toggleRow;
+            size.Click += toggleRow;
+            if (caution != null)
+                caution.Click += toggleRow;
+
+            row.Controls.Add(rowToggle);
+            row.Controls.Add(name);
+            row.Controls.Add(detail);
+            if (caution != null)
+                row.Controls.Add(caution);
+
+            row.Controls.Add(size);
+            return row;
+        }
+
+        private BlueprintFrame CreateOptionsPanel(out TextBox snapshotName, out TextBox destination,
+                                                  out SegmentedControl compression, out Label estimate,
+                                                  out Label message)
+        {
+            BlueprintFrame frame = new BlueprintFrame
+            {
+                Dock = DockStyle.Fill,
+                Padding = new Padding(Ui.SpaceL)
+            };
+
+            TableLayoutPanel options = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 10,
+                Margin = Padding.Empty,
+                Padding = Padding.Empty
+            };
+            options.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            options.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            options.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            options.RowStyles.Add(new RowStyle(SizeType.Absolute, 34f));
+            options.RowStyles.Add(new RowStyle(SizeType.Absolute, Ui.SpaceM));
+            options.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            options.RowStyles.Add(new RowStyle(SizeType.Absolute, 34f));
+            options.RowStyles.Add(new RowStyle(SizeType.Absolute, Ui.SpaceM));
+            options.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            options.RowStyles.Add(new RowStyle(SizeType.Absolute, 34f));
+            options.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+            options.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            snapshotName = CreateInput(string.Empty, "YYYY-MM-DD HH:MM initial tag");
+            destination = CreateInput(Data.DataRootDir, "Destination folder");
+            compression = new SegmentedControl(new[] { "NONE", "FAST", "MAX" })
+            {
+                Dock = DockStyle.Fill,
+                SelectedIndex = 1,
+                Name = "compressionSelector"
+            };
+            compression.SelectedIndexChanged += (sender, args) => RefreshSelectionSummary();
+
+            options.Controls.Add(CreateOptionLabel("SNAPSHOT NAME"), 0, 0);
+            options.SetColumnSpan(snapshotName, 2);
+            options.Controls.Add(snapshotName, 0, 1);
+            options.Controls.Add(CreateOptionLabel("DESTINATION"), 0, 3);
+            options.Controls.Add(destination, 0, 4);
+
+            Button browse = CreateGhostButton("BROWSE", BrowseDestination);
+            browse.Margin = new Padding(Ui.SpaceS, 0, 0, 0);
+            options.Controls.Add(browse, 1, 4);
+
+            options.Controls.Add(CreateOptionLabel("COMPRESSION"), 0, 6);
+            options.SetColumnSpan(compression, 2);
+            options.Controls.Add(compression, 0, 7);
+
+            Panel footer = new Panel { Dock = DockStyle.Fill, Height = 78, Margin = new Padding(0, Ui.SpaceL, 0, 0) };
+            Label estimateCaption = new Label
+            {
+                AutoSize = true,
+                Text = "ESTIMATED TOTAL",
+                Font = Ui.Kicker(),
+                ForeColor = Theme.Current.TextMuted,
+                Location = new Point(0, 0)
+            };
+            estimate = new Label
+            {
+                AutoSize = true,
+                Font = Ui.Mono(),
+                ForeColor = Theme.Current.Text,
+                Location = new Point(0, 18)
+            };
+            Label messageLabel = new Label
+            {
+                AutoEllipsis = true,
+                ForeColor = Theme.Current.Accent2_600,
+                Font = Ui.MonoSmall(),
+                Location = new Point(0, 40),
+                Size = new Size(10, 19),
+                Visible = false
+            };
+            message = messageLabel;
+            footer.SizeChanged += (sender, args) => messageLabel.Width = footer.ClientSize.Width;
+            footer.Controls.Add(estimateCaption);
+            footer.Controls.Add(estimate);
+            footer.Controls.Add(message);
+            options.SetColumnSpan(footer, 2);
+            options.Controls.Add(footer, 0, 8);
+
+            AccentButton capture = new AccentButton
+            {
+                Name = "captureButton",
+                Text = "CAPTURE",
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                BackColor = Theme.Current.Accent,
+                ForeColor = Theme.Current.Bg,
+                Font = Ui.Kicker(),
+                FlatStyle = FlatStyle.Flat,
+                Padding = new Padding(Ui.SpaceL, Ui.SpaceS, Ui.SpaceL, Ui.SpaceS),
+                Cursor = Cursors.Hand,
+                Anchor = AnchorStyles.Left | AnchorStyles.Bottom,
+                Margin = Padding.Empty,
+                UseVisualStyleBackColor = false
+            };
+            capture.FlatAppearance.BorderColor = Theme.Current.Accent;
+            capture.Click += RequestCapture;
+            options.SetColumnSpan(capture, 2);
+            options.Controls.Add(capture, 0, 9);
+
+            frame.Controls.Add(options);
+            return frame;
+        }
+
+        private static Label CreateOptionLabel(string text)
+        {
+            return new Label
+            {
+                AutoSize = true,
+                Text = text,
+                Font = Ui.Kicker(),
+                ForeColor = Theme.Current.Accent700,
+                Margin = new Padding(0, 0, 0, Ui.SpaceXs)
+            };
+        }
+
+        private static TextBox CreateInput(string text, string placeholder)
+        {
+            return new TextBox
+            {
+                Text = text,
+                PlaceholderText = placeholder,
+                Dock = DockStyle.Fill,
+                Font = Ui.Mono(),
+                BackColor = Theme.Current.Surface,
+                ForeColor = Theme.Current.Text,
+                BorderStyle = BorderStyle.FixedSingle,
+                Margin = Padding.Empty
+            };
+        }
+
+        private static Button CreateGhostButton(string text, EventHandler onClick)
+        {
+            Button button = new Button
+            {
+                Text = text,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Font = Ui.Kicker(),
+                BackColor = Theme.Current.Bg,
+                ForeColor = Theme.Current.Text,
+                FlatStyle = FlatStyle.Flat,
+                Padding = new Padding(Ui.SpaceS, Ui.SpaceXs, Ui.SpaceS, Ui.SpaceXs),
+                Cursor = Cursors.Hand,
+                UseVisualStyleBackColor = false
+            };
+            button.FlatAppearance.BorderSize = 0;
+            button.Click += onClick;
+            return button;
+        }
+
+        private void BrowseDestination(object sender, EventArgs args)
+        {
+            using (FolderBrowserDialog dialog = new FolderBrowserDialog
+            {
+                Description = "Choose the folder where this snapshot will be written.",
+                SelectedPath = destinationInput.Text.Trim(),
+                UseDescriptionForTitle = true
+            })
+            {
+                if (dialog.ShowDialog(FindForm()) == DialogResult.OK)
+                    destinationInput.Text = dialog.SelectedPath;
             }
         }
 
-        private void AddConfiguration(BackupBase configuration, string parentNodeText)
+        private void RequestCapture(object sender, EventArgs args)
         {
-            TreeNode parentNode = FindOrCreateNode(parentNodeText);
-            TreeNode childNode = new TreeNode(configuration.Title);
-            childNode.Tag = configuration;
-            parentNode.Nodes.Add(childNode);
-        }
-
-        private TreeNode FindOrCreateNode(string text)
-        {
-            TreeNode parentNode = treeConfigurations.Nodes.Cast<TreeNode>()
-                .FirstOrDefault(node => node.Text == text);
-
-            if (parentNode == null)
+            IReadOnlyList<BackupBase> modules = SelectedModules();
+            if (modules.Count == 0)
             {
-                parentNode = new TreeNode(text);
-                treeConfigurations.Nodes.Add(parentNode);
-            }
-
-            return parentNode;
-        }
-
-        /// <summary>
-        /// Raised with true while a backup is running, and false when it ends.
-        /// </summary>
-        /// <remarks>
-        /// This page disables ITSELF for the duration, which was sufficient when every control that
-        /// could touch its state lived on it. The navigation rail does not: it stays live on the
-        /// form while this control is disabled, so its buttons could navigate away mid-run. The shell
-        /// listens here and shuts the rail for the duration.
-        /// </remarks>
-        internal Action<bool> RunStateChanged = _ => { };
-
-        private async void btnBackup_Click(object sender, EventArgs e)
-        {
-            btnBackup.Enabled = false;
-            this.Enabled = false;
-            RunStateChanged(true);
-
-            // The whole body is wrapped so the window is re-enabled in a finally. This is an async
-            // void handler that disables the form on its first two lines: anything escaping it is
-            // unhandled AND leaves the main window permanently dead, with no way back short of
-            // killing the process.
-            try
-            {
-                await RunBackup();
-            }
-            finally
-            {
-                this.Enabled = true;
-                btnBackup.Enabled = true;
-                RunStateChanged(false);
-            }
-        }
-
-        private async Task RunBackup()
-        {
-            selectedConfigs.Clear();
-
-            bool isAtLeastOneChecked = treeConfigurations.Nodes
-                .Cast<TreeNode>()
-                .Any(parentNode => parentNode.Nodes.Cast<TreeNode>().Any(childNode => childNode.Checked));
-
-            // At least one node is checked, then proceed!
-            if (!isAtLeastOneChecked)
-            {
-                // Input validation, not a result: this stays a MessageBox.
-                MessageBox.Show("Nothing has been selected for backup. Please choose your settings to be backed up beforehand.", "", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                SetValidationMessage("Select at least one scope with supported items.");
                 return;
             }
 
-            foreach (TreeNode parentNode in treeConfigurations.Nodes)
+            string destination = destinationInput.Text.Trim();
+            if (destination.Length == 0)
             {
-                foreach (TreeNode childNode in parentNode.Nodes)
-                {
-                    if (childNode.Checked)
-                    {
-                        BackupBase configuration = childNode.Tag as BackupBase;
-                        if (configuration != null)
-                        {
-                            selectedConfigs.Add(configuration);
-                        }
-                    }
-                }
+                SetValidationMessage("Choose a destination folder before capturing.");
+                return;
             }
 
-            await runner.RunBackup(selectedConfigs, CurrentBackupPath);
-        }
-
-        // ---------------------------------------------------------------------------------------------
-        //  IRunUi - the UI surface the orchestrator talks back through. Results render in-page via
-        //  resultsPanel; the summary MessageBox is gone. (No restore role here: that lives in the
-        //  wizard, which has its own IRunUi. The consent members remain because IRunUi is one contract.)
-        // ---------------------------------------------------------------------------------------------
-
-        void IRunUi.SetProgressText(string text) => linkSubHeader.Text = text;
-
-        IWin32Window IRunUi.Owner => FindForm();
-
-        void IRunUi.ShowSummary(RunSummary summary, string caption, IReadOnlyList<ModuleOutcome> outcomes)
-        {
-            // Keep the log record (it is no longer the primary surface, but it is still the audit
-            // trail), then render in-page. No MessageBox: a 24-ok/1-failed run must not read as green.
-            logger.LogMessage(summary.Headline);
-            logger.LogMessage(summary.Detail);
-
-            resultsPanel.ShowRun(summary, caption, outcomes);
-        }
-
-        IReadOnlyList<string> IRunUi.ShowConsentDialog(RestorePlan plan)
-        {
-            // Only reached on a backup-time error that composes a RestorePlan; backup itself never
-            // consents. Kept identical to the wizard's impl so the contract is one shape.
-            Form owner = FindForm();
-
-            using (RestoreConfirmForm confirm = new RestoreConfirmForm(plan))
+            if (StartBackupRequested == null)
             {
-                if (confirm.ShowDialog(owner) != DialogResult.OK)
-                    return null;
-
-                return confirm.ConsentedProcessNames;
+                SetValidationMessage("Backup integration is not connected. Open this page from the main window.");
+                return;
             }
+
+            SetValidationMessage(null);
+            StartBackupRequested(modules, snapshotNameInput.Text.Trim(), SelectedCompression(), destination);
         }
 
-        bool IRunUi.ConfirmSnapshotOverride(string text, string caption)
-            => MessageBox.Show(FindForm(), text, caption, MessageBoxButtons.YesNo, MessageBoxIcon.Warning,
-                MessageBoxDefaultButton.Button2) == DialogResult.Yes;
+        private IReadOnlyList<BackupBase> SelectedModules()
+        {
+            return scopeGroups
+                .Where(group => scopeToggles[group].Checked)
+                .SelectMany(group => group.Modules)
+                .Distinct()
+                .ToList();
+        }
 
-        void IRunUi.ShowPlanCompositionError(string text, string caption)
-            => MessageBox.Show(FindForm(), text, caption, MessageBoxButtons.OK, MessageBoxIcon.Error);
+        private SnapshotCompression SelectedCompression()
+        {
+            return compressionSelector.SelectedIndex switch
+            {
+                0 => SnapshotCompression.None,
+                2 => SnapshotCompression.Max,
+                _ => SnapshotCompression.Fast
+            };
+        }
 
-        void IRunUi.SetExplorerRestartVisible(bool visible) => resultsPanel.SetExplorerRestartVisible(visible);
+        private void SetAllScopes(bool isChecked)
+        {
+            foreach (CustomCheckbox toggle in scopeToggles.Values)
+                toggle.Checked = isChecked;
+        }
 
-        // The backup page's Restore button opens the wizard (step 1). No module-set gate: the wizard
-        // picks what to restore FROM the chosen backup, which is the whole point of inverting the flow.
-        private void btnRestore_Click(object sender, EventArgs e) => ShowRestoreView();
+        private void RefreshSelectionSummary()
+        {
+            int selected = scopeToggles.Values.Count(toggle => toggle.Checked);
+            selectionSummary.Text = selected + " of " + scopeGroups.Count + " groups";
+            estimateValue.Text = EstimateSelection();
+        }
+
+        private string EstimateSelection()
+        {
+            long totalBytes = 0;
+            foreach (ScopeGroupRow group in scopeGroups)
+            {
+                if (!scopeToggles[group].Checked || !TryParseSize(group.SizeLabel, out long bytes))
+                    return "--";
+
+                totalBytes += bytes;
+            }
+
+            return FormatSize(totalBytes);
+        }
+
+        private static bool TryParseSize(string label, out long bytes)
+        {
+            bytes = 0;
+            string[] parts = (label ?? string.Empty).Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length != 2 || !double.TryParse(parts[0], NumberStyles.Number, CultureInfo.InvariantCulture, out double value))
+                return false;
+
+            double multiplier = parts[1].ToUpperInvariant() switch
+            {
+                "B" => 1d,
+                "KB" => 1024d,
+                "MB" => 1024d * 1024d,
+                "GB" => 1024d * 1024d * 1024d,
+                _ => 0d
+            };
+            if (multiplier == 0d || value < 0d || value > long.MaxValue / multiplier)
+                return false;
+
+            bytes = (long)Math.Round(value * multiplier, MidpointRounding.AwayFromZero);
+            return true;
+        }
+
+        private static string FormatSize(long bytes)
+        {
+            const long Gigabyte = 1024L * 1024L * 1024L;
+            const long Megabyte = 1024L * 1024L;
+            const long Kilobyte = 1024L;
+
+            if (bytes >= Gigabyte)
+                return (bytes / (double)Gigabyte).ToString("0.0", CultureInfo.InvariantCulture) + " GB";
+            if (bytes >= Megabyte)
+                return (bytes / (double)Megabyte).ToString("0.0", CultureInfo.InvariantCulture) + " MB";
+            if (bytes >= Kilobyte)
+                return (bytes / (double)Kilobyte).ToString("0.0", CultureInfo.InvariantCulture) + " KB";
+
+            return bytes + " B";
+        }
+
+        private void SetValidationMessage(string text)
+        {
+            validationMessage.Text = text ?? string.Empty;
+            validationMessage.Visible = !string.IsNullOrEmpty(text);
+        }
 
         /// <summary>
-        /// Navigates to the restore wizard. Supplied by the shell, which owns that view.
+        /// Selects every scope containing at least one module named in a prior manifest.
         /// </summary>
-        /// <remarks>
-        /// A delegate rather than a NavigationService reference, matching how the engine's other
-        /// UI seams are wired: this page needs exactly one navigation, and handing it the whole
-        /// service would let any future edit here reach every screen in the app.
-        /// </remarks>
-        internal Action ShowRestoreView = () => { };
-
-        /// <summary>
-        /// Ticks exactly the modules named by their CLR type name, unticking everything else.
-        /// </summary>
-        /// <remarks>
-        /// Drives Home's "Back up again" from the names in a backup_manifest.json. Unknown names are
-        /// ignored in silence and that is deliberate, not lax: a manifest written by an older build
-        /// can name a module this one retired - the browser modules Phase 3a removed, for instance -
-        /// and a warning about it would be an error message about someone else's past decision, on a
-        /// button whose entire promise is "the same as last time".
-        ///
-        /// Exact, ordinal type-name match. Titles are user-facing prose and have been reworded
-        /// between releases; type names are what the manifest records for precisely this reason.
-        /// </remarks>
         internal void SelectModulesByTypeName(IReadOnlyList<string> moduleTypeNames)
         {
-            // Home's "Back up again" is a bespoke selection, so it lands on Custom with the tree open.
-            TickByTypeNames(moduleTypeNames);
-            rbCustom.Checked = true;
-            ExpandTree(true);
-        }
+            HashSet<string> wanted = new HashSet<string>(
+                moduleTypeNames?.Where(name => !string.IsNullOrWhiteSpace(name)) ?? Array.Empty<string>(),
+                StringComparer.Ordinal);
 
-        private void TickByTypeNames(IReadOnlyList<string> moduleTypeNames)
-        {
-            HashSet<string> wanted = new HashSet<string>(StringComparer.Ordinal);
-
-            if (moduleTypeNames != null)
+            foreach (ScopeGroupRow group in scopeGroups)
             {
-                foreach (string name in moduleTypeNames)
-                {
-                    if (!string.IsNullOrEmpty(name))
-                        wanted.Add(name);
-                }
+                scopeToggles[group].Checked = group.Modules.Any(module =>
+                    wanted.Contains(module.GetType().Name));
             }
-
-            foreach (TreeNode parentNode in treeConfigurations.Nodes)
-            {
-                foreach (TreeNode childNode in parentNode.Nodes)
-                {
-                    BackupBase configuration = childNode.Tag as BackupBase;
-
-                    childNode.Checked = configuration != null
-                        && wanted.Contains(configuration.GetType().Name);
-                }
-            }
-        }
-
-        private void SelectInstalled()
-        {
-            foreach (TreeNode parentNode in treeConfigurations.Nodes)
-            {
-                foreach (TreeNode childNode in parentNode.Nodes)
-                {
-                    BackupBase configuration = childNode.Tag as BackupBase;
-                    if (configuration != null)
-                    {
-                        bool isConfigInstalled = configuration.IsInstalled();
-                        childNode.Checked = isConfigInstalled;
-                    }
-                }
-            }
-        }
-
-        private void SelectAll(bool flag)
-        {
-            foreach (TreeNode parentNode in treeConfigurations.Nodes)
-            {
-                foreach (TreeNode childNode in parentNode.Nodes)
-                {
-                    childNode.Checked = flag;
-                }
-            }
-        }
-
-        // The info pane replaces the rtbLog dual-use for browsing: selecting a node shows its title,
-        // info, version and - inline, no modal - its warning. Nothing consent-relevant is lost: the
-        // consent dialog still re-carries every warning via RestorePlan.
-        private void treeConfigurations_AfterSelect(object sender, TreeViewEventArgs e)
-        {
-            if (treeConfigurations.SelectedNode != null &&
-                treeConfigurations.SelectedNode.Tag is BackupBase selected)
-            {
-                string warning = selected.WarningMessage;
-
-                txtInfo.Text = selected.Title + "\r\n\r\n" +
-                               selected.Info + "\r\n" +
-                               selected.Version +
-                               (string.IsNullOrEmpty(warning) ? "" : "\r\n\r\n\u26A0 " + warning);
-            }
-        }
-
-        private void btnMenuMore_Click(object sender, EventArgs e)
-            => this.contextMenu.Show(Cursor.Position.X, Cursor.Position.Y);
-
-        // Select-available IS the Everything preset.
-        private void menuSelectInstalled_Click(object sender, EventArgs e)
-            => rbEverything.Checked = true;
-
-        private void menuSelectAll_Click(object sender, EventArgs e)
-        {
-            isSelectAll = !isSelectAll;
-            SelectAll(isSelectAll);
-        }
-
-        private void treeConfigurations_AfterCheck(object sender, TreeViewEventArgs e)
-        {
-            foreach (TreeNode child in e.Node.Nodes)
-            {
-                child.Checked = e.Node.Checked;
-            }
-
-            // A tick the preset did not make is the user editing the selection, so it is Custom now.
-            if (!applyingPreset)
-                rbCustom.Checked = true;
-
-            RefreshWarnings();
-        }
-
-        private void logToggle_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
-        {
-            rtbLog.Visible = !rtbLog.Visible;
-        }
-
-        private void menuOpenAppBackups_Click(object sender, EventArgs e)
-        {
-            RestAppsForm f = new RestAppsForm();
-            f.ShowDialog();
-        }
-
-        private void menuOpenBackupFolder_Click(object sender, EventArgs e)
-           => Process.Start(new ProcessStartInfo("explorer.exe", DataHelper.Data.DataRootDir) { UseShellExecute = true });
-
-        // ---------------------------------------------------------------------------------------------
-        //  Presets - curated named selections driving the tree. "Everything on this PC" is today's
-        //  Select-available; the others are module-name lists in BackupPresets. Any manual tick change
-        //  flips the radio to Custom; the tree lives behind an "Advanced" toggle that Custom opens.
-        // ---------------------------------------------------------------------------------------------
-
-        private void rbPreset_CheckedChanged(object sender, EventArgs e)
-        {
-            if (!(sender is RadioButton rb) || !rb.Checked)
-                return;
-
-            if (rb == rbEverything)
-                ApplyPreset(() => { SelectAll(false); SelectInstalled(); }, expandTree: false);
-            else if (rb == rbDeveloper)
-                ApplyPreset(() => TickByTypeNames(BackupPresets.DeveloperMachine), expandTree: false);
-            else if (rb == rbMinimal)
-                ApplyPreset(() =>
-                {
-                    SelectAll(false);
-                    SelectInstalled();
-                    UntickByTypeName(BackupPresets.MinimalPrivacySafeExclusions);
-                }, expandTree: false);
-            else // rbCustom - no automatic selection, just reveal the tree for hand-editing.
-                ExpandTree(true);
-        }
-
-        private void ApplyPreset(Action apply, bool expandTree)
-        {
-            applyingPreset = true;
-            try
-            {
-                apply();
-            }
-            finally
-            {
-                applyingPreset = false;
-            }
-
-            ExpandTree(expandTree);
-            RefreshWarnings();
-        }
-
-        private void UntickByTypeName(IReadOnlyList<string> names)
-        {
-            HashSet<string> exclude = new HashSet<string>(StringComparer.Ordinal);
-
-            if (names != null)
-            {
-                foreach (string name in names)
-                {
-                    if (!string.IsNullOrEmpty(name))
-                        exclude.Add(name);
-                }
-            }
-
-            foreach (TreeNode parentNode in treeConfigurations.Nodes)
-            {
-                foreach (TreeNode childNode in parentNode.Nodes)
-                {
-                    BackupBase configuration = childNode.Tag as BackupBase;
-                    if (configuration != null && exclude.Contains(configuration.GetType().Name))
-                        childNode.Checked = false;
-                }
-            }
-        }
-
-        // "N items in this selection carry warnings - shown on the item"; hidden when zero.
-        private void RefreshWarnings()
-        {
-            int count = 0;
-
-            foreach (TreeNode parentNode in treeConfigurations.Nodes)
-            {
-                foreach (TreeNode childNode in parentNode.Nodes)
-                {
-                    if (childNode.Checked)
-                    {
-                        BackupBase configuration = childNode.Tag as BackupBase;
-                        if (configuration != null && !string.IsNullOrEmpty(configuration.WarningMessage))
-                            count++;
-                    }
-                }
-            }
-
-            if (count == 0)
-            {
-                lblWarnings.Visible = false;
-            }
-            else
-            {
-                lblWarnings.Visible = true;
-                lblWarnings.Text = count + " item(s) in this selection carry warnings - shown on the item.";
-            }
-        }
-
-        private void ExpandTree(bool expand)
-        {
-            treeExpanded = expand;
-            treeConfigurations.Visible = expand;
-            lnkAdvanced.Text = (expand ? "\u25BE " : "\u25B8 ") + "Advanced: full module list";
-        }
-
-        private void lnkAdvanced_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
-            => ExpandTree(!treeExpanded);
-
-        private int CountInstalled()
-        {
-            int count = 0;
-
-            foreach (TreeNode parentNode in treeConfigurations.Nodes)
-            {
-                foreach (TreeNode childNode in parentNode.Nodes)
-                {
-                    BackupBase configuration = childNode.Tag as BackupBase;
-                    if (configuration != null && configuration.IsInstalled())
-                        count++;
-                }
-            }
-
-            return count;
-        }
-
-        /// <summary>
-        /// Collapses (or expands) a row of a <see cref="TableLayoutPanel"/> by switching its row
-        /// style, so a hidden results panel, activity log or full module tree does not reserve space.
-        /// </summary>
-        private static void SetRowCollapsed(TableLayoutPanel tlp, int row, bool collapsed)
-        {
-            tlp.RowStyles[row].SizeType = collapsed ? SizeType.Absolute : SizeType.AutoSize;
-            if (collapsed)
-                tlp.RowStyles[row].Height = 0;
         }
     }
 }

@@ -65,5 +65,44 @@ namespace WinRestoreKit
                 ? RegFileCheck.Valid
                 : RegFileCheck.BadHeader;
         }
+
+        /// <summary>
+        /// Compares two valid registry exports after normalizing their text encoding and line endings.
+        /// </summary>
+        /// <remarks>
+        /// Returns null when either artifact is absent, unreadable, or not a valid registry export.
+        /// That is deliberately not drift evidence: a comparison is only meaningful when both sides
+        /// are known representations of registry state.
+        /// </remarks>
+        internal static bool? HasSameCanonicalContent(string capturedPath, string currentPath)
+        {
+            string captured = ReadCanonicalContent(capturedPath);
+            string current = ReadCanonicalContent(currentPath);
+
+            if (captured == null || current == null)
+                return null;
+
+            return string.Equals(captured, current, StringComparison.Ordinal);
+        }
+
+        private static string ReadCanonicalContent(string path)
+        {
+            if (Validate(path) != RegFileCheck.Valid)
+                return null;
+
+            try
+            {
+                // File.ReadAllText handles the UTF-16LE BOM written by regedit. The content, rather
+                // than its encoding or line-ending convention, is what captures registry state.
+                return File.ReadAllText(path)
+                    .Replace("\r\n", "\n")
+                    .Replace("\r", "\n")
+                    .TrimEnd('\n');
+            }
+            catch
+            {
+                return null;
+            }
+        }
     }
 }

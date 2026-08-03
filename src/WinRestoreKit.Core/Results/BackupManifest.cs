@@ -57,7 +57,10 @@ namespace WinRestoreKit
                                        string machineName,
                                        string userName,
                                        string osBuild,
-                                       string appVersion)
+                                       string appVersion,
+                                       string snapshotName = null,
+                                       SnapshotCompression compression = SnapshotCompression.None,
+                                       string payloadFile = null)
         {
             JArray moduleRows = new JArray();
 
@@ -95,6 +98,15 @@ namespace WinRestoreKit
                 ["os_build"] = osBuild,
                 ["modules"] = moduleRows
             };
+
+            if (!string.IsNullOrEmpty(snapshotName))
+                root["snapshot_name"] = snapshotName;
+
+            if (!string.IsNullOrEmpty(payloadFile))
+            {
+                root["compression"] = compression.ToString().ToLowerInvariant();
+                root["payload_file"] = payloadFile;
+            }
 
             return root.ToString(Formatting.Indented);
         }
@@ -179,6 +191,9 @@ namespace WinRestoreKit
                 Text(root["machine_name"]),
                 Text(root["user_name"]),
                 Text(root["os_build"]),
+                Text(root["snapshot_name"]),
+                Text(root["compression"]),
+                Text(root["payload_file"]),
                 modules);
         }
 
@@ -262,6 +277,21 @@ namespace WinRestoreKit
     {
         internal ManifestData(int manifestVersion, string appVersion, string created, string machineName,
                               string userName, string osBuild, IReadOnlyList<ManifestModule> modules)
+            : this(manifestVersion, appVersion, created, machineName, userName, osBuild, null, null, null, modules)
+        {
+        }
+
+        internal ManifestData(int manifestVersion, string appVersion, string created, string machineName,
+                              string userName, string osBuild, string snapshotName,
+                              IReadOnlyList<ManifestModule> modules)
+            : this(manifestVersion, appVersion, created, machineName, userName, osBuild,
+                   snapshotName, null, null, modules)
+        {
+        }
+
+        internal ManifestData(int manifestVersion, string appVersion, string created, string machineName,
+                              string userName, string osBuild, string snapshotName,
+                              string compression, string payloadFile, IReadOnlyList<ManifestModule> modules)
         {
             ManifestVersion = manifestVersion;
             AppVersion = appVersion;
@@ -269,6 +299,9 @@ namespace WinRestoreKit
             MachineName = machineName;
             UserName = userName;
             OsBuild = osBuild;
+            SnapshotName = snapshotName;
+            Compression = compression;
+            PayloadFile = payloadFile;
             Modules = modules;
         }
 
@@ -285,6 +318,18 @@ namespace WinRestoreKit
 
         internal string OsBuild { get; }
 
+        /// <summary>
+        /// Optional user-supplied name for the backup folder. A missing value identifies a legacy
+        /// timestamp-named folder and callers must display the folder name instead.
+        /// </summary>
+        internal string SnapshotName { get; }
+
+
+        /// <summary>Optional archive compression used for the payload, when one exists.</summary>
+        internal string Compression { get; }
+
+        /// <summary>Optional archive file that holds this backup's module artifacts.</summary>
+        internal string PayloadFile { get; }
         internal IReadOnlyList<ManifestModule> Modules { get; }
     }
 

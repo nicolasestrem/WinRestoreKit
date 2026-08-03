@@ -63,6 +63,76 @@ namespace WinRestoreKit
         public virtual bool? HasArtifactIn(string backupPath) => null;
 
         /// <summary>
+        /// Whether this module's live state differs from the state captured in
+        /// <paramref name="backupPath"/>.
+        /// </summary>
+        /// <remarks>
+        /// A module that cannot compare its live state with the backup returns null rather than
+        /// guessing. Callers render only confirmed drift.
+        /// </remarks>
+        public virtual bool? HasDriftedFrom(string backupPath) => null;
+
+        /// <summary>
+        /// Compares a recorded registry export with a fresh, temporary export of the live key.
+        /// </summary>
+        /// <remarks>
+        /// The fresh export is deliberately outside the backup directory. Drift reads must never
+        /// clear, replace, or add to an existing snapshot. A missing or unreadable recorded artifact,
+        /// an indeterminate probe, and a failed fresh export all return null because none establishes
+        /// a comparison.
+        /// </remarks>
+        protected static bool? HasDriftedFromRegistryArtifact(string artifactPath, string registryPath)
+        {
+            if (RegFile.Validate(artifactPath) != RegFileCheck.Valid)
+                return null;
+
+            KeyProbe probe = Utils.ProbeKey(registryPath);
+
+            if (probe == KeyProbe.Indeterminate)
+                return null;
+
+            // A valid export records a present key. The live key's confirmed absence is therefore
+            // real drift, without relying on a file timestamp.
+            if (probe == KeyProbe.Absent)
+                return true;
+
+            string currentArtifact = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".reg");
+
+            if (IsInSameDirectory(currentArtifact, artifactPath))
+                return null;
+
+            try
+            {
+                StepResult export = Utils.ExportRegistryKey(currentArtifact, registryPath, absenceIsNormal: false);
+
+                if (export.State != ResultState.Succeeded)
+                    return null;
+
+                bool? same = RegFile.HasSameCanonicalContent(artifactPath, currentArtifact);
+                return same.HasValue ? !same.Value : null;
+            }
+            finally
+            {
+                try { File.Delete(currentArtifact); } catch { }
+            }
+        }
+
+        private static bool IsInSameDirectory(string firstPath, string secondPath)
+        {
+            try
+            {
+                string firstDirectory = Path.GetDirectoryName(Path.GetFullPath(firstPath));
+                string secondDirectory = Path.GetDirectoryName(Path.GetFullPath(secondPath));
+
+                return string.Equals(firstDirectory, secondDirectory, StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                return true;
+            }
+        }
+
+        /// <summary>
         /// The backup file this module writes for one registry key.
         /// </summary>
         /// <remarks>

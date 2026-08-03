@@ -81,6 +81,10 @@ namespace Conf
             return ModuleResult.Aggregate(new[] { export, Describe(outcome) });
         }
 
+        // The recorded export deliberately omits values selected by RegSecretFilter. Comparing it
+        // with the unfiltered live key would manufacture drift, so this module remains unknown.
+        public override bool? HasDriftedFrom(string backupPath) => null;
+
         /// <summary>
         /// Deletes the export the filter could not process, and fails the step.
         /// </summary>

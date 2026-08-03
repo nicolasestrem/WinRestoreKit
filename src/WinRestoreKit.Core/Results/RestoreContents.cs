@@ -45,18 +45,39 @@ namespace WinRestoreKit
             if (modules == null)
                 return rows;
 
-            foreach (BackupBase module in modules)
+            string probePath = restoreSourcePath;
+            BackupPayload.ReadScope payload = null;
+            bool payloadPrepared = false;
+
+            try
             {
-                if (module == null)
-                    continue;
+                foreach (BackupBase module in modules)
+                {
+                    if (module == null)
+                        continue;
 
-                string state = ManifestStateFor(manifest, module.GetType().Name);
+                    string state = ManifestStateFor(manifest, module.GetType().Name);
+                    if (!payloadPrepared
+                        && state != BackupManifest.StateSucceeded
+                        && state != BackupManifest.StateSkipped
+                        && state != BackupManifest.StateFailed)
+                    {
+                        payloadPrepared = true;
+                        if (BackupPayload.TryPrepareForRead(restoreSourcePath, out payload, out string ignoredError))
+                            probePath = payload.Path;
+                    }
 
-                rows.Add(new RestoreContentsRow(
-                    module,
-                    HoldsSomethingFor(module, restoreSourcePath, manifest, state),
-                    state,
-                    module.WarningMessage ?? ""));
+                    rows.Add(new RestoreContentsRow(
+                        module,
+                        HoldsSomethingFor(module, probePath, manifest, state),
+                        state,
+                        module.WarningMessage ?? ""));
+                }
+            }
+            finally
+            {
+                if (payload != null)
+                    payload.Dispose();
             }
 
             return rows;

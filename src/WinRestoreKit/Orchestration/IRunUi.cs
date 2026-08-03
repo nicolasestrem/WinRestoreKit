@@ -19,6 +19,13 @@ namespace WinRestoreKit
         /// <summary>Replaces linkSubHeader.Text progress updates.</summary>
         void SetProgressText(string text);
 
+        /// <summary>Updates run completion as a value from 0 through 100.</summary>
+        void SetProgressPercent(int percent);
+
+        /// <summary>Updates the detailed metrics for an active backup or restore run.</summary>
+        void SetProgressDetail(string groupInfo, string elapsed, string remaining, string throughput,
+                               long bytesWritten, int errors, int warnings);
+
         /// <summary>Owner for modal dialogs. Replaces FindForm().</summary>
         IWin32Window Owner { get; }
 

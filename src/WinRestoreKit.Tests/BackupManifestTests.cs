@@ -160,6 +160,45 @@ namespace WinRestoreKit.Tests
         }
 
         [Fact]
+        public void TryParse_ExistingManifestWithoutSnapshotName_LeavesItNull()
+        {
+            ManifestData data = BackupManifest.TryParse(
+                @"{ ""manifest_version"": 1, ""modules"": [] }");
+
+            Assert.NotNull(data);
+            Assert.Null(data.SnapshotName);
+        }
+
+        [Fact]
+        public void ComposeAndTryParse_RoundTripOptionalSnapshotName()
+        {
+            string json = BackupManifest.Compose(
+                Modules(), new List<ModuleResult> { Ok(), Skip() }, When,
+                "DESKTOP-NB01", "nicol", "Build 26100.4652", "0.0.1",
+                snapshotName: "before-driver-update");
+
+            JObject root = JObject.Parse(json);
+            ManifestData data = BackupManifest.TryParse(json);
+
+            Assert.Equal("before-driver-update", root["snapshot_name"].Value<string>());
+            Assert.Equal("before-driver-update", data.SnapshotName);
+        }
+
+        [Fact]
+        public void ComposeAndTryParse_RoundTripArchiveMetadata()
+        {
+            string json = BackupManifest.Compose(
+                Modules(), new List<ModuleResult> { Ok(), Skip() }, When,
+                "DESKTOP-NB01", "nicol", "Build 26100.4652", "0.0.1",
+                compression: SnapshotCompression.Fast, payloadFile: BackupPayload.FileName);
+
+            ManifestData data = BackupManifest.TryParse(json);
+
+            Assert.Equal("fast", data.Compression);
+            Assert.Equal(BackupPayload.FileName, data.PayloadFile);
+        }
+
+        [Fact]
         public void TryParse_ReturnsTheTimestampExactlyAsWritten()
         {
             // Regression. Newtonsoft's default DateParseHandling rewrote any date-shaped string
