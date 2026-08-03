@@ -44,6 +44,15 @@ namespace WinRestoreKit
         private string currentRestoreSourcePath;
 
         /// <summary>
+        /// Whether the current restore's pre-restore snapshot folder was exclusively claimed by
+        /// this run. Mirrors <c>exclusivelyOwned</c> in <see cref="RunBackupCore"/> for the same
+        /// reason: <see cref="TakeSnapshot"/> is one of several places <see cref="TryCreateBackupFolder"/>
+        /// runs, and the claim must happen there, immediately after creation, not at the unrelated
+        /// point later where cancellation is discovered.
+        /// </summary>
+        private bool snapshotFolderExclusivelyOwned;
+
+        /// <summary>
         /// The compression option selected for the most recent user backup request.
         /// </summary>
         internal SnapshotCompression SnapshotCompression { get; private set; } = SnapshotCompression.Fast;
@@ -147,6 +156,11 @@ namespace WinRestoreKit
                 return;
             }
 
+            // Claimed only when this run itself observed the folder as absent: a folder that
+            // already existed is never this run's to claim, exclusively or otherwise, and is
+            // handled by the folderExistedBeforeRun branch below regardless of this flag.
+            bool exclusivelyOwned = !folderExistedBeforeRun && TryClaimExclusiveFolderOwnership(backupPath);
+
             if (destinationRoot != null)
                 BackupRootRegistry.Remember(destinationRoot);
 
@@ -181,6 +195,13 @@ namespace WinRestoreKit
                 {
                     detail = "Cancellation was requested. No further group was started. Completed output " +
                              "remains without a trusted manifest.";
+                }
+                else if (!exclusivelyOwned)
+                {
+                    detail = "Cancellation was requested. No further group was started. Partial output " +
+                             "created by this run remains without a trusted manifest, because another process " +
+                             "may be writing to the same backup folder and it was left in place rather than risk " +
+                             "deleting output that is not this run's own.";
                 }
                 else if (TryRemoveIncompleteBackupFolder(backupPath))
                 {
@@ -260,6 +281,58 @@ namespace WinRestoreKit
             {
                 error = ex.Message;
                 logger.LogMessage("Could not create the backup folder " + path + ": " + ex.Message);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Marker filename used to break the folder-creation race between two app instances.
+        /// </summary>
+        /// <remarks>
+        /// Not a compatibility surface: nothing on the read side ever parses this file, it exists
+        /// purely to answer one question at the moment a run first sees its own timestamp folder as
+        /// absent, and it is safe to ignore or delete by hand.
+        /// </remarks>
+        private const string OwnershipMarkerFileName = ".run-owner";
+
+        /// <summary>
+        /// Atomically decides which run, of possibly several racing to the same folder, may treat
+        /// this folder as its own to delete on cancellation.
+        /// </summary>
+        /// <remarks>
+        /// Data.NowShort is minute-granularity, so two app instances started in the same minute and
+        /// targeting the same destination compute the identical backup path. Both then observe
+        /// Directory.Exists as false and both succeed at Directory.CreateDirectory, which is
+        /// idempotent and tells neither of them anything about the other. Left unresolved, whichever
+        /// one cancels first would delete a folder the other is actively writing into.
+        ///
+        /// FileMode.CreateNew is the one filesystem primitive here that is genuinely atomic: it
+        /// throws if the file already exists, so at most one caller across any number of racing
+        /// processes ever observes success. That caller, and only that caller, may later delete the
+        /// folder on cancellation. A caller that loses the race must assume the folder might belong
+        /// to someone else and leave it alone, exactly as it already would for a folder that existed
+        /// before this run started.
+        /// </remarks>
+        internal static bool TryClaimExclusiveFolderOwnership(string backupPath)
+        {
+            try
+            {
+                using (File.Open(Path.Combine(backupPath, OwnershipMarkerFileName),
+                    FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                {
+                    return true;
+                }
+            }
+            catch (IOException)
+            {
+                // Already claimed, by this run's own earlier attempt or by a racing process.
+                return false;
+            }
+            catch (Exception ex)
+            {
+                // Cannot tell. Treat like losing the race: the safe direction is never deleting
+                // output this run cannot prove is exclusively its own.
+                logger.LogMessage("Could not establish backup folder ownership for " + backupPath + ": " + ex.Message);
                 return false;
             }
         }
@@ -380,6 +453,7 @@ namespace WinRestoreKit
             return string.Equals(name, BackupManifest.FileName, StringComparison.OrdinalIgnoreCase)
                 || string.Equals(name, "backup_log.txt", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(name, BackupPayload.FileName, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(name, OwnershipMarkerFileName, StringComparison.OrdinalIgnoreCase)
                 || name.StartsWith(".payload-", StringComparison.OrdinalIgnoreCase);
         }
 
@@ -835,6 +909,11 @@ namespace WinRestoreKit
             if (!TryCreateBackupFolder(snapshotFolderPath, out createError))
                 return SnapshotGate.FolderNotCreated(createError);
 
+            // As early as possible after creation, exactly like the equivalent claim in
+            // RunBackupCore, and for the identical reason: SnapshotNaming.Unique's own free-name
+            // scan has the same TOCTOU gap between two processes racing the same restore.
+            snapshotFolderExclusivelyOwned = TryClaimExclusiveFolderOwnership(snapshotFolderPath);
+
             List<ModuleResult> results =
                 await RunModulesBackup(snapshotSet, snapshotFolderPath, "Snapshotting");
 
@@ -885,6 +964,7 @@ namespace WinRestoreKit
             // Stage 1: name the snapshot before asking, so the dialog can say where it will go.
             // A fresh timestamp, never Data.NowShort - that is stamped once per process.
             string snapshotFolderPath = null;
+            snapshotFolderExclusivelyOwned = false;
 
             try
             {
@@ -979,7 +1059,8 @@ namespace WinRestoreKit
 
             if (runControl != null && runControl.IsCancellationRequested)
             {
-                if (!snapshotFolderExistedBeforeRun && snapshotFolderPath != null && Directory.Exists(snapshotFolderPath))
+                if (!snapshotFolderExistedBeforeRun && snapshotFolderExclusivelyOwned
+                    && snapshotFolderPath != null && Directory.Exists(snapshotFolderPath))
                     TryRemoveIncompleteBackupFolder(snapshotFolderPath);
 
                 ui.ShowSummary(RunSummary.Incomplete(new List<ModuleOutcome>(), RunVerb.Restore,

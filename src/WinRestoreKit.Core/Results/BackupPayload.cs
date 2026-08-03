@@ -22,7 +22,14 @@ namespace WinRestoreKit
         {
             BackupManifest.FileName,
             BackupLog.FileName,
-            FileName
+            FileName,
+
+            // BackupRestoreOrchestrator.OwnershipMarkerFileName (".run-owner"), duplicated here
+            // because that constant lives in the app project and Core cannot reference it: Core is
+            // the lower layer and the app depends on Core, never the reverse. The marker is a race
+            // -detection artifact the orchestrator creates beside every fresh backup folder; nothing
+            // in a restore ever reads it, and it must never be archived as if it were backed-up data.
+            ".run-owner"
         };
 
         internal static bool TryArchive(string backupPath, SnapshotCompression compression, out string error)
