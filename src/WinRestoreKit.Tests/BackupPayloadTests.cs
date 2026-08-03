@@ -42,5 +42,27 @@ namespace WinRestoreKit.Tests
                     Directory.Delete(root, true);
             }
         }
+
+        [Fact]
+        public void TryArchive_WhenPayloadDestinationCannotBeReplaced_RemovesTemporaryPayload()
+        {
+            string root = Path.Combine(Path.GetTempPath(), "WinRestoreKitTests", Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
+
+            try
+            {
+                File.WriteAllText(Path.Combine(root, "artifact.reg"), "payload");
+                Directory.CreateDirectory(Path.Combine(root, BackupPayload.FileName));
+
+                Assert.False(BackupPayload.TryArchive(root, SnapshotCompression.Fast, out _));
+
+                Assert.Empty(Directory.EnumerateFiles(root, ".payload-*.tmp", SearchOption.TopDirectoryOnly));
+            }
+            finally
+            {
+                if (Directory.Exists(root))
+                    Directory.Delete(root, true);
+            }
+        }
     }
 }

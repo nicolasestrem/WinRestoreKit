@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Text;
 using System.IO;
@@ -12,6 +13,7 @@ namespace WinRestoreKit
     {
         private static readonly PrivateFontCollection Collection = new PrivateFontCollection();
         private static readonly object SyncRoot = new object();
+        private static readonly List<GCHandle> PinnedFontBuffers = new List<GCHandle>();
         private static bool loaded;
 
         internal static void EnsureLoaded()
@@ -38,14 +40,16 @@ namespace WinRestoreKit
                     using var buffer = new MemoryStream();
                     stream.CopyTo(buffer);
                     var fontBytes = buffer.ToArray();
-                    var handle = GCHandle.Alloc(fontBytes, GCHandleType.Pinned);
+                    GCHandle handle = GCHandle.Alloc(fontBytes, GCHandleType.Pinned);
                     try
                     {
                         Collection.AddMemoryFont(handle.AddrOfPinnedObject(), fontBytes.Length);
+                        PinnedFontBuffers.Add(handle);
                     }
-                    finally
+                    catch
                     {
                         handle.Free();
+                        throw;
                     }
                 }
 

@@ -125,9 +125,9 @@ namespace WinRestoreKit
             // never did, so every restore of that module leaked the form's window handle and
             // every GDI object on it for the life of the process. Reaching the same dialog again
             // from a later restore in the same session leaked another.
-            Conf.AppStoreApps.RestoreDialog = () =>
+            Conf.AppStoreApps.RestoreDialog = sourcePath =>
             {
-                using (RestAppsForm restoreApps = new RestAppsForm())
+                using (RestAppsForm restoreApps = new RestAppsForm(sourcePath))
                 {
                     restoreApps.ShowDialog();
                 }

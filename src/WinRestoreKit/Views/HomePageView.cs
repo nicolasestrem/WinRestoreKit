@@ -376,7 +376,9 @@ namespace Views
                 foreach (ModuleRegistration registration in registrations)
                     modules.Add(registration.Module);
 
-                if (!BackupPayload.TryPrepareForRead(latest.Path, out payload, out string error))
+                if (!BackupPayload.TryPrepareForRead(latest.Path,
+                    entryName => entryName.EndsWith(".reg", StringComparison.OrdinalIgnoreCase),
+                    out payload, out string error))
                 {
                     unavailableReason = "Drift detection is unavailable because the backup payload could not be prepared: " + error;
                     return null;

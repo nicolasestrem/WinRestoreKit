@@ -38,12 +38,14 @@ namespace WinRestoreKit
                 return false;
             }
 
+            string temporaryPath = null;
+
             try
             {
                 List<SourceFile> sourceFiles = ListPayloadFiles(backupPath);
                 List<string> emptyDirectories = ListEmptyPayloadDirectories(backupPath);
                 string payloadPath = Path.Combine(backupPath, FileName);
-                string temporaryPath = Path.Combine(backupPath, ".payload-"
+                temporaryPath = Path.Combine(backupPath, ".payload-"
                     + Guid.NewGuid().ToString("N") + ".tmp");
 
                 using (FileStream stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
@@ -62,7 +64,6 @@ namespace WinRestoreKit
 
                 if (!ArchiveMatches(temporaryPath, sourceFiles, emptyDirectories))
                 {
-                    File.Delete(temporaryPath);
                     error = "The compressed payload could not be verified.";
                     return false;
                 }
@@ -80,9 +81,27 @@ namespace WinRestoreKit
                 error = ex.Message;
                 return false;
             }
+            finally
+            {
+                if (!string.IsNullOrEmpty(temporaryPath))
+                {
+                    try
+                    {
+                        if (File.Exists(temporaryPath))
+                            File.Delete(temporaryPath);
+                    }
+                    catch (Exception)
+                    {
+                    }
+                }
+            }
         }
 
         internal static bool TryPrepareForRead(string backupPath, out ReadScope payload, out string error)
+            => TryPrepareForRead(backupPath, null, out payload, out error);
+
+        internal static bool TryPrepareForRead(string backupPath, Func<string, bool> shouldExtract,
+                                               out ReadScope payload, out string error)
         {
             payload = null;
             error = null;
@@ -115,6 +134,9 @@ namespace WinRestoreKit
                 {
                     foreach (ZipArchiveEntry entry in archive.Entries)
                     {
+                        if (shouldExtract != null && !shouldExtract(entry.FullName))
+                            continue;
+
                         string destination = Path.GetFullPath(Path.Combine(extractionPath, entry.FullName));
 
                         if (!destination.StartsWith(extractionRoot, StringComparison.OrdinalIgnoreCase))
@@ -191,7 +213,15 @@ namespace WinRestoreKit
 
             foreach (string path in Directory.EnumerateDirectories(backupPath, "*", SearchOption.AllDirectories))
             {
-                if (!Directory.EnumerateFileSystemEntries(path).GetEnumerator().MoveNext())
+                bool isEmpty = true;
+
+                foreach (string ignored in Directory.EnumerateFileSystemEntries(path))
+                {
+                    isEmpty = false;
+                    break;
+                }
+
+                if (isEmpty)
                 {
                     string relative = Path.GetFullPath(path).Substring(root.Length)
                         .Replace(Path.DirectorySeparatorChar, '/');

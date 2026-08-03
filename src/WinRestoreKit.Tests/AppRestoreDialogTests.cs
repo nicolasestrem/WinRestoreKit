@@ -58,9 +58,9 @@ namespace WinRestoreKit.Tests
         /// </remarks>
         private sealed class DialogHook : IDisposable
         {
-            private readonly Action previous;
+            private readonly Action<string> previous;
 
-            public DialogHook(Action replacement)
+            public DialogHook(Action<string> replacement)
             {
                 previous = AppStoreApps.RestoreDialog;
                 AppStoreApps.RestoreDialog = replacement;
@@ -85,18 +85,32 @@ namespace WinRestoreKit.Tests
         }
 
         [Fact]
-        public void Restore_WithADialogRegistered_OpensItOnceAndReportsSkipped()
+        public void Restore_WithADialogRegistered_OpensItForTheSelectedSourceAndReportsSkipped()
         {
             int opened = 0;
+            string source = NewTempDir();
+            string openedFor = null;
 
-            using (new DialogHook(() => opened++))
+            try
             {
-                ModuleResult result = new AppStoreApps().Restore(NewTempDir());
+                using (new DialogHook(path =>
+                {
+                    opened++;
+                    openedFor = path;
+                }))
+                {
+                    ModuleResult result = new AppStoreApps().Restore(source);
 
-                Assert.Equal(1, opened);
-                Assert.Equal(ResultState.Skipped, result.State);
-                Assert.Equal("handled interactively in the app restore dialog",
-                    result.Steps[0].Reason, StringComparer.Ordinal);
+                    Assert.Equal(1, opened);
+                    Assert.Equal(Path.GetFullPath(source), Path.GetFullPath(openedFor), StringComparer.OrdinalIgnoreCase);
+                    Assert.Equal(ResultState.Skipped, result.State);
+                    Assert.Equal("handled interactively in the app restore dialog",
+                        result.Steps[0].Reason, StringComparer.Ordinal);
+                }
+            }
+            finally
+            {
+                try { Directory.Delete(source, true); } catch { }
             }
         }
 
@@ -108,7 +122,7 @@ namespace WinRestoreKit.Tests
         {
             int dialogThread = 0;
 
-            using (new DialogHook(() => dialogThread = Environment.CurrentManagedThreadId))
+            using (new DialogHook(_ => dialogThread = Environment.CurrentManagedThreadId))
             {
                 System.Threading.Tasks.Task<ModuleResult> task =
                     new AppStoreApps().RestoreAsync(NewTempDir());
@@ -150,7 +164,7 @@ namespace WinRestoreKit.Tests
                 string written = AppStoreApps.ExportPathIn(backupDir);
                 File.WriteAllText(written, ExportWith("Microsoft.PowerToys"));
 
-                string read = RestAppsForm.ExportPathFor(backupName);
+                string read = RestAppsForm.ExportPathFor(backupDir);
 
                 Assert.True(File.Exists(read), "the dialog's path did not find the file the module wrote: " + read);
                 Assert.Equal(Path.GetFullPath(written), Path.GetFullPath(read), StringComparer.OrdinalIgnoreCase);
@@ -163,6 +177,39 @@ namespace WinRestoreKit.Tests
             finally
             {
                 try { Directory.Delete(backupDir, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void BackupSources_PrefersTheExtractedRestoreSourceForPackageExport()
+        {
+            string extractedSource = NewTempDir();
+            string otherBackup = NewTempDir();
+
+            try
+            {
+                File.WriteAllText(
+                    AppStoreApps.ExportPathIn(extractedSource),
+                    ExportWith("From.Extracted.Source"));
+                File.WriteAllText(
+                    AppStoreApps.ExportPathIn(otherBackup),
+                    ExportWith("From.Other.Backup"));
+
+                IReadOnlyList<string> sources = RestAppsForm.BackupSources(
+                    extractedSource,
+                    new[] { otherBackup });
+
+                Assert.Equal(new[] { extractedSource, otherBackup }, sources, StringComparer.OrdinalIgnoreCase);
+
+                RestAppsForm.AppExport export = RestAppsForm.AppExport.Read(
+                    RestAppsForm.ExportPathFor(sources[0]));
+
+                Assert.Equal(new[] { "From.Extracted.Source" }, export.PackageIdentifiers);
+            }
+            finally
+            {
+                try { Directory.Delete(extractedSource, true); } catch { }
+                try { Directory.Delete(otherBackup, true); } catch { }
             }
         }
 

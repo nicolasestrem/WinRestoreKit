@@ -49,23 +49,22 @@ namespace Conf
 
         // HasBackupIn is deliberately NOT overridden to test for ExportPathIn(restorePath).
         //
-        // It looks like the obvious use of the new seam, and it would be wrong twice over. This
-        // module's restore does not read the export at all - it opens RestAppsForm, which lets the
-        // user pick ANY backup folder from its own dropdown, not the one being restored. Answering
-        // "no" here would make RestoreScope drop the module, so the dialog would never open for a
-        // user whose selected folder happens to hold no export, while the dialog itself would have
-        // been perfectly able to offer every other backup. It would also break
-        // RestoreDeclarationTests.ModulesThatCloseNothing_AssumeTheBackupHasSomethingForThem.
+        // This module opens RestAppsForm, which starts with the selected restore source but also
+        // lets the user choose another backup folder from its own dropdown. Answering "no" here
+        // would make RestoreScope drop the module, so the dialog would never open for a user whose
+        // selected folder happens to hold no export, while the dialog could have offered another
+        // backup. It would also break RestoreDeclarationTests.ModulesThatCloseNothing_AssumeTheBackupHasSomethingForThem.
         //
         // The same reasoning binds HasArtifactIn, added later for the restore wizard, and binds it
         // HARDER: where HasBackupIn made RestoreScope drop the module after the fact, the wizard
         // greys the checkbox out in front of the user and labels it "(nothing in this backup)".
-        // That would be a false statement about a dialog that reads a folder of its own choosing.
+        // That would be a false statement about a dialog that can read a folder of the user's
+        // choosing.
         //
         // So it is overridden to a flat TRUE rather than left at the null default. Null would mean
         // "cannot tell", and the wizard resolves that to false whenever a manifest exists without
-        // naming this module - which happens on any second backup within one app session. This is
-        // not uncertainty; it is a module for which folder contents are the wrong question.
+        // naming this module, which happens on any second backup within one app session. This is
+        // not uncertainty; it is a module for which folder contents are not the only question.
         public override bool? HasArtifactIn(string backupPath) => true;
 
         public override IReadOnlyList<RestoreTarget> RestoreTargets
@@ -199,8 +198,8 @@ namespace Conf
             => Task.FromResult(Restore(path));
 
         /// <summary>
-        /// Opens the app reinstall dialog. Registered by the app at startup; null in any process
-        /// that has no UI to open it with.
+        /// Opens the app reinstall dialog for <paramref name="path"/>. Registered by the app at
+        /// startup; null in any process that has no UI to open it with.
         /// </summary>
         /// <remarks>
         /// A delegate rather than a constructor argument because this module is constructed by
@@ -208,10 +207,10 @@ namespace Conf
         /// the app is enumerated that way. A parameterless constructor is not negotiable here.
         ///
         /// Registration happens in Program.Main before the message pump starts, so the unregistered
-        /// path below is not reachable from the running app - it exists for the test suite and for
+        /// path below is not reachable from the running app. It exists for the test suite and for
         /// any future headless host, where failing closed is the point.
         /// </remarks>
-        internal static Action RestoreDialog;
+        internal static Action<string> RestoreDialog;
 
         /// <remarks>
         /// This module restores nothing itself. It opens the app restore dialog, and the installs
@@ -231,7 +230,7 @@ namespace Conf
         {
             // Read the delegate once: it is static and mutable, and a null check against one read
             // followed by an invoke of another is a race with whatever cleared it.
-            Action dialog = RestoreDialog;
+            Action<string> dialog = RestoreDialog;
 
             if (dialog == null)
             {
@@ -243,7 +242,7 @@ namespace Conf
                 });
             }
 
-            dialog();
+            dialog(path);
 
             return ModuleResult.Aggregate(new[]
             {
