@@ -52,6 +52,17 @@ namespace Conf
         public override bool? HasArtifactIn(string backupPath)
             => !string.IsNullOrWhiteSpace(backupPath) && File.Exists(FileFor(backupPath));
 
+        /// <summary>
+        /// Compares the one exported key this module records with its current live representation.
+        /// </summary>
+        public override bool? HasDriftedFrom(string backupPath)
+        {
+            if (string.IsNullOrWhiteSpace(backupPath))
+                return null;
+
+            return HasDriftedFromRegistryArtifact(FileFor(backupPath), Key);
+        }
+
         // One key, so one file, and the name does not need to encode which key it holds. Overriding
         // rather than inheriting the key-derived default keeps the filenames these ten modules have
         // always written, so existing backups stay restorable.

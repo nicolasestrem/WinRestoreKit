@@ -128,6 +128,22 @@ namespace WinRestoreKit
             };
         }
 
+        internal static RunSummary Incomplete(IReadOnlyList<ModuleOutcome> outcomes, RunVerb verb,
+                                             string detail)
+        {
+            ModuleOutcome[] completed = (outcomes ?? new List<ModuleOutcome>())
+                .Where(outcome => outcome != null && outcome.Result != null).ToArray();
+
+            return new RunSummary
+            {
+                State = RunState.Problems,
+                Headline = verb.Noun + " canceled, run incomplete.",
+                Detail = detail + (completed.Length == 0
+                    ? string.Empty
+                    : "\r\n\r\n" + completed.Length + " group(s) completed before cancellation.")
+            };
+        }
+
         /// <summary>
         /// One detail line, led by the module's title.
         /// </summary>

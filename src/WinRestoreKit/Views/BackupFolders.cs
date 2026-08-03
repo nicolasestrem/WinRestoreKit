@@ -123,6 +123,15 @@ namespace Views
         internal string Name { get; }
 
         /// <summary>
+        /// User-facing backup name from the manifest, or the physical folder name for every legacy
+        /// backup and manifest that does not supply one.
+        /// </summary>
+        internal string DisplayName
+            => manifest == null || string.IsNullOrEmpty(manifest.SnapshotName)
+                ? Name
+                : manifest.SnapshotName;
+
+        /// <summary>
         /// When the run this folder holds actually finished.
         /// </summary>
         /// <remarks>

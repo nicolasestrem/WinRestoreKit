@@ -9,6 +9,12 @@ version numbers, because that is what those releases were called.
 ## [Unreleased]
 
 ## [0.0.1] - 2026-08-02
+### Changed
+
+- Rebuilt the app shell and all primary views with the Industry design system: bundled Barlow, Barlow Condensed, and IBM Plex Mono typography; Voltage, Flux, and Follow system palettes; blueprint frames; icon rail navigation; and a dedicated progress view.
+- Added snapshot display names, selectable destination folders, Fast and Max archive compression, archive-backed restore discovery, live registry drift detection, rich backup progress metrics, and safe pause or cancel controls.
+- Reworked backup, restore, History, Home, and About around real manifest and module data. Existing backup folders and frozen manifest keys remain compatible.
+
 
 First WinRestoreKit version. The application was renamed from Appcopier and moved to a standalone
 repository; the version series restarts here rather than continuing Appcopier's, because this is a

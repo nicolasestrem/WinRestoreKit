@@ -67,7 +67,9 @@ namespace Views
             {
                 AutoSize = true,
                 Checked = false,
-                Font = new Font("Segoe UI Variable Display", 9.75F),
+                Font = Ui.Body(),
+                ForeColor = Theme.Current.Text,
+                Margin = new Padding(0, 2, 0, 2),
                 Text = entry.Label
             };
 
@@ -80,24 +82,31 @@ namespace Views
             pnlConsent.Controls.Add(new Label
             {
                 AutoSize = true,
-                Font = new Font("Segoe UI Variable Display", 9.75F),
+                Font = Ui.Body(),
+                ForeColor = Theme.Current.TextMuted,
                 Padding = new Padding(0, 4, 0, 4),
                 Text = line
             });
         }
 
-        // Some UI nicety
         private void SetStyle()
         {
-            // Themed as a whole, then the plan pane keeps the rail tint it has always had. Apply
-            // only changes colours - it never touches focus or a checkbox's Checked state, so the
-            // consent facts (Cancel focused, boxes unticked) are unaffected by it. ActiveControl is
-            // still assigned AFTER this in the constructor, so nothing here can outrank it.
             Theme.Apply(this);
 
-            BackColor =
-            txtPlan.BackColor =
-                Ui.RailSurface;
+            BackColor = Theme.Current.Bg;
+            root.BackColor = Theme.Current.Bg;
+            txtPlan.BackColor = Theme.Current.Surface;
+            txtPlan.ForeColor = Theme.Current.Text;
+            pnlConsent.BackColor = Theme.Current.Bg;
+            lblCaveat.ForeColor = Theme.Current.Accent2_700;
+
+            btnRestore.BackColor = Theme.Current.Surface;
+            btnRestore.FlatAppearance.BorderColor = Theme.Current.Accent2_600;
+            btnRestore.ForeColor = Theme.Current.Accent2_700;
+
+            btnCancel.BackColor = Theme.Current.Accent;
+            btnCancel.FlatAppearance.BorderColor = Theme.Current.Accent;
+            btnCancel.ForeColor = Theme.Current.Bg;
         }
 
         private void btnRestore_Click(object sender, EventArgs e)

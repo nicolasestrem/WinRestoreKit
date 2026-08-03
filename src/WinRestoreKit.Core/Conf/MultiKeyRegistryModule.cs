@@ -111,5 +111,37 @@ namespace Conf
 
             return false;
         }
+
+        /// <summary>
+        /// Reports confirmed drift from any recorded key, while keeping incomplete comparisons unknown.
+        /// </summary>
+        public override bool? HasDriftedFrom(string backupPath)
+        {
+            if (string.IsNullOrWhiteSpace(backupPath))
+                return null;
+
+            bool comparedAny = false;
+            bool hasUnknown = false;
+
+            foreach (string key in Keys)
+            {
+                bool? drift = HasDriftedFromRegistryArtifact(
+                    Path.Combine(backupPath, RegFileNameFor(key)),
+                    key);
+
+                if (!drift.HasValue)
+                {
+                    hasUnknown = true;
+                    continue;
+                }
+
+                comparedAny = true;
+
+                if (drift.Value)
+                    return true;
+            }
+
+            return comparedAny && !hasUnknown ? false : null;
+        }
     }
 }

@@ -141,6 +141,7 @@ namespace WinRestoreKit
         static void Main()
         {
             RegisterUiSeams();
+            Theme.Initialize();
 
             // PerMonitorV2, and it MUST be the first Application call - SetHighDpiMode is ignored
             // once the first window or visual-styles call has fixed the process DPI awareness. The

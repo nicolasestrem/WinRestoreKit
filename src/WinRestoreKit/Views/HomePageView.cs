@@ -1,73 +1,54 @@
-using WinRestoreKit;
+using Conf;
 using DataHelper;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Windows.Forms;
+using WinRestoreKit;
 
 namespace Views
 {
-    /// <summary>
-    /// Answers "am I okay?" - the last backup, what failed in it, and what can be undone.
-    /// </summary>
-    /// <remarks>
-    /// The screen's whole value is that it may be trusted, so it is built around one rule: a status
-    /// claim comes from backup_manifest.json or it is not made at all. A folder with no manifest, an
-    /// unreadable one, or one TryParse refuses reads as "details unavailable" - never as a count, and
-    /// never as a green tick. Every backup taken before the manifest existed is in that category, and
-    /// inferring success for those is the cry-wolf failure running in the dangerous direction.
-    ///
-    /// Failure reasons are rendered verbatim, pinned above everything else, in read-only TextBoxes
-    /// rather than Labels so they can be selected and pasted into a bug report. That is an honesty
-    /// rule that happens to be implemented as a styling one.
-    ///
-    /// Laid out with TableLayoutPanel and Dock throughout, no absolute positions: PR 9 flips
-    /// HighDpiMode to PerMonitorV2, and absolute coordinates do not survive a WM_DPICHANGED rescale.
-    /// Built in code rather than in a Designer file because almost every row is conditional on what is
-    /// on disk.
-    /// </remarks>
     internal sealed class HomePageView : UserControl, IRefreshableView
     {
         private readonly Action<IReadOnlyList<string>> backUpAgain;
         private readonly Action<string> viewDetails;
-
+        private readonly Action restoreFromSnapshot;
         private readonly TableLayoutPanel rows;
 
-        internal HomePageView(Action<IReadOnlyList<string>> backUpAgain, Action<string> viewDetails)
+        internal HomePageView(
+            Action<IReadOnlyList<string>> backUpAgain,
+            Action<string> viewDetails,
+            Action restoreFromSnapshot)
         {
             this.backUpAgain = backUpAgain;
             this.viewDetails = viewDetails;
+            this.restoreFromSnapshot = restoreFromSnapshot;
 
-            BackColor = Ui.Surface;
-            Padding = new Padding(Ui.SpaceL);
+            BackColor = Theme.Current.Bg;
+            Dock = DockStyle.Fill;
             AutoScroll = true;
+            Padding = new Padding(Ui.SpaceL, Ui.SpaceL, Ui.SpaceL, Ui.SpaceL);
 
             rows = new TableLayoutPanel
             {
-                Dock = DockStyle.Top,
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                ColumnCount = 1
+                ColumnCount = 1,
+                Dock = DockStyle.Top,
+                Margin = Padding.Empty,
+                Padding = Padding.Empty
             };
             rows.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-
             Controls.Add(rows);
 
             RefreshView(ViewEntry.Fresh);
         }
 
-        /// <summary>
-        /// Rebuilt from disk on every visit. The entry kind is not consulted: Home carries no
-        /// selection to preserve, and the question it answers can change between any two visits.
-        /// </summary>
         public void RefreshView(ViewEntry entry)
         {
             rows.SuspendLayout();
 
-            // Disposed, not merely removed: this runs on every visit to Home, and the rows own fonts
-            // and brushes. Leaking a screenful of controls per navigation is the kind of thing that
-            // only shows up after an hour of use.
             for (int i = rows.Controls.Count - 1; i >= 0; i--)
             {
                 Control old = rows.Controls[i];
@@ -81,293 +62,383 @@ namespace Views
             }
             catch (Exception ex)
             {
-                // Home is the startup view. It reads the file system, and a denied or vanished
-                // backup directory must degrade to a sentence rather than take the app down before
-                // its window is usable.
-                rows.Controls.Add(Line("This screen could not be built: " + ex.Message, Ui.Body(), Ui.Danger));
+                BuildUnavailable(ex.Message);
             }
 
             rows.ResumeLayout(true);
-
-            // Home disposes and rebuilds its whole row set on every visit, so the controls the
-            // startup theme pass walked are gone by the second navigation. Without this they come
-            // back on WinForms' light defaults. See the note in RestoreWizardStep2View.LoadFolder.
             Theme.Apply(this);
         }
 
         private void Build()
         {
-            rows.Controls.Add(Line("This PC: " + Environment.MachineName, Ui.Title(), Ui.TextPrimary));
-
             BackupFolders folders = BackupFolders.Read();
+            IReadOnlyList<ModuleRegistration> registrations = ModuleCatalog.CreateAll();
+            IReadOnlyList<WatchedGroupSummary> watchedGroups = WatchedGroups.GetCurrent();
 
             if (folders.UnreadableReason != null)
-                BuildUnreadableRoot(folders.UnreadableReason);
-            else if (folders.Backups.Count == 0)
-                BuildNoBackups();
-            else
-                BuildLatestBackup(folders.Backups[0]);
-
-            rows.Controls.Add(Separator());
-
-            // The snapshot list comes from the SAME enumeration that just failed, so an empty one
-            // means "could not look", not "there are none". Saying "Undo points: none" here would be
-            // the inferred negative this screen refuses to make about backups, made about the thing
-            // that undoes a restore.
-            rows.Controls.Add(Line(
-                folders.UnreadableReason == null
-                    ? DescribeUndoPoints(folders.Snapshots)
-                    : "Undo points: unknown while the backup folder cannot be read",
-                Ui.Body(), Ui.Muted));
-
-            // Disk space is a property of the drive, not of the folder listing, so it stays.
-            rows.Controls.Add(Line(DescribeDisk(), Ui.Body(), Ui.Muted));
-        }
-
-        /// <summary>
-        /// The backup folder is there but could not be listed.
-        /// </summary>
-        /// <remarks>
-        /// Emphatically NOT "No backups yet". That sentence would tell someone their backups are
-        /// gone when the far likelier truth is that they are sitting there intact behind a
-        /// permission this process does not have. Same rule as an unreadable manifest: not knowing
-        /// is reported as not knowing.
-        /// </remarks>
-        private void BuildUnreadableRoot(string reason)
-        {
-            rows.Controls.Add(Line("The backup folder could not be read.", Ui.Heading(), Ui.Danger));
-            rows.Controls.Add(Line(Data.DataRootDir, Ui.Body(), Ui.Muted));
-            rows.Controls.Add(Line(
-                "Any backups already there are untouched - this screen simply cannot list them.",
-                Ui.Body(), Ui.Muted));
-            rows.Controls.Add(Line(reason, Ui.Body(), Ui.Danger));
-        }
-
-        private void BuildNoBackups()
-        {
-            rows.Controls.Add(Line("No backups yet.", Ui.Heading(), Ui.TextPrimary));
-            rows.Controls.Add(Line("Nothing on this PC has been backed up with WinRestoreKit.", Ui.Body(), Ui.Muted));
-            rows.Controls.Add(Button("Back up this PC", (s, e) => backUpAgain(null)));
-        }
-
-        private void BuildLatestBackup(BackupFolder latest)
-        {
-            ManifestData manifest = latest.ReadManifest();
-
-            rows.Controls.Add(Line("Last backup: " + Ago(latest.Created), Ui.Heading(), Ui.TextPrimary));
-            rows.Controls.Add(Line(latest.Name, Ui.Body(), Ui.Muted));
-
-            if (manifest == null)
             {
-                // Absent, unreadable, or refused by TryParse - all the same answer. Saying anything
-                // else here would mean deriving a verdict from a file this app is not willing to
-                // trust, which is the one thing the manifest exists to prevent.
-                rows.Controls.Add(Line("Details unavailable for this backup.", Ui.BodyBold(), Ui.TextPrimary));
-                rows.Controls.Add(Line(
-                    "It carries no readable record of what was captured - backups made before this "
-                        + "version have none, and neither does a run that was interrupted. The backup "
-                        + "itself is intact and can still be restored.",
-                    Ui.Body(), Ui.Muted));
-            }
-            else
-            {
-                BuildManifestSummary(manifest);
-            }
-
-            rows.Controls.Add(Actions(latest, manifest));
-        }
-
-        /// <summary>
-        /// The counts line, plus one verbatim row per outcome that is not a success.
-        /// </summary>
-        /// <remarks>
-        /// Three buckets, not two. A row is failed, or it is a state this build recognises as an
-        /// outcome (succeeded/skipped), or it is neither - and the third bucket is real: Compose
-        /// writes state "unknown" for a module that produced no result at all, and a manifest from a
-        /// later build can carry a literal this one has never heard of. Folding those into "none
-        /// failed" would report an item with NO recorded outcome as an item that went fine, which is
-        /// the same inferred-green this screen refuses to do for a whole missing manifest. An
-        /// unrecorded item is not evidence of success; it is the absence of evidence.
-        /// </remarks>
-        private void BuildManifestSummary(ManifestData manifest)
-        {
-            List<ManifestModule> failed = new List<ManifestModule>();
-            List<ManifestModule> unrecorded = new List<ManifestModule>();
-
-            foreach (ManifestModule module in manifest.Modules)
-            {
-                if (module.State == BackupManifest.StateFailed)
-                    failed.Add(module);
-                else if (module.State != BackupManifest.StateSucceeded
-                         && module.State != BackupManifest.StateSkipped)
-                    unrecorded.Add(module);
-            }
-
-            string counts = manifest.Modules.Count + " item" + (manifest.Modules.Count == 1 ? "" : "s");
-
-            if (failed.Count == 0 && unrecorded.Count == 0)
-            {
-                rows.Controls.Add(Line(counts + " · none failed", Ui.Body(), Ui.TextPrimary));
+                BuildHeader(
+                    "BACKUP STATUS UNAVAILABLE",
+                    "The backup folder could not be read. Existing backups are untouched. Back up this PC after resolving access to " + Data.DataRootDir + ".");
+                rows.Controls.Add(BuildStatStrip("Unknown", "Unavailable", "Unavailable", "Unavailable"));
+                rows.Controls.Add(BuildActions());
+                rows.Controls.Add(Spacer(Ui.SpaceL));
+                rows.Controls.Add(BuildBottom(
+                    null,
+                    "Drift status is unavailable until backup history can be read.",
+                    watchedGroups));
+                rows.Controls.Add(Line(folders.UnreadableReason, Ui.MonoSmall(), Theme.Current.Accent2_600));
                 return;
             }
 
-            if (failed.Count > 0)
-                counts += " · " + failed.Count + " failed";
+            if (folders.Backups.Count == 0)
+            {
+                BuildHeader(
+                    "SYSTEM AWAITS A SNAPSHOT",
+                    "No readable user snapshot exists for " + Environment.MachineName + ". Back up this PC to begin protecting "
+                        + registrations.Count + " settings modules across " + watchedGroups.Count + " watched groups.");
+                rows.Controls.Add(BuildStatStrip("0", "Not yet", DescribeStorage(folders, out _), "Not measured"));
+                rows.Controls.Add(BuildActions());
+                rows.Controls.Add(Spacer(Ui.SpaceL));
+                rows.Controls.Add(BuildBottom(
+                    null,
+                    "Take a backup to begin drift detection.",
+                    watchedGroups));
+                return;
+            }
 
-            if (unrecorded.Count > 0)
-                counts += " · " + unrecorded.Count + " not recorded";
+            BackupFolder latest = folders.Backups[0];
+            IReadOnlyList<DriftItem> drifted = DetectDrift(latest, registrations, out string driftUnavailableReason);
+            string driftCount = drifted == null ? "Unavailable" : drifted.Count.ToString();
+            string summary = "Last snapshot \"" + latest.DisplayName + "\" taken " + Ago(latest.Created)
+                + " from " + Environment.MachineName + ". " + registrations.Count + " settings modules across "
+                + watchedGroups.Count + " watched groups are under watch; "
+                + (drifted == null ? "drift could not be measured" : drifted.Count + " have drifted since the snapshot") + ".";
 
-            rows.Controls.Add(Line(counts, Ui.BodyBold(),
-                failed.Count > 0 ? Ui.Danger : Ui.Caution));
-
-            // Pinned above everything else and quoted verbatim. A rollup here would hide the only
-            // text that says what actually went wrong. Failures first, then the unrecorded ones.
-            foreach (ManifestModule module in failed)
-                rows.Controls.Add(Reason(module, "FAILED", Ui.Danger));
-
-            foreach (ManifestModule module in unrecorded)
-                rows.Controls.Add(Reason(module, "NOT RECORDED", Ui.Caution));
+            BuildHeader("SYSTEM IS CAPTURED", summary);
+            rows.Controls.Add(BuildStatStrip(
+                folders.Backups.Count.ToString(),
+                DescribeLastRun(latest),
+                DescribeStorage(folders, out _),
+                driftCount));
+            rows.Controls.Add(BuildActions());
+            rows.Controls.Add(Spacer(Ui.SpaceL));
+            rows.Controls.Add(BuildBottom(drifted, driftUnavailableReason, watchedGroups));
         }
 
-        private Control Actions(BackupFolder latest, ManifestData manifest)
+        private void BuildUnavailable(string reason)
         {
-            FlowLayoutPanel panel = new FlowLayoutPanel
+            BuildHeader(
+                "BACKUP STATUS UNAVAILABLE",
+                "The dashboard could not read its backup information. Back up this PC after resolving the reported problem.");
+            rows.Controls.Add(BuildStatStrip("Unknown", "Unavailable", "Unavailable", "Unavailable"));
+            rows.Controls.Add(BuildActions());
+            rows.Controls.Add(Line(reason, Ui.MonoSmall(), Theme.Current.Accent2_600));
+        }
+
+        private void BuildHeader(string heading, string summary)
+        {
+            TableLayoutPanel header = new TableLayoutPanel
             {
-                Dock = DockStyle.Top,
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                Margin = new Padding(0, Ui.SpaceM, 0, 0),
-                Padding = new Padding(0)
+                ColumnCount = 1,
+                Dock = DockStyle.Top,
+                Margin = new Padding(0, 0, 0, Ui.SpaceM),
+                Padding = Padding.Empty
+            };
+            header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            header.Controls.Add(Line("STATUS", Ui.Kicker(), Theme.Current.Accent700));
+            header.Controls.Add(Line(heading, Ui.Heading(), Theme.Current.Text));
+            header.Controls.Add(Line(summary, Ui.Body(), Theme.Current.TextMuted));
+            rows.Controls.Add(header);
+        }
+
+        private static Control BuildStatStrip(string snapshots, string lastRun, string onDisk, string drifted)
+        {
+            BlueprintFrame frame = new BlueprintFrame
+            {
+                AutoSize = false,
+                Height = 106,
+                Dock = DockStyle.Top,
+                Margin = new Padding(0, 0, 0, Ui.SpaceM)
             };
 
-            panel.Controls.Add(Button("View details", (s, e) => viewDetails(latest.Name)));
+            TableLayoutPanel cells = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 4,
+                RowCount = 1,
+                Margin = Padding.Empty,
+                Padding = new Padding(Ui.SpaceM, Ui.SpaceS, Ui.SpaceM, Ui.SpaceS)
+            };
+            for (int i = 0; i < 4; i++)
+                cells.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
 
-            // With no manifest there is no list of what the run selected, so this is a plain
-            // navigation. Guessing the selection from folder contents would re-tick items the user
-            // never chose, on the screen whose button says "again".
-            IReadOnlyList<string> types = manifest == null ? null : TypeNames(manifest);
+            cells.Controls.Add(StatCell("SNAPSHOTS", snapshots), 0, 0);
+            cells.Controls.Add(StatCell("LAST RUN", lastRun), 1, 0);
+            cells.Controls.Add(StatCell("ON DISK", onDisk), 2, 0);
+            cells.Controls.Add(StatCell("DRIFTED", drifted), 3, 0);
+            frame.Controls.Add(cells);
+            return frame;
+        }
 
-            panel.Controls.Add(Button("Back up again", (s, e) => backUpAgain(types)));
+        private static Control StatCell(string label, string value)
+        {
+            Panel cell = new Panel
+            {
+                Dock = DockStyle.Fill,
+                Margin = Padding.Empty,
+                Padding = new Padding(Ui.SpaceS, Ui.SpaceXs, Ui.SpaceS, Ui.SpaceXs)
+            };
+            Label labelControl = Line(label, Ui.Kicker(), Theme.Current.TextMuted);
+            labelControl.Dock = DockStyle.Top;
+            Label valueControl = Line(value, Ui.Figure(), Theme.Current.Text);
+            valueControl.Dock = DockStyle.Fill;
+            valueControl.TextAlign = ContentAlignment.MiddleLeft;
+            valueControl.AutoEllipsis = true;
+            cell.Controls.Add(valueControl);
+            cell.Controls.Add(labelControl);
+            return cell;
+        }
+
+        private Control BuildActions()
+        {
+            FlowLayoutPanel actions = new FlowLayoutPanel
+            {
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Dock = DockStyle.Top,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = true,
+                Margin = new Padding(0, 0, 0, Ui.SpaceM),
+                Padding = Padding.Empty
+            };
+
+            actions.Controls.Add(PrimaryButton("BACK UP NOW", (sender, args) => backUpAgain(null)));
+            actions.Controls.Add(SecondaryButton("RESTORE FROM SNAPSHOT", (sender, args) => restoreFromSnapshot()));
+            actions.Controls.Add(GhostButton("VIEW HISTORY", (sender, args) => viewDetails(null)));
+            return actions;
+        }
+
+        private static Control BuildBottom(
+            IReadOnlyList<DriftItem> drifted,
+            string driftUnavailableReason,
+            IReadOnlyList<WatchedGroupSummary> watchedGroups)
+        {
+            TableLayoutPanel bottom = new TableLayoutPanel
+            {
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                ColumnCount = 2,
+                Dock = DockStyle.Top,
+                Margin = Padding.Empty,
+                Padding = Padding.Empty
+            };
+            bottom.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+            bottom.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+            bottom.Controls.Add(BuildDriftPanel(drifted, driftUnavailableReason), 0, 0);
+            bottom.Controls.Add(BuildWatchedGroups(watchedGroups), 1, 0);
+            return bottom;
+        }
+
+        private static Control BuildDriftPanel(IReadOnlyList<DriftItem> drifted, string unavailableReason)
+        {
+            TableLayoutPanel panel = Section("DRIFT SINCE LAST SNAPSHOT");
+
+            if (drifted == null)
+            {
+                panel.Controls.Add(Line(unavailableReason, Ui.Body(), Theme.Current.TextMuted));
+                return panel;
+            }
+
+            if (drifted.Count == 0)
+            {
+                panel.Controls.Add(Line("No tracked changes found since this snapshot.", Ui.Body(), Theme.Current.TextMuted));
+                return panel;
+            }
+
+            foreach (DriftItem item in drifted)
+                panel.Controls.Add(DriftRow(item));
 
             return panel;
         }
 
-        private static IReadOnlyList<string> TypeNames(ManifestData manifest)
+        private static Control DriftRow(DriftItem item)
         {
-            List<string> names = new List<string>(manifest.Modules.Count);
-
-            foreach (ManifestModule module in manifest.Modules)
+            TableLayoutPanel row = new TableLayoutPanel
             {
-                if (!string.IsNullOrEmpty(module.Type))
-                    names.Add(module.Type);
-            }
-
-            return names;
-        }
-
-        // -----------------------------------------------------------------------------------------
-        // Rendering helpers
-        // -----------------------------------------------------------------------------------------
-
-        private static Label Line(string text, Font font, Color color)
-            => new Label
-            {
-                Text = text,
-                Font = font,
-                ForeColor = color,
-                AutoSize = true,
-                MaximumSize = new Size(720, 0),
-                Margin = new Padding(0, 0, 0, Ui.SpaceXs),
-                Dock = DockStyle.Top
-            };
-
-        /// <summary>
-        /// One non-success module, as a selectable read-only row sized to its whole reason.
-        /// </summary>
-        /// <remarks>
-        /// A TextBox and not a Label, on purpose: the reason is the text a user needs to paste into
-        /// an issue, and Label text cannot be selected. ReadOnly rather than disabled so the caret
-        /// and Ctrl+C still work; BorderStyle.None and the parent colour so it does not read as an
-        /// input someone is meant to type into.
-        ///
-        /// The height is MEASURED rather than fixed. It was 40px with no scrollbars, which is about
-        /// two lines - and real reasons run longer than that (the registry modules quote whole key
-        /// paths). The overflow was clipped silently, so someone copying the visible text would have
-        /// pasted a truncated reason into a bug report without knowing it, which defeats the entire
-        /// point of making the row selectable. Fixed width plus a measurement at that same width
-        /// means what is laid out is what is drawn.
-        /// </remarks>
-        private static TextBox Reason(ManifestModule module, string label, Color color)
-        {
-            const int RowWidth = 720;
-
-            string text = "! " + (module.Title ?? module.Type ?? "Unknown item") + " " + label + " - "
-                + (module.Reason ?? "no reason was recorded");
-
-            Font font = Ui.Body();
-
-            Size measured = TextRenderer.MeasureText(
-                text, font, new Size(RowWidth, int.MaxValue), TextFormatFlags.WordBreak);
-
-            return new TextBox
-            {
-                Text = text,
-                Font = font,
-                ForeColor = color,
-                BackColor = Ui.Surface,
-                ReadOnly = true,
-                BorderStyle = BorderStyle.None,
-                Multiline = true,
-                ScrollBars = ScrollBars.None,
-                WordWrap = true,
-                Width = RowWidth,
-                // One line of slack: TextRenderer and the TextBox's own wrapping can disagree by a
-                // word at a boundary, and this is the direction where being wrong is invisible
-                // rather than silently lossy.
-                Height = measured.Height + font.Height,
-                Margin = new Padding(Ui.SpaceM, 0, 0, Ui.SpaceXs)
-            };
-        }
-
-        private static Button Button(string text, EventHandler onClick)
-        {
-            Button button = new Button
-            {
-                Text = text,
-                Font = Ui.Body(),
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                Padding = new Padding(Ui.SpaceM, Ui.SpaceXs, Ui.SpaceM, Ui.SpaceXs),
-                Margin = new Padding(0, 0, Ui.SpaceS, 0),
-                Cursor = Cursors.Hand,
-                UseVisualStyleBackColor = true
+                ColumnCount = 2,
+                Dock = DockStyle.Top,
+                Margin = new Padding(0, 0, Ui.SpaceM, Ui.SpaceS),
+                Padding = Padding.Empty
             };
+            row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 12f));
+            row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
 
-            button.Click += onClick;
+            Label marker = new Label
+            {
+                Text = "■",
+                Font = Ui.MonoSmall(),
+                ForeColor = Theme.Current.Accent2_600,
+                AutoSize = true,
+                Dock = DockStyle.Top,
+                Margin = Padding.Empty
+            };
+            TableLayoutPanel text = new TableLayoutPanel
+            {
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                ColumnCount = 1,
+                Dock = DockStyle.Top,
+                Margin = Padding.Empty,
+                Padding = Padding.Empty
+            };
+            text.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            text.Controls.Add(Line(item.Name, Ui.BodyBold(), Theme.Current.Text));
+            text.Controls.Add(Line(item.Path, Ui.MonoSmall(), Theme.Current.TextMuted));
+            text.Controls.Add(Line(DescribeChanged(item.ChangedAt), Ui.MonoSmall(), Theme.Current.TextMuted));
 
-            return button;
+            row.Controls.Add(marker, 0, 0);
+            row.Controls.Add(text, 1, 0);
+            return row;
         }
 
-        /// <remarks>
-        /// <c>Ui.Border</c> rather than a literal: light's Border IS Gainsboro, so this is the same
-        /// hairline it always was, but the theme walker can now recognise and re-colour it instead
-        /// of flattening it into the surface it is meant to divide.
-        /// </remarks>
-        private static Control Separator()
-            => new Panel
+        private static Control BuildWatchedGroups(IReadOnlyList<WatchedGroupSummary> watchedGroups)
+        {
+            TableLayoutPanel section = Section("WATCHED GROUPS");
+            TableLayoutPanel grid = new TableLayoutPanel
             {
-                Height = 1,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                ColumnCount = 2,
                 Dock = DockStyle.Top,
-                BackColor = Ui.Border,
-                Margin = new Padding(0, Ui.SpaceL, 0, Ui.SpaceM)
+                Margin = Padding.Empty,
+                Padding = Padding.Empty
             };
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
 
-        // -----------------------------------------------------------------------------------------
-        // Wording
-        // -----------------------------------------------------------------------------------------
+            for (int index = 0; index < watchedGroups.Count; index++)
+            {
+                WatchedGroupSummary group = watchedGroups[index];
+                Panel cell = new Panel
+                {
+                    AutoSize = true,
+                    AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                    Dock = DockStyle.Top,
+                    Margin = new Padding(0, 0, Ui.SpaceS, Ui.SpaceS),
+                    Padding = new Padding(Ui.SpaceS),
+                    BackColor = Theme.Current.Surface
+                };
+                cell.Controls.Add(Line(group.Count, Ui.MonoSmall(), Theme.Current.TextMuted));
+                Label name = Line(group.Name, Ui.BodyBold(), Theme.Current.Text);
+                name.Dock = DockStyle.Top;
+                cell.Controls.Add(name);
+                grid.Controls.Add(cell, index % 2, index / 2);
+            }
+
+            if (watchedGroups.Count == 0)
+                grid.Controls.Add(Line("No settings groups are registered.", Ui.Body(), Theme.Current.TextMuted), 0, 0);
+
+            section.Controls.Add(grid);
+            return section;
+        }
+
+        private static TableLayoutPanel Section(string kicker)
+        {
+            TableLayoutPanel section = new TableLayoutPanel
+            {
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                ColumnCount = 1,
+                Dock = DockStyle.Top,
+                Margin = new Padding(0, 0, Ui.SpaceM, 0),
+                Padding = Padding.Empty
+            };
+            section.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            section.Controls.Add(Line(kicker, Ui.Kicker(), Theme.Current.Accent700));
+            return section;
+        }
+
+        private static IReadOnlyList<DriftItem> DetectDrift(
+            BackupFolder latest,
+            IReadOnlyList<ModuleRegistration> registrations,
+            out string unavailableReason)
+        {
+            BackupPayload.ReadScope payload = null;
+
+            try
+            {
+                List<BackupBase> modules = new List<BackupBase>(registrations.Count);
+                foreach (ModuleRegistration registration in registrations)
+                    modules.Add(registration.Module);
+
+                if (!BackupPayload.TryPrepareForRead(latest.Path, out payload, out string error))
+                {
+                    unavailableReason = "Drift detection is unavailable because the backup payload could not be prepared: " + error;
+                    return null;
+                }
+
+                unavailableReason = null;
+                return DriftDetector.Detect(payload.Path, modules);
+            }
+            catch (Exception ex)
+            {
+                unavailableReason = "Drift detection could not complete: " + ex.Message;
+                return null;
+            }
+            finally
+            {
+                if (payload != null)
+                    payload.Dispose();
+            }
+        }
+
+        private static string DescribeStorage(BackupFolders folders, out bool complete)
+        {
+            complete = true;
+            long bytes = 0;
+
+            foreach (BackupFolder folder in folders.Backups)
+                bytes += FolderBytes(folder.Path, ref complete);
+
+            foreach (BackupFolder folder in folders.Snapshots)
+                bytes += FolderBytes(folder.Path, ref complete);
+
+            return complete ? FormatBytes(bytes) : "Unavailable";
+        }
+
+        private static long FolderBytes(string path, ref bool complete)
+        {
+            try
+            {
+                long bytes = 0;
+                foreach (string file in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
+                    bytes += new FileInfo(file).Length;
+
+                return bytes;
+            }
+            catch (Exception)
+            {
+                complete = false;
+                return 0;
+            }
+        }
+
+        private static string DescribeLastRun(BackupFolder latest)
+            => latest.Created == DateTime.MinValue ? "Unknown" : Ago(latest.Created);
+
+        private static string DescribeChanged(DateTime? changedAt)
+            => changedAt.HasValue ? "Changed " + Ago(changedAt.Value) : "Change detected";
 
         internal static string Ago(DateTime created)
         {
+            if (created == DateTime.MinValue)
+                return "unknown";
+
             int days = (int)(DateTime.Now.Date - created.Date).TotalDays;
 
             if (days <= 0)
@@ -379,31 +450,91 @@ namespace Views
             return days + " days ago";
         }
 
-        private static string DescribeUndoPoints(IReadOnlyList<BackupFolder> snapshots)
+        private static string FormatBytes(long bytes)
         {
-            if (snapshots.Count == 0)
-                return "Undo points: none";
+            const long Gigabyte = 1024L * 1024L * 1024L;
+            const long Megabyte = 1024L * 1024L;
 
-            return "Undo points: " + snapshots.Count + " pre-restore snapshot"
-                + (snapshots.Count == 1 ? "" : "s")
-                + " (newest " + snapshots[0].Created.ToString("d MMM yyyy") + ")";
+            if (bytes >= Gigabyte)
+                return (bytes / (double)Gigabyte).ToString("0.0") + " GB";
+
+            if (bytes >= Megabyte)
+                return (bytes / (double)Megabyte).ToString("0.0") + " MB";
+
+            return bytes + " B";
         }
 
-        private static string DescribeDisk()
-        {
-            try
+        private static Label Line(string text, Font font, Color color)
+            => new Label
             {
-                DriveInfo drive = new DriveInfo(Path.GetPathRoot(Data.DataRootDir));
+                Text = text,
+                Font = font,
+                ForeColor = color,
+                AutoSize = true,
+                MaximumSize = new Size(900, 0),
+                Margin = new Padding(0, 0, 0, Ui.SpaceXs),
+                Dock = DockStyle.Top
+            };
 
-                return "Disk: " + (drive.AvailableFreeSpace / 1024 / 1024 / 1024) + " GB free on "
-                    + drive.Name;
-            }
-            catch (Exception ex)
+        private static Control Spacer(int height)
+            => new Panel
             {
-                // A network or removed volume under the backup path. Naming the failure beats an
-                // omitted line that reads as "plenty of room".
-                return "Disk: free space unavailable (" + ex.Message + ")";
-            }
+                Height = height,
+                Dock = DockStyle.Top,
+                Margin = Padding.Empty
+            };
+
+        private static Button PrimaryButton(string text, EventHandler onClick)
+        {
+            AccentButton button = new AccentButton
+            {
+                Text = text,
+                Font = Ui.Kicker(),
+                ForeColor = Theme.Current.Bg,
+                BackColor = Theme.Current.Accent,
+                FlatStyle = FlatStyle.Flat,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Padding = new Padding(Ui.SpaceM, Ui.SpaceS, Ui.SpaceM, Ui.SpaceS),
+                Margin = new Padding(0, 0, Ui.SpaceS, 0),
+                Cursor = Cursors.Hand,
+                UseVisualStyleBackColor = false
+            };
+            button.FlatAppearance.BorderColor = Theme.Current.Accent;
+            button.Click += onClick;
+            return button;
+        }
+
+        private static Button SecondaryButton(string text, EventHandler onClick)
+        {
+            Button button = StandardButton(text, onClick);
+            button.FlatAppearance.BorderColor = Theme.Current.Accent;
+            return button;
+        }
+
+        private static Button GhostButton(string text, EventHandler onClick)
+        {
+            Button button = StandardButton(text, onClick);
+            button.FlatAppearance.BorderSize = 0;
+            return button;
+        }
+
+        private static Button StandardButton(string text, EventHandler onClick)
+        {
+            Button button = new Button
+            {
+                Text = text,
+                Font = Ui.Kicker(),
+                FlatStyle = FlatStyle.Flat,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Padding = new Padding(Ui.SpaceM, Ui.SpaceS, Ui.SpaceM, Ui.SpaceS),
+                Margin = new Padding(0, 0, Ui.SpaceS, 0),
+                Cursor = Cursors.Hand,
+                UseVisualStyleBackColor = false
+            };
+            button.Click += onClick;
+            return button;
         }
     }
 }

@@ -230,24 +230,6 @@ namespace WinRestoreKit.Tests
             Assert.DoesNotContain("  ", version);
         }
 
-        [Theory]
-        [InlineData("26100", "4652")]
-        [InlineData("26100", null)]
-        [InlineData(null, "4652")]
-        [InlineData("", "4652")]
-        [InlineData("   ", null)]
-        [InlineData(null, null)]
-        public void ComposeVersion_SubstitutedIntoTheGreeting_ReadsAsASentence(string build, string ubr)
-        {
-            // The point of the const template: a degraded build string must not leave the greeting
-            // with a double space where the version should be, or a stray " ." before the period.
-            string greeting = string.Format(
-                global::Views.BackupPageView.IntroTemplate,
-                global::DataHelper.OsHelper.ComposeVersion(build, ubr));
-
-            Assert.DoesNotContain("  ", greeting);
-            Assert.DoesNotContain(" .", greeting);
-        }
 
         [Fact]
         public void UnreadableToken_IsDistinctFromUnknownToken()

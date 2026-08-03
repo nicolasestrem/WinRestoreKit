@@ -40,6 +40,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Fonts\*.otf" />
+    <EmbeddedResource Include="Fonts\*.ttf" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\WinRestoreKit.Core\WinRestoreKit.Core.csproj" />
   </ItemGroup>
 

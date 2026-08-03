@@ -1,173 +1,99 @@
+using DataHelper;
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using Views;
 
 namespace WinRestoreKit
 {
     /// <summary>
-    /// The shell: a left rail and a content host. It owns the views and the navigation, nothing else.
+    /// Owns the native-frame shell, rail navigation, and palette application.
     /// </summary>
-    /// <remarks>
-    /// Rail entries are constructed once and reused rather than rebuilt on each visit. That is what
-    /// makes the backup page's checkbox selection, its log pane and its LogHelper target survive a
-    /// trip to Home and back - the same lifetime the single backupPage field already had before the
-    /// rail existed. Home is the exception in spirit only: the instance is reused, but it re-reads the
-    /// backup directory every time it is shown, via IRefreshableView.
-    ///
-    /// Phase 4 PR 7 inverted the restore flow into a wizard (step 1 picks the backup, step 2 its
-    /// contents), so the rail's Restore and the backup page's Restore button both open the wizard
-    /// rather than the old module-set-first picker.
-    /// </remarks>
     public partial class MainForm : Form
     {
         private readonly NavigationService navigation;
-
         private readonly BackupPageView backupPage;
         private readonly HomePageView homePage;
         private readonly HistoryPageView historyPage;
         private readonly RestoreWizardStep1View wizardStep1;
         private readonly RestoreWizardStep2View wizardStep2;
-
-        /// <summary>
-        /// Built on first use, unlike the rail pages.
-        /// </summary>
-        /// <remarks>
-        /// Its constructor fetches the GitHub stargazer count. Building it up front would put a
-        /// network request in every app start for a page most sessions never open - and the old
-        /// code, which built it inside the click handler, did not.
-        /// </remarks>
+        private readonly NavButton[] navigationButtons;
+        private ProgressPageView progressPage;
         private AboutPageView aboutPage;
+        private bool railEnabled = true;
 
         public MainForm()
         {
             InitializeComponent();
+            Theme.RefreshFromMode();
 
-            // Before any view is constructed: the views read Ui.* (which forwards to the active
-            // palette) as they build, so choosing the palette afterwards would leave them light
-            // until the first re-apply.
-            Theme.Use(Theme.IsDarkOs());
-
-            navigation = new NavigationService(pnlForm);
-
+            navigation = new NavigationService(contentPanel);
             backupPage = new BackupPageView();
             historyPage = new HistoryPageView(OnRestoreSourcePicked);
+            wizardStep1 = new RestoreWizardStep1View(navigation, OnRestoreSourcePicked, () => ShowBackup());
+            wizardStep2 = new RestoreWizardStep2View(navigation);
+            homePage = new HomePageView(GoToBackUp, GoToHistory, ShowRestoreWizard);
+            navigationButtons = new[] { btnHome, btnBackUp, btnProgress, btnRestore, btnHistory, btnAbout };
 
-            wizardStep1 = new RestoreWizardStep1View(navigation, OnRestoreSourcePicked, () => navigation.Show(backupPage));
-            wizardStep2 = new RestoreWizardStep2View(navigation, running => SetRailEnabled(!running));
-
-            homePage = new HomePageView(GoToBackUp, GoToHistory);
-
-            // The backup page's Restore button opens the wizard (step 1). A delegate rather than a
-            // reference to this form: the view needs one navigation, not the shell.
-            backupPage.ShowRestoreView = () => navigation.Push(wizardStep1);
-
-            // The backup page disables itself while a run is going, but the rail lives on the form
-            // and stayed live - so its buttons could navigate away from a running backup, or reach
-            // back into that page's state while the run was suspended at an await.
-            backupPage.RunStateChanged = running => SetRailEnabled(!running);
-
+            backupPage.ShowRestoreView = ShowRestoreWizard;
+            backupPage.StartBackupRequested = StartBackup;
+            wizardStep2.StartRestoreRequested = StartRestore;
             navigation.Root = homePage;
 
-            SetStyle();
-
-            // The rail pages are constructed once and swapped in and out of pnlForm, so only the
-            // CURRENT one is in this form's control tree. A live theme change has to reach all of
-            // them, which is why ApplyTheme walks each page rather than just `this`.
+            ConfigureShell();
             ApplyTheme();
 
             SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
-            FormClosed += (s, e) => SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
+            RunCoordinator.RunningChanged += OnRunningChanged;
+            FormClosed += MainForm_FormClosed;
         }
 
         private void MainForm_Shown(object sender, EventArgs e)
         {
-            checkVersion.Text = GetMinorVersion(Program.GetCurrentVersionTostring());
-            lblDiskSpace.Text = Utils.GetSystemPartitionDiskSpaceInfo();
-
-            navigation.Show(homePage);
-
-            // Needs a created handle, so it happens here rather than in the constructor.
+            lblVersion.Text = GetMinorVersion(Program.GetCurrentVersionTostring());
+            RefreshDestinationStatus();
+            ShowHome();
             Theme.ApplyTitleBar(this);
         }
 
-        private void SetStyle()
+        private void ConfigureShell()
         {
-            BackColor = Ui.Surface;
-            pnlRail.BackColor = Ui.RailSurface;
-            pnlStatusBar.BackColor = Ui.RailSurface;
-
-            // The form's own Font is deliberately NOT set. Assigning it here cascades into every
-            // child that inherits, and the hosted UserControls scale their layout against the font
-            // they were designed with. Fonts are applied per control instead, and PR 9's theme pass
-            // is where a coordinated sweep belongs.
-
-            lblDiskSpace.Font = Ui.Body();
-            lblDiskSpace.ForeColor = Ui.Muted;
-
-            checkVersion.Font = Ui.Body();
-            checkVersion.ForeColor = Ui.TextPrimary;
-            checkVersion.BackColor = Ui.RailSurface;
-            checkVersion.FlatAppearance.CheckedBackColor = Ui.RailSurface;
-
-            // Text only. A Button draws its whole caption in one font, so a Segoe Fluent Icons glyph
-            // prefixed to a word either renders the word in the icon font or renders the glyph as a
-            // fallback square - which is exactly what it did. Icons on the rail are PR 9's problem,
-            // when the labels can carry a real glyph control beside them.
-            StyleRailButton(btnHome, "Home");
-            StyleRailButton(btnBackUp, "Back up");
-            StyleRailButton(btnRestore, "Restore");
-            StyleRailButton(btnHistory, "History");
-            StyleRailButton(btnAbout, "About");
+            lblWordmarkPrefix.Font = Ui.BodyBold();
+            lblWordmarkSuffix.Font = Ui.BodyBold();
+            lblVersion.Font = Ui.MonoSmall();
+            LayoutWordmark();
+            btnPalette.Font = Ui.Kicker();
+            lblKit.Font = Ui.Kicker();
+            lblDestinationLabel.Font = Ui.Kicker();
+            lblDestinationPath.Font = Ui.MonoSmall();
+            lblDestinationSpace.Font = Ui.MonoSmall();
+            btnPalette.FlatAppearance.BorderSize = 1;
+            btnPalette.FlatAppearance.MouseDownBackColor = Color.Transparent;
+            btnPalette.FlatAppearance.MouseOverBackColor = Color.Transparent;
+            UpdatePaletteText();
+            RefreshDestinationStatus();
+            UpdateProgressButton(RunCoordinator.IsRunning);
         }
 
-        private static void StyleRailButton(Button button, string text)
+        private void LayoutWordmark()
         {
-            button.Text = text;
-            button.Font = Ui.Body();
-            button.ForeColor = Ui.TextPrimary;
-            button.BackColor = Ui.RailSurface;
-            button.FlatAppearance.BorderSize = 0;
+            const int wordmarkLeft = 42;
+
+            lblWordmarkPrefix.Left = wordmarkLeft;
+            lblWordmarkPrefix.Top = (titleBar.Height - lblWordmarkPrefix.Height) / 2;
+            lblWordmarkSuffix.Left = lblWordmarkPrefix.Right + 2;
+            lblWordmarkSuffix.Top = (titleBar.Height - lblWordmarkSuffix.Height) / 2;
+            lblVersion.Left = lblWordmarkSuffix.Right + Ui.SpaceM;
+            lblVersion.Top = (titleBar.Height - lblVersion.Height) / 2;
         }
 
-        /// <summary>
-        /// Shuts the rail while a backup or restore is running, and opens it again afterwards.
-        /// </summary>
-        /// <remarks>
-        /// The whole rail, not just Restore. Navigating away mid-run would take the page reporting
-        /// progress off screen and leave the user watching a screen that cannot tell them what is
-        /// happening, and Home's "Back up again" re-ticks the tree a running backup is reading.
-        /// About is included for consistency: there is no reason to browse to it during a restore,
-        /// and a half-disabled rail invites the question of which half.
-        /// </remarks>
-        private void SetRailEnabled(bool enabled)
-        {
-            btnHome.Enabled = enabled;
-            btnBackUp.Enabled = enabled;
-            btnRestore.Enabled = enabled;
-            btnHistory.Enabled = enabled;
-            btnAbout.Enabled = enabled;
-        }
-
-        // -----------------------------------------------------------------------------------------
-        // Theme
-        // -----------------------------------------------------------------------------------------
-
-        /// <summary>
-        /// Paints the shell and every page with the active palette.
-        /// </summary>
-        /// <remarks>
-        /// Each page is walked explicitly because only the page currently in pnlForm is part of this
-        /// form's control tree - the others are held by fields and re-inserted on navigation, so a
-        /// walk of `this` alone would leave them in the previous palette until they were rebuilt.
-        /// SetStyle runs afterwards to re-assert the rail's own colours over the generic walk.
-        /// </remarks>
         private void ApplyTheme()
         {
             Theme.Apply(this);
-
             Theme.Apply(backupPage);
             Theme.Apply(homePage);
             Theme.Apply(historyPage);
@@ -177,151 +103,274 @@ namespace WinRestoreKit
             if (aboutPage != null)
                 Theme.Apply(aboutPage);
 
-            SetStyle();
+            PaletteV2 palette = Theme.Current;
+            BackColor = palette.Bg;
+            titleBar.BackColor = palette.Surface;
+            railPanel.BackColor = palette.Surface;
+            railButtons.BackColor = palette.Surface;
+            railFooter.BackColor = palette.Surface;
+            railDivider.BackColor = palette.Divider;
+            railFooterDivider.BackColor = palette.Divider;
+            contentPanel.BackColor = palette.Bg;
+            lblWordmarkPrefix.ForeColor = palette.Accent700;
+            lblWordmarkSuffix.ForeColor = palette.Text;
+            lblVersion.ForeColor = Color.FromArgb(115, palette.Text);
+            lblKit.ForeColor = palette.Accent700;
+            lblDestinationLabel.ForeColor = palette.Accent700;
+            lblDestinationPath.ForeColor = palette.Text;
+            lblDestinationSpace.ForeColor = Color.FromArgb(165, palette.Text);
+            dotActive.BackColor = palette.Accent;
+            btnPalette.BackColor = palette.Surface;
+            btnPalette.ForeColor = palette.Text;
+            btnPalette.FlatAppearance.BorderColor = palette.Divider;
+            UpdatePaletteText();
             Theme.ApplyTitleBar(this);
         }
 
-        /// <summary>
-        /// Follows a live OS light/dark switch.
-        /// </summary>
-        /// <remarks>
-        /// SystemEvents raises this on a system thread, so the work is marshalled onto the UI thread
-        /// before touching a single control. The subscription is static and would otherwise keep this
-        /// form alive for the life of the process, which is why FormClosed unsubscribes.
-        /// </remarks>
+        private void btnPalette_Click(object sender, EventArgs e)
+        {
+            PaletteMode next = Theme.Mode switch
+            {
+                PaletteMode.Voltage => PaletteMode.Flux,
+                PaletteMode.Flux => PaletteMode.FollowSystem,
+                _ => PaletteMode.Voltage,
+            };
+
+            Theme.SetMode(next);
+            ApplyTheme();
+        }
+
+        private void UpdatePaletteText()
+        {
+            btnPalette.Text = Theme.Mode switch
+            {
+                PaletteMode.Voltage => "VOLTAGE",
+                PaletteMode.Flux => "FLUX",
+                _ => "AUTO",
+            };
+        }
+
         private void OnUserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
         {
-            if (e.Category != UserPreferenceCategory.General)
+            if (e.Category != UserPreferenceCategory.General || Theme.Mode != PaletteMode.FollowSystem)
                 return;
 
             if (!IsHandleCreated || IsDisposed)
                 return;
 
-            BeginInvoke((Action)(() =>
+            try
             {
-                bool dark = Theme.IsDarkOs();
+                BeginInvoke((Action)(() =>
+                {
+                    if (Theme.Mode != PaletteMode.FollowSystem)
+                        return;
 
-                if (dark == Theme.IsDark)
-                    return;
-
-                Theme.Use(dark);
-                ApplyTheme();
-            }));
+                    Theme.RefreshFromMode();
+                    ApplyTheme();
+                }));
+            }
+            catch (InvalidOperationException)
+            {
+            }
         }
 
-        // -----------------------------------------------------------------------------------------
-        // Rail
-        // -----------------------------------------------------------------------------------------
+        private void OnRunningChanged(bool running)
+        {
+            if (!IsHandleCreated || IsDisposed)
+                return;
 
-        private void btnHome_Click(object sender, EventArgs e)
-            => navigation.Show(homePage);
+            if (InvokeRequired)
+            {
+                try
+                {
+                    BeginInvoke((Action)(() => UpdateProgressButton(running)));
+                }
+                catch (InvalidOperationException)
+                {
+                }
 
-        private void btnBackUp_Click(object sender, EventArgs e)
-            => navigation.Show(backupPage);
+                return;
+            }
 
-        /// <summary>
-        /// Restore from the rail opens the wizard. The old module-set-first gate is gone: the wizard
-        /// picks what to restore FROM the chosen backup, so there is nothing to validate first.
-        /// </summary>
-        private void btnRestore_Click(object sender, EventArgs e)
-            => navigation.Show(wizardStep1);
+            UpdateProgressButton(running);
+        }
 
-        private void btnHistory_Click(object sender, EventArgs e)
-            => navigation.Show(historyPage);
+        private void UpdateProgressButton(bool running)
+        {
+            btnProgress.Enabled = railEnabled && running;
+
+            if (!btnProgress.Enabled)
+                btnProgress.IsSelected = false;
+        }
+
+        private void SetRailEnabled(bool enabled)
+        {
+            railEnabled = enabled;
+            btnHome.Enabled = enabled;
+            btnBackUp.Enabled = enabled;
+            btnRestore.Enabled = enabled;
+            btnHistory.Enabled = enabled;
+            btnAbout.Enabled = enabled;
+            UpdateProgressButton(RunCoordinator.IsRunning);
+        }
+
+        private void btnHome_Click(object sender, EventArgs e) => ShowHome();
+
+        private void btnProgress_Click(object sender, EventArgs e)
+        {
+            if (!RunCoordinator.IsRunning || progressPage == null)
+                return;
+
+            SelectNavigation(btnProgress);
+            navigation.Push(progressPage);
+        }
+
+        private void btnBackUp_Click(object sender, EventArgs e) => ShowBackup();
+
+        private void btnRestore_Click(object sender, EventArgs e) => ShowRestoreWizard();
+
+        private void btnHistory_Click(object sender, EventArgs e) => ShowHistory();
 
         private void btnAbout_Click(object sender, EventArgs e)
         {
             if (aboutPage == null)
                 aboutPage = new AboutPageView(navigation);
 
+            SelectNavigation(btnAbout);
             navigation.Push(aboutPage);
         }
 
-        // -----------------------------------------------------------------------------------------
-        // Wizard wiring + Home's actions
-        // -----------------------------------------------------------------------------------------
+        private void ShowHome()
+        {
+            SelectNavigation(btnHome);
+            navigation.Show(homePage);
+        }
 
-        /// <summary>
-        /// A restore source was picked - from wizard step 1, or from a History row. Load its
-        /// contents into step 2 and push, so Back returns to wherever the user came from.
-        /// </summary>
+        private void ShowBackup()
+        {
+            SelectNavigation(btnBackUp);
+            navigation.Show(backupPage);
+        }
+
+        private void StartBackup(IReadOnlyList<BackupBase> selectedModules, string snapshotName,
+            SnapshotCompression compression, string destination)
+        {
+            if (!RunCoordinator.TryStart())
+                return;
+
+            try
+            {
+                progressPage = new ProgressPageView(navigation, selectedModules, snapshotName, compression, destination);
+                SelectNavigation(btnProgress);
+                navigation.Push(progressPage);
+            }
+            catch
+            {
+                RunCoordinator.SetRunning(false);
+                throw;
+            }
+        }
+        private void StartRestore(IReadOnlyList<BackupBase> selectedModules, BackupFolder folder)
+        {
+            if (!RunCoordinator.TryStart())
+                return;
+
+            try
+            {
+                progressPage = ProgressPageView.ForRestore(navigation, selectedModules, folder);
+                SelectNavigation(btnProgress);
+                navigation.Push(progressPage);
+            }
+            catch
+            {
+                RunCoordinator.SetRunning(false);
+                throw;
+            }
+        }
+
+
+        private void ShowRestoreWizard()
+        {
+            SelectNavigation(btnRestore);
+            navigation.Show(wizardStep1);
+        }
+
+        private void ShowHistory()
+        {
+            SelectNavigation(btnHistory);
+            navigation.Show(historyPage);
+        }
+
+        private void SelectNavigation(NavButton selected)
+        {
+            foreach (NavButton button in navigationButtons)
+                button.IsSelected = button == selected;
+        }
+
         private void OnRestoreSourcePicked(BackupFolder folder)
         {
             wizardStep2.LoadFolder(folder);
+            SelectNavigation(btnRestore);
             navigation.Push(wizardStep2);
         }
 
-        /// <summary>
-        /// Home's "Back up again": go to the backup page, re-ticking what the last run recorded.
-        /// </summary>
-        /// <remarks>
-        /// A null list means the last backup had no readable manifest, so there is nothing to
-        /// re-select and the navigation is plain. Inventing a selection there would tick items the
-        /// user never chose.
-        /// </remarks>
         private void GoToBackUp(IReadOnlyList<string> moduleTypeNames)
         {
             if (moduleTypeNames != null)
                 backupPage.SelectModulesByTypeName(moduleTypeNames);
 
-            navigation.Show(backupPage);
+            ShowBackup();
         }
 
-        /// <summary>
-        /// Home's "View details": open History with that folder's row selected.
-        /// </summary>
-        /// <remarks>
-        /// Reading, not restoring - so no selection is required. The timeline is rebuilt by
-        /// NavigationService through IRefreshableView on the way in, which is why the selection is
-        /// requested first and applied on the far side of that refresh.
-        /// </remarks>
         private void GoToHistory(string backupFolderName)
         {
             historyPage.SelectFolder(backupFolderName);
-
-            navigation.Show(historyPage);
+            ShowHistory();
         }
 
-        // -----------------------------------------------------------------------------------------
-        // Version and update check - unchanged behavior
-        // -----------------------------------------------------------------------------------------
-
-        private string GetMinorVersion(string version)
+        private void RefreshDestinationStatus()
         {
-            // Display everything until the second dot without the dot
+            string root = Data.DataRootDir;
+            lblDestinationPath.Text = root;
+
+            try
+            {
+                DriveInfo drive = new DriveInfo(Path.GetPathRoot(root));
+                long freeGb = drive.AvailableFreeSpace / 1024 / 1024 / 1024;
+                lblDestinationSpace.Text = freeGb + " GB free";
+            }
+            catch (Exception)
+            {
+                lblDestinationSpace.Text = "Storage unavailable";
+            }
+        }
+
+        private static string GetMinorVersion(string version)
+        {
             int secondDotIndex = version.IndexOf('.', version.IndexOf('.') + 1);
-            if (secondDotIndex != -1)
-            {
-                version = version.Substring(0, secondDotIndex);
-            }
-            return $"Version {version}";
+            return secondDotIndex == -1 ? "Version " + version : "Version " + version.Substring(0, secondDotIndex);
         }
 
-        /// <remarks>
-        /// async void because it is an event handler, which makes the try/catch mandatory rather
-        /// than defensive: an exception escaping an async void handler is unhandled and takes the
-        /// process down. The message matches the one the update check shows for its own failures.
-        /// </remarks>
-        private async void checkVersion_CheckedChanged(object sender, EventArgs e)
+        /// <summary>
+        /// Runs the existing interactive update check without leaking an exception to a future About page.
+        /// </summary>
+        internal async Task<string> CheckForUpdatesAsync()
         {
-            // Get full version
-            string fullVersion = Program.GetCurrentVersionTostring();
-
-            // Display version based on the CheckBox state
-            checkVersion.Text = checkVersion.Checked ? fullVersion : GetMinorVersion(fullVersion);
-
-            // Optionally, check for updates when checked
-            if (checkVersion.Checked)
+            try
             {
-                try
-                {
-                    await UpdateCheck.CheckForUpdatesAsync();
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Checking for App updates failed.\n{ex.Message}");
-                }
+                await UpdateCheck.CheckForUpdatesAsync();
+                return "Update check completed.";
             }
+            catch (Exception)
+            {
+                return "Update check failed.";
+            }
+        }
+
+        private void MainForm_FormClosed(object sender, FormClosedEventArgs e)
+        {
+            SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
+            RunCoordinator.RunningChanged -= OnRunningChanged;
         }
     }
 }

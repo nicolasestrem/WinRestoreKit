@@ -2,22 +2,6 @@ using System.Drawing;
 
 namespace WinRestoreKit
 {
-    /// <summary>
-    /// Shared spacing and typography for the rebuilt views.
-    /// </summary>
-    /// <remarks>
-    /// Deliberately small and deliberately not a theme. Colour tokens, the light/dark palettes and the
-    /// system-preference walker are PR 9's job; putting a half-built Theme here would mean PR 9 either
-    /// inherits an API it did not design or deletes one that already has callers. What lives here is
-    /// only what the shell and Home need to avoid hard-coding the same four numbers in two files.
-    ///
-    /// The fonts are the pairing RestoreConfirmForm already uses, so the new screens do not introduce a
-    /// third typographic voice into an app that is mid-revamp.
-    ///
-    /// Colours below are today's light values verbatim, moved rather than chosen - the shell has to
-    /// paint something, and inventing a palette here would make PR 9's diff a redesign instead of a
-    /// theming pass.
-    /// </remarks>
     internal static class Ui
     {
         internal const int SpaceXs = 4;
@@ -25,66 +9,75 @@ namespace WinRestoreKit
         internal const int SpaceM = 12;
         internal const int SpaceL = 24;
 
-        internal const string BodyFamily = "Segoe UI Variable Text";
-        internal const string DisplayFamily = "Segoe UI Variable Display";
-
-        /// <summary>Glyph font. A font, therefore DPI-free - which is why glyphs are not images.</summary>
+        internal const string FontBody = "Barlow";
+        internal const string FontHeading = "Barlow Condensed";
+        internal const string FontMono = "IBM Plex Mono";
         internal const string IconFamily = "Segoe Fluent Icons";
 
-        internal static Font Body() => new Font(BodyFamily, 9.75f);
+        internal static Font Heading() => FontLoader.Load(FontHeading, 30f, FontStyle.Bold);
 
-        internal static Font BodyBold() => new Font(BodyFamily, 9.75f, FontStyle.Bold);
+        internal static Font Heading2() => FontLoader.Load(FontHeading, 20f, FontStyle.Bold);
 
-        internal static Font Title() => new Font(DisplayFamily, 16f, FontStyle.Bold);
+        internal static Font Kicker() => FontLoader.Load(FontBody, 10f, FontStyle.Bold);
 
-        internal static Font Heading() => new Font(DisplayFamily, 12f);
+        internal static Font Body() => FontLoader.Load(FontBody, 14f);
 
-        internal static Font Icon() => new Font(IconFamily, 12f);
+        internal static Font BodyBold() => FontLoader.Load(FontBody, 14f, FontStyle.Bold);
 
-        // ---------------------------------------------------------------------------------------------
-        //  Colour tokens. These forward to the active palette in Theme, so every existing Ui.* call
-        //  site became theme-aware without changing. Fonts and spacing above stay here; palettes and
-        //  the control-tree walker live in Theme (PR 9).
-        // ---------------------------------------------------------------------------------------------
+        internal static Font Mono() => FontLoader.Load(FontMono, 12.5f);
 
-        internal static Color Surface => Theme.Current.Surface;
+        internal static Font MonoSmall() => FontLoader.Load(FontMono, 11f);
 
-        internal static Color RailSurface => Theme.Current.RailSurface;
+        internal static Font Figure() => FontLoader.Load(FontHeading, 30f, FontStyle.Bold);
 
-        internal static Color CardSurface => Theme.Current.CardSurface;
+        internal static Font Pct() => FontLoader.Load(FontHeading, 62f, FontStyle.Bold);
 
-        /// <summary>Primary text. Replaces the inline Color.Black the views used to hardcode.</summary>
-        internal static Color TextPrimary => Theme.Current.TextPrimary;
+        internal static Font Title() => Heading2();
+
+        internal static Font Icon() => new Font(IconFamily, 12f, FontStyle.Regular, GraphicsUnit.Point);
+
+        internal static Color Surface => Theme.Current.Bg;
+
+        internal static Color RailSurface => Theme.Current.Surface;
+
+        internal static Color CardSurface => Theme.Current.Surface;
+
+        internal static Color TextPrimary => Theme.Current.Text;
 
         internal static Color Muted => Theme.Current.TextMuted;
 
-        internal static Color Border => Theme.Current.Border;
+        internal static Color Border => Theme.Current.Divider;
 
-        internal static Color InputBack => Theme.Current.InputBack;
+        internal static Color InputBack => Theme.Current.Surface;
 
-        /// <summary>Failure text.</summary>
-        internal static Color Danger => Theme.Current.Danger;
+        internal static Color Danger => Theme.Current.Accent2_600;
 
-        /// <summary>
-        /// An outcome that is not a success and not a failure either - skipped, or not recorded.
-        /// </summary>
-        /// <remarks>
-        /// Amber and deliberately never green, in BOTH palettes: the styling has to keep the
-        /// distinction the engine's three-state result fought for, and an item with no recorded
-        /// outcome must not read as one that went fine.
-        /// </remarks>
-        internal static Color Caution => Theme.Current.Caution;
+        internal static Color Caution => Theme.Current.Accent2_600;
 
-        internal static Color ChipSucceededBack => Theme.Current.ChipSucceededBack;
+        internal static Color ChipSucceededBack => Theme.Current.Accent100;
 
-        internal static Color ChipSucceededFore => Theme.Current.ChipSucceededFore;
+        internal static Color ChipSucceededFore => Theme.Current.Accent800;
 
-        internal static Color ChipSkippedBack => Theme.Current.ChipSkippedBack;
+        internal static Color ChipFailedBack => Theme.Current.Accent2_100;
 
-        internal static Color ChipSkippedFore => Theme.Current.ChipSkippedFore;
+        internal static Color ChipFailedFore => Theme.Current.Accent2_800;
 
-        internal static Color ChipFailedBack => Theme.Current.ChipFailedBack;
+        internal static Color ChipSkippedBack => Theme.Current.Accent2_100;
 
-        internal static Color ChipFailedFore => Theme.Current.ChipFailedFore;
+        internal static Color ChipSkippedFore => Theme.Current.Accent2_800;
+
+        internal static Color Accent => Theme.Current.Accent;
+
+        internal static Color Accent600 => Theme.Current.Accent600;
+
+        internal static Color Accent700 => Theme.Current.Accent700;
+
+        internal static Color Accent2 => Theme.Current.Accent2;
+
+        internal static Color Accent2400 => Theme.Current.Accent2_400;
+
+        internal static Color Accent2600 => Theme.Current.Accent2_600;
+
+        internal static Color Bg => Theme.Current.Bg;
     }
 }
