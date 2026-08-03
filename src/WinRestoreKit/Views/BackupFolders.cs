@@ -47,35 +47,53 @@ namespace Views
         {
             List<BackupFolder> backups = new List<BackupFolder>();
             List<BackupFolder> snapshots = new List<BackupFolder>();
+            List<string> roots = new List<string> { Data.DataRootDir };
 
-            string[] paths;
+            BackupRootRegistry.TryCanonicalize(Data.DataRootDir, out string defaultRoot);
 
-            try
+            foreach (string root in BackupRootRegistry.Read())
             {
-                // Enumerate directly instead of guarding with Directory.Exists. Exists SWALLOWS the
-                // access error and answers false, so a folder whose ACL denies this user is
-                // indistinguishable from one that was never created - which is how an unreadable
-                // root came to be reported as "no backups yet".
-                paths = Directory.GetDirectories(Data.DataRootDir);
-            }
-            catch (DirectoryNotFoundException)
-            {
-                // Genuinely absent, which is the ordinary state before the first backup.
-                return new BackupFolders(backups, snapshots, null);
-            }
-            catch (Exception ex)
-            {
-                return new BackupFolders(backups, snapshots, ex.Message);
+                if (defaultRoot != null
+                    && string.Equals(root, defaultRoot, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                roots.Add(root);
             }
 
-            foreach (string path in paths)
+            foreach (string root in roots)
             {
-                BackupFolder folder = new BackupFolder(path);
+                string[] paths;
 
-                if (IsSnapshot(folder.Name))
-                    snapshots.Add(folder);
-                else
-                    backups.Add(folder);
+                try
+                {
+                    // Enumerate directly instead of guarding with Directory.Exists. Exists SWALLOWS the
+                    // access error and answers false, so a folder whose ACL denies this user is
+                    // indistinguishable from one that was never created - which is how an unreadable
+                    // root came to be reported as "no backups yet".
+                    paths = Directory.GetDirectories(root);
+                }
+                catch (DirectoryNotFoundException)
+                {
+                    // An absent root is ordinary before its first backup. Continue because a known
+                    // custom root may still hold snapshots created in an earlier session.
+                    continue;
+                }
+                catch (Exception ex)
+                {
+                    return new BackupFolders(backups, snapshots, ex.Message);
+                }
+
+                foreach (string path in paths)
+                {
+                    BackupFolder folder = new BackupFolder(path);
+
+                    if (IsSnapshot(folder.Name))
+                        snapshots.Add(folder);
+                    else
+                        backups.Add(folder);
+                }
             }
 
             backups.Sort(NewestFirst);

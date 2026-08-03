@@ -1,9 +1,12 @@
 using DataHelper;
+using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Views;
 using Xunit;
 
 namespace WinRestoreKit.Tests
@@ -33,6 +36,52 @@ namespace WinRestoreKit.Tests
             }
             finally
             {
+                if (Directory.Exists(root))
+                    Directory.Delete(root, true);
+            }
+        }
+
+        [Fact]
+        public async Task RunBackup_ToCustomDestinationMakesSnapshotDiscoverable()
+        {
+            string root = Path.Combine(Path.GetTempPath(), "WinRestoreKitTests", Guid.NewGuid().ToString("N"));
+            object originalRoots = null;
+            RegistryValueKind? originalRootsKind = null;
+
+            try
+            {
+                using (RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\WinRestoreKit"))
+                {
+                    if (key != null && key.GetValueNames().Contains("BackupRoots"))
+                    {
+                        originalRoots = key.GetValue("BackupRoots", null,
+                            RegistryValueOptions.DoNotExpandEnvironmentNames);
+                        originalRootsKind = key.GetValueKind("BackupRoots");
+                    }
+                }
+
+                Directory.CreateDirectory(root);
+                BackupRestoreOrchestrator runner = new BackupRestoreOrchestrator(new TestRunUi());
+
+                await runner.RunBackup(new BackupBase[] { new EmptyModule() }, root, "custom-root",
+                    SnapshotCompression.None);
+
+                string timestampFolder = Path.Combine(root, Data.NowShort);
+                BackupFolders folders = BackupFolders.Read();
+
+                Assert.Contains(folders.Backups, folder =>
+                    string.Equals(folder.Path, timestampFolder, StringComparison.OrdinalIgnoreCase));
+            }
+            finally
+            {
+                using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\WinRestoreKit"))
+                {
+                    if (originalRoots == null)
+                        key.DeleteValue("BackupRoots", throwOnMissingValue: false);
+                    else
+                        key.SetValue("BackupRoots", originalRoots, originalRootsKind.Value);
+                }
+
                 if (Directory.Exists(root))
                     Directory.Delete(root, true);
             }

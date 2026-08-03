@@ -485,6 +485,12 @@ namespace Views
 
         private void PruneOldBackups()
         {
+            if (RunCoordinator.IsRunning)
+            {
+                ShowPruneBlocked();
+                return;
+            }
+
             DateTime threshold = DateTime.Now.AddDays(-90);
             List<HistoryItem> candidates = items.Where(item => IsSafePruneCandidate(item, threshold)).ToList();
             if (candidates.Count == 0)
@@ -502,17 +508,10 @@ namespace Views
             if (confirmation != DialogResult.Yes)
                 return;
 
-            List<string> failures = new List<string>();
-            foreach (HistoryItem item in candidates)
+            if (!TryPruneCandidates(candidates.Select(item => item.Folder.Path), out List<string> failures))
             {
-                try
-                {
-                    Directory.Delete(item.Folder.Path, true);
-                }
-                catch (Exception ex)
-                {
-                    failures.Add(item.Folder.Name + ": " + ex.Message);
-                }
+                ShowPruneBlocked();
+                return;
             }
 
             if (failures.Count > 0)
@@ -522,6 +521,37 @@ namespace Views
             }
 
             ((IRefreshableView)this).RefreshView(default);
+        }
+
+        internal static bool TryPruneCandidates(IEnumerable<string> candidatePaths, out List<string> failures)
+        {
+            if (RunCoordinator.IsRunning)
+            {
+                failures = new List<string>();
+                return false;
+            }
+
+            failures = new List<string>();
+            foreach (string path in candidatePaths)
+            {
+                try
+                {
+                    Directory.Delete(path, true);
+                }
+                catch (Exception ex)
+                {
+                    failures.Add(Path.GetFileName(path) + ": " + ex.Message);
+                }
+            }
+
+            return true;
+        }
+
+
+        private void ShowPruneBlocked()
+        {
+            MessageBox.Show(this, "Pruning is unavailable while a backup or restore is running. No changes were made.",
+                "Prune archive", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private static bool IsSafePruneCandidate(HistoryItem item, DateTime threshold)

@@ -563,10 +563,14 @@ namespace Views
         private void RenderSummary(RunSummary summary, IReadOnlyList<ModuleOutcome> outcomes)
         {
             summaryShown = true;
-            bool canceled = runControl.IsCancellationRequested;
-            kickerLabel.Text = canceled ? "RUN CANCELED, INCOMPLETE" : "RUN COMPLETE";
+            bool cancellationRequested = runControl.IsCancellationRequested;
+            kickerLabel.Text = summary.State == RunState.Canceled
+                ? "RUN CANCELED, NO CHANGES"
+                : cancellationRequested ? "RUN CANCELED, INCOMPLETE" : "RUN COMPLETE";
             titleLabel.Text = summary.Headline.ToUpperInvariant();
-            titleLabel.ForeColor = summary.State == RunState.Done ? Theme.Current.Text : Theme.Current.Accent2_600;
+            titleLabel.ForeColor = summary.State == RunState.Problems || summary.State == RunState.DidNotRun
+                ? Theme.Current.Accent2_600
+                : Theme.Current.Text;
             resultsHeadline.Text = summary.Headline;
             resultsDetail.Text = summary.Detail;
             outcomeList.Controls.Clear();

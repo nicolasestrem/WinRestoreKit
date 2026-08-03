@@ -53,7 +53,7 @@ namespace WinRestoreKit
         }
 
         internal Task RunBackup(IReadOnlyList<BackupBase> selection, string backupPath)
-            => RunBackupCore(selection, backupPath, null, SnapshotCompression);
+            => RunBackupCore(selection, backupPath, null, SnapshotCompression, null);
 
         /// <summary>
         /// Runs a user backup below <paramref name="destinationPath"/> with an optional display name.
@@ -93,7 +93,7 @@ namespace WinRestoreKit
             SnapshotCompression = compression;
             string backupPath = Path.Combine(destinationPath, Data.NowShort);
 
-            return RunBackupCore(selection, backupPath, safeSnapshotName, compression);
+            return RunBackupCore(selection, backupPath, safeSnapshotName, compression, destinationPath);
         }
 
         internal async Task RunRestore(IReadOnlyList<BackupBase> selection, string restorePath)
@@ -128,7 +128,8 @@ namespace WinRestoreKit
         // ---------------------------------------------------------------------------------------------
 
         private async Task RunBackupCore(IReadOnlyList<BackupBase> selection, string backupPath,
-                                         string snapshotName, SnapshotCompression compression)
+                                         string snapshotName, SnapshotCompression compression,
+                                         string destinationRoot)
         {
             bool folderExistedBeforeRun = Directory.Exists(backupPath);
             string createError;
@@ -215,6 +216,9 @@ namespace WinRestoreKit
             // has to agree with what ran. Flagged in review on PR #14 and fixed here.
             WriteBackupManifest(backupPath, running, results, snapshotName, effectiveCompression,
                 archived ? BackupPayload.FileName : null);
+
+            if (destinationRoot != null)
+                BackupRootRegistry.Remember(destinationRoot);
 
             IReadOnlyList<ModuleOutcome> outcomes = ModuleOutcome.Pair(running, results);
 
@@ -917,7 +921,9 @@ namespace WinRestoreKit
 
             if (consented == null)
             {
-                logger.LogMessage("Restore cancelled - nothing was changed.");
+                logger.LogMessage("Restore canceled, nothing was changed.");
+                ui.ShowSummary(RunSummary.Canceled(RunVerb.Restore), "Restore",
+                    new List<ModuleOutcome>());
                 return;
             }
 

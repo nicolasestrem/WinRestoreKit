@@ -38,16 +38,17 @@ namespace WinRestoreKit
         Problems,
         Done,
         NothingDone,
+        Canceled,
         DidNotRun
     }
 
     /// <summary>
     /// What to tell the user after a whole backup or restore run.
     /// </summary>
-    /// <remarks>
-    /// Four states where the app previously had one message. Kept out of the view so it can be
-    /// tested: the wording IS the deliverable of this phase, and asserting on it in xUnit is the
-    /// only way it stays honest as modules change.
+    /// Five outcome states that distinguish errors, completed work, no applicable work, a cancellation
+    /// before changes begin, and a run that could not start. Kept out of the view so it can be tested:
+    /// the wording IS the deliverable of this phase, and asserting on it in xUnit is the only way it
+    /// stays honest as modules change.
     /// </remarks>
     internal sealed class RunSummary
     {
@@ -56,8 +57,8 @@ namespace WinRestoreKit
         public string Detail { get; private set; }
 
         // DidNotRun is a warning, not information: the user picked a backup folder and it was not
-        // there, so they asked for something and did not get it. Only Done and NothingDone are
-        // genuinely informational.
+        // there, so they asked for something and did not get it. Done, NothingDone, and Canceled are
+        // informational.
         public MessageBoxIcon Icon
             => State == RunState.Problems || State == RunState.DidNotRun
                 ? MessageBoxIcon.Warning
@@ -141,6 +142,16 @@ namespace WinRestoreKit
                 Detail = detail + (completed.Length == 0
                     ? string.Empty
                     : "\r\n\r\n" + completed.Length + " group(s) completed before cancellation.")
+            };
+        }
+
+        internal static RunSummary Canceled(RunVerb verb)
+        {
+            return new RunSummary
+            {
+                State = RunState.Canceled,
+                Headline = verb.Noun + " canceled, no changes were made.",
+                Detail = "You canceled the confirmation dialog before the " + verb.Infinitive + " began."
             };
         }
 
