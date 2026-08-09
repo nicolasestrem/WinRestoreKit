@@ -117,6 +117,43 @@ namespace WinRestoreKit.Tests
             });
         }
 
+        [Fact]
+        public async Task Navigator_LeavingCompareClearsStateAndAllowsTheSameSnapshotToOpenAgain()
+        {
+            await WpfTestHost.RunAsync(async () =>
+            {
+                Window owner = new Window();
+                ShellViewModel shell = TestShell();
+                CompareWorkflowNavigator navigator = new CompareWorkflowNavigator(
+                    shell, owner, new TestDiscardDialog(true));
+                string path = Path.Combine(Path.GetTempPath(), "WinRestoreKit.Tests", Guid.NewGuid().ToString("N"));
+
+                Directory.CreateDirectory(path);
+                navigator.OpenCompare(PreparedAt(path, "same snapshot"));
+                await navigator.PendingTransition;
+                ComparisonWorkspaceViewModel firstWorkspace = navigator.CurrentWorkspace;
+                firstWorkspace.RestoreSet.Add(new ModuleComparison(
+                    firstWorkspace.Rows[0].Registration.Module,
+                    ComparisonState.Unavailable, true, "Artifact captured.", "Comparison unavailable."));
+
+                await navigator.LeaveCompareAsync();
+
+                Assert.Null(navigator.CurrentWorkspace);
+                Assert.False(firstWorkspace.RestoreSet.HasItems);
+
+                Directory.CreateDirectory(path);
+                navigator.OpenCompare(PreparedAt(path, "same snapshot"));
+                await navigator.PendingTransition;
+
+                Assert.NotNull(navigator.CurrentWorkspace);
+                Assert.NotSame(firstWorkspace, navigator.CurrentWorkspace);
+                Assert.Equal(Path.GetFullPath(path), navigator.CurrentWorkspace.Snapshot.CanonicalPath);
+
+                await navigator.LeaveCompareAsync();
+                owner.Close();
+            });
+        }
+
         private static async Task<ComparisonWorkspaceViewModel> LoadedWorkspace(
             params TestModule[] modules)
             => await LoadedWorkspace(modules, (_, __) => { });
@@ -146,9 +183,12 @@ namespace WinRestoreKit.Tests
         {
             string path = Path.Combine(Path.GetTempPath(), "WinRestoreKit.Tests", Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(path);
-            SnapshotEvent snapshot = SnapshotFor(path, name);
-            return new SnapshotPayloadPreparation(snapshot, new BackupPayload.ReadScope(path, path), null);
+            return PreparedAt(path, name);
         }
+
+        private static SnapshotPayloadPreparation PreparedAt(string path, string name)
+            => new SnapshotPayloadPreparation(
+                SnapshotFor(path, name), new BackupPayload.ReadScope(path, path), null);
 
         private static SnapshotEvent SnapshotFor(string path, string name)
             => new SnapshotEvent(SnapshotEventKind.Verified, DateTime.UtcNow, name, path,

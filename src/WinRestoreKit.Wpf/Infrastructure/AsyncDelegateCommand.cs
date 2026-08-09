@@ -8,21 +8,24 @@ namespace WinRestoreKit.Wpf.Infrastructure
     {
         private readonly Func<Task> executeAsync;
         private readonly Action<Exception> reportFailure;
+        private readonly Func<bool> canExecute;
         private bool executing;
 
-        internal AsyncDelegateCommand(Func<Task> executeAsync, Action<Exception> reportFailure = null)
+        internal AsyncDelegateCommand(Func<Task> executeAsync, Action<Exception> reportFailure = null,
+            Func<bool> canExecute = null)
         {
             this.executeAsync = executeAsync ?? throw new ArgumentNullException(nameof(executeAsync));
             this.reportFailure = reportFailure;
+            this.canExecute = canExecute;
         }
 
         public event EventHandler CanExecuteChanged;
 
-        public bool CanExecute(object parameter) => !executing;
+        public bool CanExecute(object parameter) => !executing && (canExecute?.Invoke() ?? true);
 
         public async void Execute(object parameter)
         {
-            if (executing)
+            if (!CanExecute(parameter))
                 return;
 
             executing = true;
@@ -41,5 +44,8 @@ namespace WinRestoreKit.Wpf.Infrastructure
                 CanExecuteChanged?.Invoke(this, EventArgs.Empty);
             }
         }
+
+        internal void RaiseCanExecuteChanged()
+            => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
     }
 }
