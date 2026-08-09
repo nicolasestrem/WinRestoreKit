@@ -90,7 +90,8 @@ namespace WinRestoreKit.Tests
             public void SetProgressText(string text) { }
             public void SetProgressPercent(int percent) { }
             public void SetProgressDetail(string groupInfo, string elapsed, string remaining, string throughput,
-                                          long bytesWritten, int errors, int warnings) { }
+                                          long bytesWritten, int errors, int warnings)
+            { }
 
             public void ShowSummary(RunSummary summary, string caption, IReadOnlyList<ModuleOutcome> outcomes)
             {

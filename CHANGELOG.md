@@ -8,6 +8,15 @@ version numbers, because that is what those releases were called.
 
 ## [Unreleased]
 
+### Fixed: restore and snapshot integrity
+
+- Verified successful manifest rows against their physical artifacts and kept unavailable modules out
+  of restore sets, preventing stale metadata from authorizing an unsafe restore.
+- Read the selected app export directly from its prepared payload and exposed friendly source names in
+  the reinstall picker.
+- Created a fresh, second-precision folder for every user backup and reserved collision suffixes
+  atomically so repeated or concurrent runs cannot reuse an existing restore point.
+
 ### Fixed: WPF Timeline interaction and accessibility
 
 - Added mouse double-click activation alongside Enter for Timeline restore points, with duplicate-open
