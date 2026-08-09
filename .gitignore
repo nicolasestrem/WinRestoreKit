@@ -7,6 +7,8 @@ src/packages/
 
 # Release artifact directory used by the /release skill (a ~69 MB self-contained exe).
 publish/
+# WPF and UI test publish directories (self-contained executables, ~70 MB each).
+publish-*/
 
 # dotnet test output: .trx logs, and the crash/hang dumps --blame-hang writes, which run to
 # hundreds of megabytes each.
