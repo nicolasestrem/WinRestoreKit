@@ -26,6 +26,14 @@ namespace WinRestoreKit.Wpf.ViewModels
             compression = SnapshotCompression.Fast;
             Scopes = new ObservableCollection<BackupScopeItemViewModel>(
                 ScopeGroups.Build().Select(scope => new BackupScopeItemViewModel(scope)));
+            foreach (BackupScopeItemViewModel scope in Scopes)
+            {
+                scope.PropertyChanged += (_, e) =>
+                {
+                    if (e.PropertyName == nameof(BackupScopeItemViewModel.IsSelected))
+                        SetValidationMessage(null);
+                };
+            }
             StartCommand = new AsyncDelegateCommand(StartAsync, ex => SetValidationMessage(ex.Message));
             SelectAllCommand = new DelegateCommand(_ => SelectAll());
             ClearCommand = new DelegateCommand(_ => Clear());
@@ -44,19 +52,31 @@ namespace WinRestoreKit.Wpf.ViewModels
         public string SnapshotName
         {
             get => snapshotName;
-            set => SetProperty(ref snapshotName, value ?? string.Empty, nameof(SnapshotName));
+            set
+            {
+                if (SetProperty(ref snapshotName, value ?? string.Empty, nameof(SnapshotName)))
+                    SetValidationMessage(null);
+            }
         }
 
         public string Destination
         {
             get => destination;
-            set => SetProperty(ref destination, value ?? string.Empty, nameof(Destination));
+            set
+            {
+                if (SetProperty(ref destination, value ?? string.Empty, nameof(Destination)))
+                    SetValidationMessage(null);
+            }
         }
 
         public SnapshotCompression Compression
         {
             get => compression;
-            set => SetProperty(ref compression, value, nameof(Compression));
+            set
+            {
+                if (SetProperty(ref compression, value, nameof(Compression)))
+                    SetValidationMessage(null);
+            }
         }
 
         public string ValidationMessage
@@ -64,6 +84,10 @@ namespace WinRestoreKit.Wpf.ViewModels
             get => validationMessage;
             private set => SetProperty(ref validationMessage, value, nameof(ValidationMessage));
         }
+
+        public string ValidationAutomationName => string.IsNullOrWhiteSpace(ValidationMessage)
+            ? "Snapshot validation"
+            : "Snapshot validation: " + ValidationMessage;
 
         public ICommand StartCommand { get; }
         public ICommand SelectAllCommand { get; }
@@ -120,6 +144,9 @@ namespace WinRestoreKit.Wpf.ViewModels
         }
 
         private void SetValidationMessage(string message)
-            => ValidationMessage = string.IsNullOrWhiteSpace(message) ? null : message;
+        {
+            ValidationMessage = string.IsNullOrWhiteSpace(message) ? null : message;
+            OnPropertyChanged(nameof(ValidationAutomationName));
+        }
     }
 }

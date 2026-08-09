@@ -8,6 +8,16 @@ version numbers, because that is what those releases were called.
 
 ## [Unreleased]
 
+### Fixed: WPF restore completion and release truth
+
+- Aligned the WPF shell assembly and displayed product version with the canonical 0.0.1 release.
+- Cleared snapshot validation as soon as invalid input is corrected and exposed the full validation,
+  severity, headline, and detail text to assistive technology.
+- Made final restore consent resizable and scrollable so long paths wrap without clipping, and only
+  promised a pre-restore snapshot for modules that actually write settings.
+- Routed completed restores to the result workspace and prevented the same confirmation page from
+  accidentally starting a second restore.
+
 ### Fixed: restore and snapshot integrity
 
 - Verified successful manifest rows against their physical artifacts and kept unavailable modules out

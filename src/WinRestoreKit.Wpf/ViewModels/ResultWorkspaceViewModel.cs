@@ -32,6 +32,9 @@ namespace WinRestoreKit.Wpf.ViewModels
             RunSeverity.Error => "Error",
             _ => "Information"
         };
+        public string SeverityAutomationName => "Run severity: " + SeverityText;
+        public string HeadlineAutomationName => "Run headline: " + Headline;
+        public string DetailAutomationName => "Run detail: " + Detail;
         public ICommand ReturnToTimelineCommand { get; }
 
         internal static ResultWorkspaceViewModel From(RunSummary summary,

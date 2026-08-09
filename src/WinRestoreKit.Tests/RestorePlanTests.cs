@@ -18,15 +18,18 @@ namespace WinRestoreKit.Tests
         {
             private readonly IReadOnlyList<RestoreTarget> targets;
             private readonly IReadOnlyList<RestoreCloseRequirement> closes;
+            private readonly bool makesChanges;
 
             public FakeModule(string title,
-                              IReadOnlyList<RestoreTarget> targets = null,
-                              IReadOnlyList<RestoreCloseRequirement> closes = null,
-                              string warning = "")
+                               IReadOnlyList<RestoreTarget> targets = null,
+                               IReadOnlyList<RestoreCloseRequirement> closes = null,
+                               string warning = "",
+                               bool makesChanges = true)
             {
                 Title = title;
                 this.targets = targets;
                 this.closes = closes;
+                this.makesChanges = makesChanges;
                 WarningMessage = warning;
             }
 
@@ -35,6 +38,17 @@ namespace WinRestoreKit.Tests
 
             public override IReadOnlyList<RestoreCloseRequirement> ProcessesToCloseBeforeRestore
                 => closes ?? base.ProcessesToCloseBeforeRestore;
+
+            public int RestoreMakesChangesReads { get; private set; }
+
+            public override bool RestoreMakesChanges
+            {
+                get
+                {
+                    RestoreMakesChangesReads++;
+                    return makesChanges;
+                }
+            }
         }
 
         private static RestorePlan PlanFor(params BackupBase[] modules)
@@ -165,9 +179,41 @@ namespace WinRestoreKit.Tests
         {
             Assert.Equal(
                 "The snapshot can put back settings this restore overwrites. It cannot remove " +
-                "registry values or files that this restore adds \u2014 restoring the snapshot " +
+                "registry values or files that this restore adds; restoring the snapshot " +
                 "merges it over the current state rather than resetting to it.",
                 RestorePlan.FidelityCaveat);
+        }
+
+        [Fact]
+        public void InteractiveOnlyPlan_DoesNotPromiseWritesOrAPreRestoreSnapshot()
+        {
+            RestorePlan plan = PlanFor(new FakeModule("Remember installed apps",
+                new[] { RestoreTarget.Command("opens the app reinstall dialog") }, makesChanges: false));
+
+            Assert.False(plan.NeedsSnapshot);
+            Assert.Equal(RestorePlan.NoSnapshotNotice, plan.SnapshotNotice);
+            Assert.Contains("interactive restore step", plan.ConfirmationText);
+            Assert.DoesNotContain("overwritten", plan.ConfirmationText);
+            Assert.DoesNotContain(Snapshot, plan.ConfirmationText);
+        }
+
+        [Fact]
+        public void MixedPlan_SeparatesInteractiveItemsFromSettingsWritesAndStillNamesTheSnapshot()
+        {
+            var mouse = new FakeModule("Mouse", new[] { RestoreTarget.RegistryKey("HKCU\\Mouse") });
+            var apps = new FakeModule("Remember installed apps",
+                new[] { RestoreTarget.Command("opens the app reinstall dialog") }, makesChanges: false);
+            RestorePlan plan = PlanFor(
+                mouse,
+                apps);
+
+            Assert.True(plan.NeedsSnapshot);
+            Assert.Equal(RestorePlan.FidelityCaveat, plan.SnapshotNotice);
+            Assert.Contains("overwritten", plan.ConfirmationText);
+            Assert.Contains("interactive restore step", plan.ConfirmationText);
+            Assert.Contains(Snapshot, plan.ConfirmationText);
+            Assert.Equal(1, mouse.RestoreMakesChangesReads);
+            Assert.Equal(1, apps.RestoreMakesChangesReads);
         }
 
         // The dialog shows the caveat from the constant, prominently and on its own. Composing it
@@ -374,13 +420,14 @@ namespace WinRestoreKit.Tests
         }
 
         [Fact]
-        public void Plan_WithNoModules_StillStatesWhereItRestoresFromAndSnapshotsTo()
+        public void Plan_WithNoModules_StatesTheSourceAndTruthfullyDeclinesASnapshot()
         {
             RestorePlan plan = new RestorePlan(null, Source, Snapshot);
 
             Assert.Empty(plan.Modules);
             Assert.Contains(Source, plan.ConfirmationText);
-            Assert.Contains(Snapshot, plan.ConfirmationText);
+            Assert.DoesNotContain(Snapshot, plan.ConfirmationText);
+            Assert.Contains(RestorePlan.NoSnapshotNotice, plan.ConfirmationText);
         }
     }
 }

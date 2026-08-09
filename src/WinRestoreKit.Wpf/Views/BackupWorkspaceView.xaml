@@ -317,13 +317,15 @@
                          Foreground="{DynamicResource WarningTextBrush}"
                          Margin="0,0,10,0"
                          VerticalAlignment="Center" />
-              <TextBlock Text="{Binding ValidationMessage}"
+              <TextBlock x:Name="BackupValidationText"
+                         Text="{Binding ValidationMessage}"
                          Style="{DynamicResource BodyTextStyle}"
                          TextWrapping="Wrap"
                          MaxWidth="520"
                          Foreground="{DynamicResource WarningTextBrush}"
                          AutomationProperties.LiveSetting="Polite"
-                         AutomationProperties.Name="Snapshot validation"
+                         AutomationProperties.Name="{Binding ValidationAutomationName}"
+                         AutomationProperties.HelpText="{Binding ValidationMessage}"
                          AutomationProperties.AutomationId="BackupValidationMessage" />
             </StackPanel>
           </Border>

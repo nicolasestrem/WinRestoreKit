@@ -130,7 +130,8 @@
               <TextBlock x:Name="RunSeverityText"
                          Text="{Binding SeverityText}"
                          Style="{StaticResource SeverityTextStyle}"
-                         AutomationProperties.Name="Run severity"
+                         AutomationProperties.Name="{Binding SeverityAutomationName}"
+                         AutomationProperties.HelpText="{Binding SeverityText}"
                          AutomationProperties.AutomationId="RunSeverityText" />
             </Border>
             <TextBlock Text="{Binding StatusLabel}"
@@ -148,7 +149,8 @@
                      FontWeight="SemiBold"
                      TextWrapping="Wrap"
                      Margin="0,14,0,0"
-                     AutomationProperties.Name="Run headline"
+                     AutomationProperties.Name="{Binding HeadlineAutomationName}"
+                     AutomationProperties.HelpText="{Binding Headline}"
                      AutomationProperties.AutomationId="RunHeadlineText" />
           <TextBlock x:Name="RunDetailText"
                      Text="{Binding Detail}"
@@ -156,7 +158,8 @@
                      Foreground="{DynamicResource MutedTextBrush}"
                      TextWrapping="Wrap"
                      Margin="0,8,0,0"
-                     AutomationProperties.Name="Run detail"
+                     AutomationProperties.Name="{Binding DetailAutomationName}"
+                     AutomationProperties.HelpText="{Binding Detail}"
                      AutomationProperties.AutomationId="RunDetailText" />
         </StackPanel>
       </Border>

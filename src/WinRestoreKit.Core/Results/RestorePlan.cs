@@ -48,14 +48,14 @@ namespace WinRestoreKit
         /// strongly in one place than in another. Both restore mechanisms are additive - regedit /s
         /// merges, and CopyFolder leaves destination files absent from the source in place - so
         /// offering "rollback" without this sentence would claim a guarantee the app does not hold.
-        ///
-        /// Written with an escaped dash so the sentence survives being compiled from a source file
-        /// with no byte order mark.
         /// </remarks>
         public const string FidelityCaveat =
             "The snapshot can put back settings this restore overwrites. It cannot remove registry " +
-            "values or files that this restore adds \u2014 restoring the snapshot merges it over the " +
+            "values or files that this restore adds; restoring the snapshot merges it over the " +
             "current state rather than resetting to it.";
+
+        public const string NoSnapshotNotice =
+            "No pre-restore snapshot is created because the selected items do not write settings by themselves.";
 
         public IReadOnlyList<BackupBase> Modules { get; }
 
@@ -67,6 +67,12 @@ namespace WinRestoreKit
 
         /// <summary>The module-by-module text: title, declared targets, and any warning.</summary>
         public string ConfirmationText { get; }
+
+        /// <summary>Whether any selected module writes settings and therefore needs a safety snapshot.</summary>
+        public bool NeedsSnapshot { get; }
+
+        /// <summary>The exact safety-snapshot promise, or the reason no snapshot is created.</summary>
+        public string SnapshotNotice { get; }
 
         /// <summary>One entry per distinct process that may only be closed with consent.</summary>
         public IReadOnlyList<RestoreConsentEntry> ConsentEntries { get; }
@@ -99,7 +105,12 @@ namespace WinRestoreKit
 
             ConsentEntries = consent;
             InformationalCloseLines = informational;
-            ConfirmationText = Compose(Modules, restoreSourcePath, snapshotDestination);
+            List<BackupBase> changeMaking = new List<BackupBase>();
+            List<BackupBase> interactive = new List<BackupBase>();
+            ClassifyModules(Modules, changeMaking, interactive);
+            NeedsSnapshot = changeMaking.Count > 0;
+            SnapshotNotice = NeedsSnapshot ? FidelityCaveat : NoSnapshotNotice;
+            ConfirmationText = Compose(changeMaking, interactive, restoreSourcePath, snapshotDestination);
         }
 
         private static IReadOnlyList<BackupBase> Compact(IReadOnlyList<BackupBase> modules)
@@ -144,17 +155,64 @@ namespace WinRestoreKit
             }
         }
 
-        private static string Compose(IReadOnlyList<BackupBase> modules, string restoreSourcePath,
-                                      string snapshotDestination)
+        private static void ClassifyModules(IReadOnlyList<BackupBase> modules,
+                                            ICollection<BackupBase> changeMaking,
+                                            ICollection<BackupBase> interactive)
+        {
+            foreach (BackupBase module in modules)
+            {
+                if (module.RestoreMakesChanges)
+                    changeMaking.Add(module);
+                else
+                    interactive.Add(module);
+            }
+        }
+
+        private static string Compose(IReadOnlyList<BackupBase> changeMaking,
+                                      IReadOnlyList<BackupBase> interactive,
+                                      string restoreSourcePath, string snapshotDestination)
         {
             StringBuilder sb = new StringBuilder();
 
             sb.AppendLine("Restoring from:");
             sb.AppendLine("  " + restoreSourcePath);
             sb.AppendLine();
-            sb.AppendLine("These items will be overwritten with what was backed up:");
-            sb.AppendLine();
 
+            if (changeMaking.Count > 0)
+            {
+                sb.AppendLine("These items will be overwritten with what was backed up:");
+                sb.AppendLine();
+                AppendModules(sb, changeMaking);
+            }
+
+            if (interactive.Count > 0)
+            {
+                sb.AppendLine("These items open an interactive restore step and do not write settings by themselves:");
+                sb.AppendLine();
+                AppendModules(sb, interactive);
+            }
+
+            if (changeMaking.Count == 0 && interactive.Count == 0)
+            {
+                sb.AppendLine("No restore items were selected.");
+                sb.AppendLine();
+            }
+
+            if (changeMaking.Count > 0)
+            {
+                sb.AppendLine("The current settings will first be copied to:");
+                sb.AppendLine("  " + snapshotDestination);
+            }
+            else
+            {
+                sb.AppendLine(NoSnapshotNotice);
+            }
+
+            return sb.ToString();
+        }
+
+        private static void AppendModules(StringBuilder sb, IReadOnlyList<BackupBase> modules)
+        {
             foreach (BackupBase module in modules)
             {
                 sb.AppendLine(module.Title);
@@ -167,11 +225,6 @@ namespace WinRestoreKit
 
                 sb.AppendLine();
             }
-
-            sb.AppendLine("The current settings will first be copied to:");
-            sb.AppendLine("  " + snapshotDestination);
-
-            return sb.ToString();
         }
 
         /// <remarks>

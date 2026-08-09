@@ -1,5 +1,9 @@
 using System;
 using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Automation;
+using System.Windows.Controls;
+using System.Windows.Threading;
 using WinRestoreKit;
 using WinRestoreKit.Wpf.ViewModels;
 using Xunit;
@@ -54,16 +58,38 @@ namespace WinRestoreKit.Tests
         {
             WpfTestHost.Run(() =>
             {
+                ResultWorkspaceViewModel viewModel = ResultWorkspaceViewModel.From(
+                    RunSummary.For(new[] { SucceededOutcome() }, true, RunVerb.Backup),
+                    new[] { SucceededOutcome() }, () => Task.CompletedTask);
                 var view = new WinRestoreKit.Wpf.Views.ResultWorkspaceView
                 {
-                    DataContext = ResultWorkspaceViewModel.From(
-                        RunSummary.For(new[] { SucceededOutcome() }, true, RunVerb.Backup),
-                        new[] { SucceededOutcome() }, () => Task.CompletedTask)
+                    DataContext = viewModel
                 };
+                var host = new Window { Content = view, Width = 1024, Height = 720 };
+                host.Show();
+                host.UpdateLayout();
+                Dispatcher.CurrentDispatcher.Invoke(
+                    DispatcherPriority.ApplicationIdle,
+                    new Action(() => { }));
 
-                Assert.NotNull(view.FindName("RunSeverityText"));
-                Assert.NotNull(view.FindName("RunOutcomesList"));
-                Assert.NotNull(view.FindName("ReturnTimelineButton"));
+                try
+                {
+                    TextBlock severity = Assert.IsType<TextBlock>(view.FindName("RunSeverityText"));
+                    TextBlock headline = Assert.IsType<TextBlock>(view.FindName("RunHeadlineText"));
+                    TextBlock detail = Assert.IsType<TextBlock>(view.FindName("RunDetailText"));
+                    Assert.Equal(viewModel.SeverityAutomationName,
+                        AutomationProperties.GetName(severity));
+                    Assert.Equal(viewModel.HeadlineAutomationName,
+                        AutomationProperties.GetName(headline));
+                    Assert.Equal(viewModel.DetailAutomationName,
+                        AutomationProperties.GetName(detail));
+                    Assert.NotNull(view.FindName("RunOutcomesList"));
+                    Assert.NotNull(view.FindName("ReturnTimelineButton"));
+                }
+                finally
+                {
+                    host.Close();
+                }
             });
         }
 

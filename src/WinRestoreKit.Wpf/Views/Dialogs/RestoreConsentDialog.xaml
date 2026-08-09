@@ -4,22 +4,34 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Restore" WindowStartupLocation="CenterOwner"
         AutomationProperties.Name="Restore consent"
+        AutomationProperties.IsDialog="True"
         Background="{DynamicResource WindowBackgroundBrush}"
         Foreground="{DynamicResource TextBrush}"
-        Width="560" MinWidth="480" MaxHeight="720"
-        SizeToContent="Height" ResizeMode="NoResize" ShowInTaskbar="False">
+        Width="680" Height="620" MinWidth="400" MinHeight="320" MaxWidth="960"
+        SizeToContent="Manual" ResizeMode="CanResizeWithGrip" ShowInTaskbar="False">
   <!-- Shared keys use DynamicResource: this dialog is constructed in tests on a bare STA thread
        with no Application, where a StaticResource lookup for an app-level key would throw. -->
   <Grid Margin="24">
     <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel>
-      <StackPanel Orientation="Horizontal">
+    <ScrollViewer x:Name="ConsentScrollViewer"
+                  VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled"><StackPanel>
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
         <TextBlock Text="&#xE7BA;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="18"
                    VerticalAlignment="Top" Margin="0,1,12,0"
                    Foreground="{DynamicResource WarningTextBrush}" />
-        <TextBlock Text="{Binding ConfirmationText}" TextWrapping="Wrap" FontSize="14"
-                   Foreground="{DynamicResource TextBrush}" />
-      </StackPanel>
+        <TextBlock x:Name="ConsentConfirmationText"
+                   Grid.Column="1"
+                   Text="{Binding ConfirmationText}"
+                   TextWrapping="Wrap" TextTrimming="None" FontSize="14"
+                   Foreground="{DynamicResource TextBrush}"
+                   AutomationProperties.Name="Restore impact details"
+                   AutomationProperties.HelpText="{Binding ConfirmationText}" />
+      </Grid>
 
       <Grid>
         <Grid.Style>
@@ -69,13 +81,21 @@
         </ItemsControl>
       </StackPanel>
 
-      <StackPanel Orientation="Horizontal" Margin="0,18,0,0">
+      <Grid Margin="0,18,0,0">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
         <TextBlock Text="&#xE946;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="13"
                    VerticalAlignment="Top" Margin="0,1,10,0"
                    Foreground="{DynamicResource MutedTextBrush}" />
-        <TextBlock Text="{Binding FidelityCaveat}" TextWrapping="Wrap" FontSize="12"
-                   Foreground="{DynamicResource MutedTextBrush}" />
-      </StackPanel>
+        <TextBlock x:Name="ConsentSnapshotNotice"
+                   Grid.Column="1"
+                   Text="{Binding SnapshotNotice}" TextWrapping="Wrap" TextTrimming="None" FontSize="12"
+                   Foreground="{DynamicResource MutedTextBrush}"
+                   AutomationProperties.Name="Snapshot notice"
+                   AutomationProperties.HelpText="{Binding SnapshotNotice}" />
+      </Grid>
     </StackPanel></ScrollViewer>
     <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
       <Button Content="Cancel" IsCancel="True" Style="{DynamicResource SecondaryButtonStyle}" />

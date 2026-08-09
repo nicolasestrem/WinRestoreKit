@@ -1,5 +1,6 @@
 using DataHelper;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
@@ -108,6 +109,9 @@ namespace WinRestoreKit.Wpf.ViewModels
 
         internal void ShowConfirm(ConfirmViewModel confirm)
             => NavigateTo(confirm ?? throw new ArgumentNullException(nameof(confirm)), "Confirm");
+
+        internal void ShowResult(RunSummary summary, IReadOnlyList<ModuleOutcome> outcomes)
+            => NavigateTo(ResultWorkspaceViewModel.From(summary, outcomes, ReturnToTimelineAsync), "Restore result");
 
         internal bool RequestWindowClose()
         {

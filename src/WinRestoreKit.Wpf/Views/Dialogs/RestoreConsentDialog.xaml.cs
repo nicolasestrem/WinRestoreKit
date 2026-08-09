@@ -44,6 +44,8 @@ namespace WinRestoreKit.Wpf.Views.Dialogs
             this.plan = plan ?? throw new ArgumentNullException(nameof(plan));
             consentChoices = new ObservableCollection<ConsentChoice>(this.plan.ConsentEntries.Select(entry => new ConsentChoice(entry)));
             InitializeComponent();
+            ConstrainToWorkArea();
+            Loaded += (_, _) => ConstrainToWorkArea();
             DataContext = this;
         }
 
@@ -51,7 +53,7 @@ namespace WinRestoreKit.Wpf.Views.Dialogs
             => new RestoreConsentDialog(plan) { Owner = owner ?? throw new ArgumentNullException(nameof(owner)) };
 
         public string ConfirmationText => plan.ConfirmationText;
-        public string FidelityCaveat => RestorePlan.FidelityCaveat;
+        public string SnapshotNotice => plan.SnapshotNotice;
         public IReadOnlyList<string> InformationalCloseLines => plan.InformationalCloseLines;
         public IEnumerable ConsentChoices => consentChoices;
         public IReadOnlyList<string> ConsentedProcessNames
@@ -60,6 +62,16 @@ namespace WinRestoreKit.Wpf.Views.Dialogs
         private void Restore_Click(object sender, RoutedEventArgs e)
         {
             DialogResult = true;
+        }
+
+        private void ConstrainToWorkArea()
+        {
+            const double workAreaInset = 32;
+            Rect workArea = SystemParameters.WorkArea;
+            MaxWidth = Math.Max(MinWidth, Math.Min(960, workArea.Width - workAreaInset));
+            MaxHeight = Math.Max(MinHeight, workArea.Height - workAreaInset);
+            Width = Math.Min(680, MaxWidth);
+            Height = Math.Min(620, MaxHeight);
         }
     }
 }

@@ -73,6 +73,38 @@ namespace WinRestoreKit.Tests
         }
 
         [Fact]
+        public async Task Validation_ClearsAsSoonAsTheInvalidFieldOrSelectionIsCorrected()
+        {
+            var vm = new BackupWorkspaceViewModel(_ => Task.CompletedTask, string.Empty);
+            foreach (BackupScopeItemViewModel scope in vm.Scopes)
+                scope.IsSelected = false;
+
+            await vm.StartAsync();
+            Assert.NotNull(vm.ValidationMessage);
+
+            vm.Scopes.Single(scope => scope.Name == "Explorer & shell").IsSelected = true;
+            Assert.Null(vm.ValidationMessage);
+
+            await vm.StartAsync();
+            Assert.NotNull(vm.ValidationMessage);
+
+            vm.Destination = @"C:\snapshots";
+            Assert.Null(vm.ValidationMessage);
+        }
+
+        [Fact]
+        public async Task Validation_AutomationNameCarriesTheActualDiagnostic()
+        {
+            var vm = new BackupWorkspaceViewModel(_ => Task.CompletedTask, string.Empty);
+            foreach (BackupScopeItemViewModel scope in vm.Scopes)
+                scope.IsSelected = false;
+
+            await vm.StartAsync();
+
+            Assert.Equal("Snapshot validation: " + vm.ValidationMessage, vm.ValidationAutomationName);
+        }
+
+        [Fact]
         public void UnfilteredEnvironmentScope_StartsUnselectedAndExposesItsCaution()
         {
             var vm = new BackupWorkspaceViewModel(_ => Task.CompletedTask, @"C:\snapshots");
