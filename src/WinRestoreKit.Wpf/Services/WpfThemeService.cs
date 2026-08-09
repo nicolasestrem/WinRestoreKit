@@ -1,5 +1,6 @@
 using System;
 using System.Windows;
+using System.Windows.Threading;
 using Microsoft.Win32;
 using WinRestoreKit;
 
@@ -10,15 +11,23 @@ namespace WinRestoreKit.Wpf.Services
         private readonly ResourceDictionary resources;
         private readonly IThemeSettings settings;
         private readonly ISystemThemeDetector systemTheme;
+        private readonly Dispatcher uiDispatcher;
         private ResourceDictionary activeThemeDictionary;
         private bool disposed;
 
         internal WpfThemeService(ResourceDictionary resources, IThemeSettings settings,
                                  ISystemThemeDetector systemTheme)
+            : this(resources, settings, systemTheme, Application.Current?.Dispatcher)
+        {
+        }
+
+        internal WpfThemeService(ResourceDictionary resources, IThemeSettings settings,
+                                 ISystemThemeDetector systemTheme, Dispatcher uiDispatcher)
         {
             this.resources = resources ?? throw new ArgumentNullException(nameof(resources));
             this.settings = settings ?? throw new ArgumentNullException(nameof(settings));
             this.systemTheme = systemTheme ?? throw new ArgumentNullException(nameof(systemTheme));
+            this.uiDispatcher = uiDispatcher;
 
             Mode = settings.ReadThemeMode();
             SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
@@ -47,10 +56,20 @@ namespace WinRestoreKit.Wpf.Services
             disposed = true;
         }
 
-        private void SystemEvents_UserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
+        // SystemEvents raises UserPreferenceChanged on its own thread, not the UI dispatcher. WPF
+        // resource dictionaries belong to the UI thread, so applying a theme there is a cross-thread
+        // access that can terminate the process. Marshal the reapply onto the application dispatcher,
+        // mirroring the WinForms handler's BeginInvoke.
+        internal void SystemEvents_UserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
         {
-            if (Mode == ThemeMode.FollowSystem)
-                ApplyEffectiveMode();
+            if (Mode != ThemeMode.FollowSystem)
+                return;
+
+            Dispatcher dispatcher = uiDispatcher;
+            if (dispatcher == null)
+                return;
+
+            dispatcher.BeginInvoke(new Action(ApplyEffectiveMode));
         }
 
         private void ApplyEffectiveMode()

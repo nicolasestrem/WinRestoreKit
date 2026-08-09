@@ -52,7 +52,7 @@ namespace WinRestoreKit
             }
 
             int inspectedRoots = 0;
-            string unreadableCustomRootReason = null;
+            string unreadableReason = null;
 
             for (int rootIndex = 0; rootIndex < roots.Count; rootIndex++)
             {
@@ -75,14 +75,13 @@ namespace WinRestoreKit
                 }
                 catch (Exception ex)
                 {
+                    // Record the failure and keep scanning. A bad default root must not abort the
+                    // whole scan: backups living on a remembered custom or external root would
+                    // vanish from Timeline and become unrestorable. The reason is surfaced only when
+                    // NO root was readable; otherwise the readable roots' backups are listed and this
+                    // failure is retained in UnreadableRoots for diagnostics.
                     unreadableRoots.Add(new UnreadableBackupRoot(CanonicalizeRoot(root), ex.Message));
-
-                    if (isDefaultRoot)
-                    {
-                        return new BackupFolders(backups, snapshots, ex.Message, unreadableRoots);
-                    }
-
-                    unreadableCustomRootReason ??= ex.Message;
+                    unreadableReason ??= ex.Message;
                     continue;
                 }
 
@@ -105,9 +104,8 @@ namespace WinRestoreKit
                 }
             }
 
-            if (inspectedRoots == 0 && unreadableCustomRootReason != null)
-                return new BackupFolders(backups, snapshots, unreadableCustomRootReason, unreadableRoots);
-
+            if (inspectedRoots == 0 && unreadableReason != null)
+                return new BackupFolders(backups, snapshots, unreadableReason, unreadableRoots);
             backups.Sort(NewestFirst);
             snapshots.Sort(NewestFirst);
 

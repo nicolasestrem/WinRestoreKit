@@ -6,11 +6,12 @@ using System.Windows.Data;
 using System.Threading;
 using System.Threading.Tasks;
 using WinRestoreKit;
+using WinRestoreKit.Wpf.Infrastructure;
 using WinRestoreKit.Wpf.ViewModels.Snapshots;
 
 namespace WinRestoreKit.Wpf.ViewModels.History
 {
-    public sealed class AdvancedHistoryViewModel : INotifyPropertyChanged
+    internal sealed class AdvancedHistoryViewModel : ObservableObject
     {
         private readonly ISnapshotEventReader catalog;
         private readonly ObservableCollection<SnapshotEventViewModel> events;
@@ -32,29 +33,16 @@ namespace WinRestoreKit.Wpf.ViewModels.History
             get => searchText;
             set
             {
-                if (string.Equals(searchText, value, StringComparison.Ordinal))
-                    return;
-
-                searchText = value;
-                Events.Refresh();
-                OnPropertyChanged(nameof(SearchText));
+                if (SetProperty(ref searchText, value, nameof(SearchText)))
+                    Events.Refresh();
             }
         }
 
         public SnapshotEventViewModel SelectedEvent
         {
             get => selectedEvent;
-            set
-            {
-                if (ReferenceEquals(selectedEvent, value))
-                    return;
-
-                selectedEvent = value;
-                OnPropertyChanged(nameof(SelectedEvent));
-            }
+            set => SetProperty(ref selectedEvent, value, nameof(SelectedEvent));
         }
-
-        public event PropertyChangedEventHandler PropertyChanged;
 
         internal Task RefreshAsync(CancellationToken cancellationToken = default)
         {
@@ -89,8 +77,5 @@ namespace WinRestoreKit.Wpf.ViewModels.History
 
         private static bool Contains(string value, string query)
             => value != null && value.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0;
-
-        private void OnPropertyChanged(string propertyName)
-            => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 }

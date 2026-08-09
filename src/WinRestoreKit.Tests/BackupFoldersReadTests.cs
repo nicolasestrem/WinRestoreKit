@@ -36,6 +36,39 @@ namespace WinRestoreKit.Tests
         }
 
         [Fact]
+        public void Read_UnreadableDefaultRootKeepsReadableCustomRoot()
+        {
+            string parent = NewTempDirectory();
+            string unreadableDefaultRoot = Path.Combine(parent, "default-root-file");
+            string customRoot = Directory.CreateDirectory(Path.Combine(parent, "custom")).FullName;
+            string backup = Directory.CreateDirectory(
+                Path.Combine(customRoot, "2024-01-02 - 03.04 (3)")).FullName;
+            File.WriteAllText(unreadableDefaultRoot, "not a directory");
+
+            try
+            {
+                RunWithConfiguredRoots(unreadableDefaultRoot, new[] { customRoot }, () =>
+                {
+                    BackupFolders folders = BackupFolders.Read();
+
+                    // The unreadable default root must not abort the scan: the custom root's backup
+                    // is still listed, the failure is retained for diagnostics, and no reason is
+                    // surfaced because at least one root was readable.
+                    Assert.Null(folders.UnreadableReason);
+                    Assert.Contains(folders.Backups, folder =>
+                        string.Equals(folder.Path, backup, StringComparison.OrdinalIgnoreCase));
+                    UnreadableBackupRoot failed = Assert.Single(folders.UnreadableRoots);
+                    Assert.EndsWith("default-root-file", failed.CanonicalPath,
+                        StringComparison.OrdinalIgnoreCase);
+                });
+            }
+            finally
+            {
+                Directory.Delete(parent, true);
+            }
+        }
+
+        [Fact]
         public void Read_UnreadableDefaultRootReportsActualReason()
         {
             string parent = NewTempDirectory();

@@ -1,16 +1,16 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Threading;
 using System.Threading.Tasks;
 using WinRestoreKit;
+using WinRestoreKit.Wpf.Infrastructure;
 using WinRestoreKit.Wpf.Navigation;
 using WinRestoreKit.Wpf.ViewModels.Snapshots;
 
 namespace WinRestoreKit.Wpf.ViewModels.Timeline
 {
-    public sealed class TimelineViewModel : INotifyPropertyChanged
+    internal sealed class TimelineViewModel : ObservableObject
     {
         private readonly ISnapshotEventReader catalog;
         private readonly ISnapshotPayloadPreparationService preparationService;
@@ -34,21 +34,12 @@ namespace WinRestoreKit.Wpf.ViewModels.Timeline
         public SnapshotEventViewModel SelectedEvent
         {
             get => selectedEvent;
-            set
-            {
-                if (ReferenceEquals(selectedEvent, value))
-                    return;
-
-                selectedEvent = value;
-                OnPropertyChanged(nameof(SelectedEvent));
-            }
+            set => SetProperty(ref selectedEvent, value, nameof(SelectedEvent));
         }
 
         public string SelectionError => selectionError;
 
         public bool HasSelectionError => !string.IsNullOrWhiteSpace(SelectionError);
-
-        public event PropertyChangedEventHandler PropertyChanged;
 
         internal Task RefreshAsync(CancellationToken cancellationToken = default)
         {
@@ -109,8 +100,5 @@ namespace WinRestoreKit.Wpf.ViewModels.Timeline
             OnPropertyChanged(nameof(SelectionError));
             OnPropertyChanged(nameof(HasSelectionError));
         }
-
-        private void OnPropertyChanged(string propertyName)
-            => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 }

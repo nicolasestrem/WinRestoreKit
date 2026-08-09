@@ -166,5 +166,99 @@ namespace WinRestoreKit.Tests
                 Directory.Delete(root, true);
             }
         }
+
+        [Fact]
+        public void Verify_NamesEveryWayTheExportCanFail()
+        {
+            string root = NewTempDir();
+            try
+            {
+                string path = AppStoreApps.ExportPathIn(root);
+
+                // An exit code is not evidence: every rung of the ladder is checked against the
+                // artifact, not the exit code, and the exit code is not the only thing checked.
+                AssertFailedReason(AppStoreApps.Verify(ProcessOutcome.NeverStarted("no winget"), path), "could not run");
+                AssertFailedReason(AppStoreApps.Verify(ProcessOutcome.Timeout(), path), "did not finish");
+                AssertFailedReason(AppStoreApps.Verify(ProcessOutcome.OutcomeUnknown("pipe closed"), path), "could not be determined");
+                AssertFailedReason(AppStoreApps.Verify(ProcessOutcome.Ran(1), path), "exited with code 1");
+
+                // Exit code 0 with nothing to show for it.
+                AssertFailedReason(AppStoreApps.Verify(ProcessOutcome.Ran(0), path), "wrote no file");
+
+                File.WriteAllText(path, "");
+                AssertFailedReason(AppStoreApps.Verify(ProcessOutcome.Ran(0), path), "empty file");
+
+                File.WriteAllText(path, "{\"Sources\":[{}]}");
+                AssertFailedReason(AppStoreApps.Verify(ProcessOutcome.Ran(0), path), "no list of packages");
+
+                File.WriteAllText(path, "not json");
+                AssertFailedReason(AppStoreApps.Verify(ProcessOutcome.Ran(0), path), "not valid JSON");
+            }
+            finally { Directory.Delete(root, true); }
+        }
+
+        [Fact]
+        public void Verify_AGoodExport_Succeeds()
+        {
+            string root = NewTempDir();
+            try
+            {
+                string path = AppStoreApps.ExportPathIn(root);
+                File.WriteAllText(path, ExportWith("A.One", "B.Two"));
+
+                StepResult result = AppStoreApps.Verify(ProcessOutcome.Ran(0), path);
+                Assert.Equal(ResultState.Succeeded, result.State);
+                Assert.Contains("exported 2", result.Reason);
+            }
+            finally { Directory.Delete(root, true); }
+        }
+
+        [Fact]
+        public void Restore_WithNoDialogRegistered_FailsRatherThanClaimingSkipped()
+        {
+            Action<string, object> previous = AppStoreApps.RestoreDialog;
+            string root = NewTempDir();
+            try
+            {
+                AppStoreApps.RestoreDialog = null;
+
+                ModuleResult result = new AppStoreApps().Restore(root);
+                Assert.Equal(ResultState.Failed, result.State);
+                Assert.Contains("not available", result.Reason);
+            }
+            finally
+            {
+                AppStoreApps.RestoreDialog = previous;
+                Directory.Delete(root, true);
+            }
+        }
+
+        [Fact]
+        public void Restore_WithNullOwner_FailsRatherThanClaimingSkipped()
+        {
+            Action<string, object> previous = AppStoreApps.RestoreDialog;
+            string root = NewTempDir();
+            try
+            {
+                bool dialogWasInvoked = false;
+                AppStoreApps.RestoreDialog = (path, owner) => dialogWasInvoked = true;
+
+                ModuleResult result = new AppStoreApps().Restore(root, null);
+                Assert.Equal(ResultState.Failed, result.State);
+                Assert.Contains("owning application window", result.Reason);
+                Assert.False(dialogWasInvoked);
+            }
+            finally
+            {
+                AppStoreApps.RestoreDialog = previous;
+                Directory.Delete(root, true);
+            }
+        }
+
+        private static void AssertFailedReason(StepResult result, string reasonFragment)
+        {
+            Assert.Equal(ResultState.Failed, result.State);
+            Assert.Contains(reasonFragment, result.Reason);
+        }
     }
 }
