@@ -41,7 +41,8 @@ version numbers, because that is what those releases were called.
 ### Fixed: WPF lifecycle-safe navigation
 
 - Added explicit Timeline and Advanced history destinations to the command bar so every read-only
-  snapshot workspace is reachable and users can always leave Compare.
+  snapshot workspace is reachable, and bound Escape to Timeline so keyboard users can always leave
+  Compare.
 - Cancelled and cleared an active comparison before user-driven navigation, including when the same
   snapshot is opened again later.
 - Disabled workspace navigation while backup or restore work is running, and prevented the final WPF
