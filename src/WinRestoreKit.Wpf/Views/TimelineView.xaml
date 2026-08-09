@@ -12,9 +12,37 @@
 
       <Style x:Key="TimelineEmptyStateStyle" TargetType="{x:Type Border}">
         <Setter Property="Visibility" Value="Collapsed" />
+        <Setter Property="AutomationProperties.IsOffscreenBehavior" Value="Offscreen" />
         <Style.Triggers>
-          <DataTrigger Binding="{Binding Events.Count}" Value="0">
+          <MultiDataTrigger>
+            <MultiDataTrigger.Conditions>
+              <Condition Binding="{Binding Events.Count}" Value="0" />
+              <Condition Binding="{Binding IsLoading}" Value="False" />
+            </MultiDataTrigger.Conditions>
             <Setter Property="Visibility" Value="Visible" />
+            <Setter Property="AutomationProperties.IsOffscreenBehavior" Value="Onscreen" />
+          </MultiDataTrigger>
+        </Style.Triggers>
+      </Style>
+
+      <Style x:Key="TimelineLoadingStateStyle" TargetType="{x:Type Border}">
+        <Setter Property="Visibility" Value="Collapsed" />
+        <Setter Property="AutomationProperties.IsOffscreenBehavior" Value="Offscreen" />
+        <Style.Triggers>
+          <DataTrigger Binding="{Binding IsLoading}" Value="True">
+            <Setter Property="Visibility" Value="Visible" />
+            <Setter Property="AutomationProperties.IsOffscreenBehavior" Value="Onscreen" />
+          </DataTrigger>
+        </Style.Triggers>
+      </Style>
+
+      <Style x:Key="TimelineSelectionErrorStyle" TargetType="{x:Type Border}">
+        <Setter Property="Visibility" Value="Collapsed" />
+        <Setter Property="AutomationProperties.IsOffscreenBehavior" Value="Offscreen" />
+        <Style.Triggers>
+          <DataTrigger Binding="{Binding HasSelectionError}" Value="True">
+            <Setter Property="Visibility" Value="Visible" />
+            <Setter Property="AutomationProperties.IsOffscreenBehavior" Value="Onscreen" />
           </DataTrigger>
         </Style.Triggers>
       </Style>
@@ -42,6 +70,25 @@
 
       <Grid Grid.Row="1" Margin="0,22,0,0">
         <controls:SnapshotEventList x:Name="SnapshotEventListControl" />
+
+        <Border x:Name="TimelineLoadingState"
+                Style="{StaticResource TimelineLoadingStateStyle}"
+                HorizontalAlignment="Left" VerticalAlignment="Top"
+                MinWidth="300" MaxWidth="580" Padding="22,19,24,21"
+                Background="{DynamicResource SurfaceBrush}"
+                BorderBrush="{DynamicResource DividerBrush}"
+                BorderThickness="1" CornerRadius="8"
+                SnapsToDevicePixels="True"
+                AutomationProperties.Name="Loading restore points"
+                AutomationProperties.LiveSetting="Polite">
+          <StackPanel>
+            <TextBlock Text="Loading restore points" FontSize="15" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextBrush}" />
+            <ProgressBar IsIndeterminate="True" Margin="0,12,0,0" Width="180"
+                         HorizontalAlignment="Left"
+                         AutomationProperties.Name="Loading timeline" />
+          </StackPanel>
+        </Border>
 
         <Border x:Name="TimelineEmptyState"
                 Style="{StaticResource TimelineEmptyStateStyle}"
@@ -78,8 +125,9 @@
         </Border>
       </Grid>
 
-      <Border Grid.Row="2"
-              Visibility="{Binding HasSelectionError, Converter={StaticResource BooleanToVisibilityConverter}}"
+      <Border x:Name="TimelineSelectionError"
+              Grid.Row="2"
+              Style="{StaticResource TimelineSelectionErrorStyle}"
               Margin="48,14,0,0" Padding="12,9,14,10"
               CornerRadius="6" BorderThickness="3,0,0,0"
               Background="{DynamicResource DangerSoftBrush}"
@@ -87,7 +135,6 @@
               SnapsToDevicePixels="True">
         <TextBlock x:Name="SelectionErrorText"
                    Text="{Binding SelectionError}"
-                   Visibility="{Binding HasSelectionError, Converter={StaticResource BooleanToVisibilityConverter}}"
                    AutomationProperties.LiveSetting="Polite"
                    Foreground="{DynamicResource DangerTextBrush}"
                    FontSize="12.5"

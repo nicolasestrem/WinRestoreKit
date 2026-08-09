@@ -17,9 +17,9 @@ namespace WinRestoreKit.Tests
     public sealed class TimelineWpfSmokeTests
     {
         [Fact]
-        public void TimelineView_LoadsSelectionAndTransfersPreparedSnapshot()
+        public async Task TimelineView_LoadsSelectionAndTransfersPreparedSnapshot()
         {
-            WpfTestHost.Run(() =>
+            await WpfTestHost.RunAsync(async () =>
             {
                 RecordingNavigator navigator = new RecordingNavigator();
                 SnapshotEvent snapshot = NewEvent(SnapshotEventKind.Verified, @"C:\timeline-smoke");
@@ -31,11 +31,11 @@ namespace WinRestoreKit.Tests
                 host.Show();
                 try
                 {
-                    viewModel.RefreshAsync().GetAwaiter().GetResult();
+                    await viewModel.RefreshAsync();
                     ListBox list = FindDescendant<ListBox>(view);
                     Assert.NotNull(list);
                     list.SelectedIndex = 0;
-                    viewModel.OpenSelectedAsync().GetAwaiter().GetResult();
+                    await viewModel.OpenSelectedAsync();
 
                     Assert.NotNull(navigator.Prepared);
                     Assert.Equal(SnapshotEventKind.Verified, navigator.Prepared.Snapshot.Kind);

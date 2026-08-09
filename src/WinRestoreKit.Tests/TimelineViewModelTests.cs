@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using WinRestoreKit;
 using WinRestoreKit.Wpf.Navigation;
+using WinRestoreKit.Wpf.Services;
 using WinRestoreKit.Wpf.ViewModels.Snapshots;
 using WinRestoreKit.Wpf.ViewModels.Timeline;
 using Xunit;
@@ -16,49 +17,91 @@ namespace WinRestoreKit.Tests
         [Fact]
         public async Task OpenSelectedAsync_PreparesPartialAndTransfersOwnershipToNavigator()
         {
-            SnapshotEvent partial = NewEvent(SnapshotEventKind.Partial, @"C:\snapshot");
-            RecordingNavigator navigator = new RecordingNavigator();
-            TimelineViewModel viewModel = new TimelineViewModel(
-                new FakeCatalog(partial), new FakePreparationService(partial), navigator);
+            await WpfTestHost.RunAsync(async () =>
+            {
+                SnapshotEvent partial = NewEvent(SnapshotEventKind.Partial, @"C:\snapshot");
+                RecordingNavigator navigator = new RecordingNavigator();
+                TimelineViewModel viewModel = new TimelineViewModel(
+                    new FakeCatalog(partial), new FakePreparationService(partial), navigator);
 
-            await viewModel.RefreshAsync();
-            viewModel.SelectedEvent = Assert.Single(viewModel.Events);
-            await viewModel.OpenSelectedAsync();
+                await viewModel.RefreshAsync();
+                viewModel.SelectedEvent = Assert.Single(viewModel.Events);
+                await viewModel.OpenSelectedAsync();
 
-            Assert.Same(partial, navigator.Prepared.Snapshot);
-            Assert.Null(navigator.Diagnostic);
-            navigator.Prepared.Dispose();
+                Assert.Same(partial, navigator.Prepared.Snapshot);
+                Assert.Null(navigator.Diagnostic);
+                navigator.Prepared.Dispose();
+            });
         }
 
         [Fact]
         public async Task OpenSelectedAsync_ShowsFailedEvidenceWithoutPreparingPayload()
         {
-            SnapshotEvent failed = NewEvent(SnapshotEventKind.Failed, @"C:\failed", "disk full");
-            FakePreparationService service = new FakePreparationService();
-            RecordingNavigator navigator = new RecordingNavigator();
-            TimelineViewModel viewModel = new TimelineViewModel(new FakeCatalog(failed), service, navigator);
+            await WpfTestHost.RunAsync(async () =>
+            {
+                SnapshotEvent failed = NewEvent(SnapshotEventKind.Failed, @"C:\failed", "disk full");
+                FakePreparationService service = new FakePreparationService();
+                RecordingNavigator navigator = new RecordingNavigator();
+                TimelineViewModel viewModel = new TimelineViewModel(new FakeCatalog(failed), service, navigator);
 
-            await viewModel.RefreshAsync();
-            viewModel.SelectedEvent = Assert.Single(viewModel.Events);
-            await viewModel.OpenSelectedAsync();
+                await viewModel.RefreshAsync();
+                viewModel.SelectedEvent = Assert.Single(viewModel.Events);
+                await viewModel.OpenSelectedAsync();
 
-            Assert.Same(failed, navigator.Diagnostic);
-            Assert.Equal(0, service.Calls);
+                Assert.Same(failed, navigator.Diagnostic);
+                Assert.Equal(0, service.Calls);
+            });
         }
 
         [Fact]
         public async Task OpenSelectedAsync_ReportsPreparationFailureInline()
         {
-            SnapshotEvent verified = NewEvent(SnapshotEventKind.Verified, @"C:\verified");
-            TimelineViewModel viewModel = new TimelineViewModel(
-                new FakeCatalog(verified), new FakePreparationService(), new RecordingNavigator());
+            await WpfTestHost.RunAsync(async () =>
+            {
+                SnapshotEvent verified = NewEvent(SnapshotEventKind.Verified, @"C:\verified");
+                TimelineViewModel viewModel = new TimelineViewModel(
+                    new FakeCatalog(verified), new FakePreparationService(), new RecordingNavigator());
 
-            await viewModel.RefreshAsync();
-            viewModel.SelectedEvent = Assert.Single(viewModel.Events);
-            await viewModel.OpenSelectedAsync();
+                await viewModel.RefreshAsync();
+                viewModel.SelectedEvent = Assert.Single(viewModel.Events);
+                await viewModel.OpenSelectedAsync();
 
-            Assert.True(viewModel.HasSelectionError);
-            Assert.Equal("unexpected preparation", viewModel.SelectionError);
+                Assert.True(viewModel.HasSelectionError);
+                Assert.Equal("unexpected preparation", viewModel.SelectionError);
+            });
+        }
+
+        [Fact]
+        public async Task RefreshAsync_ReadsCatalogAwayFromUiThread()
+        {
+            await WpfTestHost.RunAsync(async () =>
+            {
+                int uiThreadId = Thread.CurrentThread.ManagedThreadId;
+                FakeCatalog catalog = new FakeCatalog(
+                    NewEvent(SnapshotEventKind.Verified, @"C:\verified"));
+                TimelineViewModel viewModel = new TimelineViewModel(
+                    catalog, new FakePreparationService(), new RecordingNavigator());
+
+                await viewModel.RefreshAsync();
+
+                Assert.NotEqual(uiThreadId, catalog.ReadThreadId);
+                Assert.False(viewModel.IsLoading);
+            });
+        }
+
+        [Fact]
+        public async Task RefreshAsync_WhenCatalogFailsReportsInlineAndStopsLoading()
+        {
+            await WpfTestHost.RunAsync(async () =>
+            {
+                TimelineViewModel viewModel = new TimelineViewModel(
+                    new ThrowingCatalog(), new FakePreparationService(), new RecordingNavigator());
+
+                await viewModel.RefreshAsync();
+
+                Assert.False(viewModel.IsLoading);
+                Assert.Equal("Timeline could not be refreshed: catalog unavailable", viewModel.SelectionError);
+            });
         }
 
         [Theory]
@@ -75,6 +118,15 @@ namespace WinRestoreKit.Tests
             Assert.Equal(isDiagnosticOnly, viewModel.Status.IsDiagnosticOnly);
         }
 
+        [Fact]
+        public void SnapshotDiagnostic_UsesAReadableFallbackWhenNoReasonWasRecorded()
+        {
+            SnapshotEvent failed = NewEvent(SnapshotEventKind.Failed, @"C:\failed");
+
+            Assert.Equal("No additional diagnostic details were recorded for this snapshot.",
+                CompareDialogService.DiagnosticTextFor(failed));
+        }
+
         private static SnapshotEvent NewEvent(SnapshotEventKind kind, string path, string reason = null)
             => new SnapshotEvent(kind, new DateTime(2026, 8, 9, 12, 0, 0, DateTimeKind.Local),
                 Path.GetFileName(path), Path.GetFullPath(path), reason, "TEST-PC", 0, true, null);
@@ -85,7 +137,19 @@ namespace WinRestoreKit.Tests
 
             internal FakeCatalog(params SnapshotEvent[] events) => this.events = events;
 
-            public IReadOnlyList<SnapshotEvent> Read() => events;
+            internal int ReadThreadId { get; private set; }
+
+            public IReadOnlyList<SnapshotEvent> Read()
+            {
+                ReadThreadId = Thread.CurrentThread.ManagedThreadId;
+                return events;
+            }
+        }
+
+        private sealed class ThrowingCatalog : ISnapshotEventReader
+        {
+            public IReadOnlyList<SnapshotEvent> Read()
+                => throw new InvalidOperationException("catalog unavailable");
         }
 
         private sealed class FakePreparationService : ISnapshotPayloadPreparationService

@@ -8,6 +8,17 @@ version numbers, because that is what those releases were called.
 
 ## [Unreleased]
 
+### Fixed: WPF Timeline interaction and accessibility
+
+- Added mouse double-click activation alongside Enter for Timeline restore points, with duplicate-open
+  protection and a readable fallback when a failed snapshot has no diagnostic detail.
+- Moved Timeline catalog reads off the UI thread and added explicit loading and failure states so slow
+  or unavailable snapshot storage does not freeze the window or masquerade as an empty Timeline.
+- Stacked the comparison evidence, restore set, and detail cards at narrow window widths while keeping
+  the established two-column workspace at wider sizes.
+- Honored the Windows client-area animation preference for indeterminate progress, exposed stable theme
+  option automation IDs, and marked inactive alternative content as offscreen for assistive technology.
+
 ### Fixed: WPF lifecycle-safe navigation
 
 - Added explicit Timeline and Advanced history destinations to the command bar so every read-only

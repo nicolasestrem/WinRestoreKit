@@ -30,7 +30,24 @@
             <ComboBox x:Name="themeSelector" Grid.Column="1" ItemsSource="{Binding AvailableModes}"
                       SelectedItem="{Binding SelectedTheme, Mode=TwoWay}"
                       MinWidth="180" VerticalAlignment="Center"
-                      AutomationProperties.Name="Theme">
+                      AutomationProperties.Name="Theme"
+                      AutomationProperties.AutomationId="SettingsThemeSelector">
+              <ComboBox.ItemContainerStyle>
+                <Style TargetType="{x:Type ComboBoxItem}">
+                  <Setter Property="AutomationProperties.Name" Value="Follow system" />
+                  <Setter Property="AutomationProperties.AutomationId" Value="SettingsThemeFollowSystem" />
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding}" Value="Light">
+                      <Setter Property="AutomationProperties.Name" Value="Light" />
+                      <Setter Property="AutomationProperties.AutomationId" Value="SettingsThemeLight" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding}" Value="Dark">
+                      <Setter Property="AutomationProperties.Name" Value="Dark" />
+                      <Setter Property="AutomationProperties.AutomationId" Value="SettingsThemeDark" />
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </ComboBox.ItemContainerStyle>
               <ComboBox.ItemTemplate>
                 <DataTemplate>
                   <TextBlock>

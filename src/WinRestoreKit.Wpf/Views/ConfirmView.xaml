@@ -1,6 +1,7 @@
 <UserControl x:Class="WinRestoreKit.Wpf.Views.ConfirmView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:infrastructure="clr-namespace:WinRestoreKit.Wpf.Infrastructure"
              Loaded="ConfirmView_Loaded"
              AutomationProperties.Name="Confirm restore">
   <!-- Shared keys from Themes/Controls.xaml are referenced with DynamicResource: these views are
@@ -9,6 +10,7 @@
        local to this file and resolve statically. -->
   <UserControl.Resources>
     <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+    <infrastructure:BooleanToOffscreenBehaviorConverter x:Key="BooleanToOffscreenBehaviorConverter" />
 
     <Style x:Key="ReviewItemStyle" TargetType="{x:Type TextBlock}">
       <Setter Property="FontSize" Value="13" />
@@ -51,10 +53,12 @@
                    Margin="10,0,0,0" VerticalAlignment="Center" Foreground="{DynamicResource MutedTextBrush}" />
       </StackPanel>
 
-      <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource WarningBrush}"
+      <Border x:Name="ConfirmPartialWarning"
+              Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource WarningBrush}"
               BorderThickness="1" CornerRadius="8" Padding="14,10" Margin="0,14,0,0"
               MaxWidth="880" HorizontalAlignment="Left"
-              Visibility="{Binding IsSourcePartial, Converter={StaticResource BooleanToVisibilityConverter}}">
+              Visibility="{Binding IsSourcePartial, Converter={StaticResource BooleanToVisibilityConverter}}"
+              AutomationProperties.IsOffscreenBehavior="{Binding IsSourcePartial, Converter={StaticResource BooleanToOffscreenBehaviorConverter}}">
         <StackPanel Orientation="Horizontal">
           <TextBlock Text="&#xE7BA;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="15"
                      VerticalAlignment="Top" Margin="0,1,10,0"
@@ -96,14 +100,17 @@
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
-            <TextBlock Text="No modules are selected. Go back to Compare and add at least one module."
+            <TextBlock x:Name="ConfirmEmptyModules"
+                       Text="No modules are selected. Go back to Compare and add at least one module."
                        Margin="0,10,0,0">
               <TextBlock.Style>
                 <Style TargetType="{x:Type TextBlock}" BasedOn="{StaticResource GroupCaptionStyle}">
                   <Setter Property="Visibility" Value="Collapsed" />
+                  <Setter Property="AutomationProperties.IsOffscreenBehavior" Value="Offscreen" />
                   <Style.Triggers>
                     <DataTrigger Binding="{Binding HasItems, ElementName=moduleList}" Value="False">
                       <Setter Property="Visibility" Value="Visible" />
+                      <Setter Property="AutomationProperties.IsOffscreenBehavior" Value="Onscreen" />
                     </DataTrigger>
                   </Style.Triggers>
                 </Style>
@@ -112,9 +119,10 @@
           </StackPanel>
         </Border>
 
-        <Grid>
+        <Grid x:Name="ConfirmApplicationsSection">
           <Grid.Style>
             <Style TargetType="{x:Type Grid}">
+              <Setter Property="AutomationProperties.IsOffscreenBehavior" Value="Onscreen" />
               <Style.Triggers>
                 <MultiDataTrigger>
                   <MultiDataTrigger.Conditions>
@@ -122,6 +130,7 @@
                     <Condition Binding="{Binding HasItems, ElementName=informationalList}" Value="False" />
                   </MultiDataTrigger.Conditions>
                   <Setter Property="Visibility" Value="Collapsed" />
+                  <Setter Property="AutomationProperties.IsOffscreenBehavior" Value="Offscreen" />
                 </MultiDataTrigger>
               </Style.Triggers>
             </Style>
@@ -131,12 +140,14 @@
               <TextBlock Text="Applications" Style="{DynamicResource SectionTitleStyle}"
                          Foreground="{DynamicResource TextBrush}" />
 
-              <StackPanel Margin="0,12,0,0">
+              <StackPanel x:Name="ConfirmConsentProcesses" Margin="0,12,0,0">
                 <StackPanel.Style>
                   <Style TargetType="{x:Type StackPanel}">
+                    <Setter Property="AutomationProperties.IsOffscreenBehavior" Value="Onscreen" />
                     <Style.Triggers>
                       <DataTrigger Binding="{Binding HasItems, ElementName=consentList}" Value="False">
                         <Setter Property="Visibility" Value="Collapsed" />
+                        <Setter Property="AutomationProperties.IsOffscreenBehavior" Value="Offscreen" />
                       </DataTrigger>
                     </Style.Triggers>
                   </Style>
@@ -157,12 +168,14 @@
                 </ItemsControl>
               </StackPanel>
 
-              <StackPanel Margin="0,14,0,0">
+              <StackPanel x:Name="ConfirmInformationalProcesses" Margin="0,14,0,0">
                 <StackPanel.Style>
                   <Style TargetType="{x:Type StackPanel}">
+                    <Setter Property="AutomationProperties.IsOffscreenBehavior" Value="Onscreen" />
                     <Style.Triggers>
                       <DataTrigger Binding="{Binding HasItems, ElementName=informationalList}" Value="False">
                         <Setter Property="Visibility" Value="Collapsed" />
+                        <Setter Property="AutomationProperties.IsOffscreenBehavior" Value="Offscreen" />
                       </DataTrigger>
                     </Style.Triggers>
                   </Style>
@@ -186,12 +199,14 @@
           </Border>
         </Grid>
 
-        <Grid>
+        <Grid x:Name="ConfirmExplorerSection">
           <Grid.Style>
             <Style TargetType="{x:Type Grid}">
+              <Setter Property="AutomationProperties.IsOffscreenBehavior" Value="Onscreen" />
               <Style.Triggers>
                 <DataTrigger Binding="{Binding HasItems, ElementName=explorerList}" Value="False">
                   <Setter Property="Visibility" Value="Collapsed" />
+                  <Setter Property="AutomationProperties.IsOffscreenBehavior" Value="Offscreen" />
                 </DataTrigger>
               </Style.Triggers>
             </Style>
@@ -214,12 +229,14 @@
           </Border>
         </Grid>
 
-        <Grid>
+        <Grid x:Name="ConfirmWarningsSection">
           <Grid.Style>
             <Style TargetType="{x:Type Grid}">
+              <Setter Property="AutomationProperties.IsOffscreenBehavior" Value="Onscreen" />
               <Style.Triggers>
                 <DataTrigger Binding="{Binding HasItems, ElementName=warningList}" Value="False">
                   <Setter Property="Visibility" Value="Collapsed" />
+                  <Setter Property="AutomationProperties.IsOffscreenBehavior" Value="Offscreen" />
                 </DataTrigger>
               </Style.Triggers>
             </Style>
@@ -251,9 +268,10 @@
           </Border>
         </Grid>
 
-        <Grid>
+        <Grid x:Name="ConfirmRestoreStatusSection">
           <Grid.Style>
             <Style TargetType="{x:Type Grid}">
+              <Setter Property="AutomationProperties.IsOffscreenBehavior" Value="Onscreen" />
               <Style.Triggers>
                 <MultiDataTrigger>
                   <MultiDataTrigger.Conditions>
@@ -261,6 +279,7 @@
                     <Condition Binding="{Binding Summary}" Value="{x:Null}" />
                   </MultiDataTrigger.Conditions>
                   <Setter Property="Visibility" Value="Collapsed" />
+                  <Setter Property="AutomationProperties.IsOffscreenBehavior" Value="Offscreen" />
                 </MultiDataTrigger>
               </Style.Triggers>
             </Style>
@@ -269,24 +288,29 @@
             <StackPanel>
               <TextBlock Text="Restore status" Style="{DynamicResource SectionTitleStyle}"
                          Foreground="{DynamicResource TextBrush}" />
-              <TextBlock Text="{Binding ProgressText}" TextWrapping="Wrap" FontSize="13" Margin="0,10,0,0"
+              <TextBlock x:Name="ConfirmProgressText"
+                         Text="{Binding ProgressText}" TextWrapping="Wrap" FontSize="13" Margin="0,10,0,0"
                          Foreground="{DynamicResource MutedTextBrush}">
                 <TextBlock.Style>
                   <Style TargetType="{x:Type TextBlock}">
+                    <Setter Property="AutomationProperties.IsOffscreenBehavior" Value="Onscreen" />
                     <Style.Triggers>
                       <DataTrigger Binding="{Binding ProgressText}" Value="">
                         <Setter Property="Visibility" Value="Collapsed" />
+                        <Setter Property="AutomationProperties.IsOffscreenBehavior" Value="Offscreen" />
                       </DataTrigger>
                     </Style.Triggers>
                   </Style>
                 </TextBlock.Style>
               </TextBlock>
-              <StackPanel Margin="0,10,0,0">
+              <StackPanel x:Name="ConfirmSummary" Margin="0,10,0,0">
                 <StackPanel.Style>
                   <Style TargetType="{x:Type StackPanel}">
+                    <Setter Property="AutomationProperties.IsOffscreenBehavior" Value="Onscreen" />
                     <Style.Triggers>
                       <DataTrigger Binding="{Binding Summary}" Value="{x:Null}">
                         <Setter Property="Visibility" Value="Collapsed" />
+                        <Setter Property="AutomationProperties.IsOffscreenBehavior" Value="Offscreen" />
                       </DataTrigger>
                     </Style.Triggers>
                   </Style>

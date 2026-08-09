@@ -39,6 +39,16 @@ namespace WinRestoreKit.Wpf.Views.Controls
             }
         }
 
+        private async void OnItemMouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is not ListBoxItem item || DataContext is not TimelineViewModel viewModel)
+                return;
+
+            TimelineEventList.SelectedItem = item.DataContext;
+            e.Handled = true;
+            await viewModel.OpenSelectedAsync();
+        }
+
         private void OnSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (TimelineEventList.SelectedIndex >= 0)
