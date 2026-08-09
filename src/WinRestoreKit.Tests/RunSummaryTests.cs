@@ -1,6 +1,5 @@
 using WinRestoreKit;
 using System.Collections.Generic;
-using System.Windows.Forms;
 using Xunit;
 
 namespace WinRestoreKit.Tests
@@ -106,9 +105,26 @@ namespace WinRestoreKit.Tests
         }
 
         [Fact]
-        public void DidNotRun_IsAWarningNotInformation()
-            => Assert.Equal(MessageBoxIcon.Warning,
-                   RunSummary.For(new List<ModuleOutcome>(), false, RunVerb.Restore).Icon);
+        public void DidNotRun_IsWarningWithoutAWinFormsMessageBoxIcon()
+        {
+            RunSummary summary = RunSummary.For(new List<ModuleOutcome>(), false, RunVerb.Backup,
+                                                "the destination is empty");
+
+            Assert.Equal(RunSeverity.Warning, summary.Severity);
+            var dialogOwner = typeof(IRunUi).GetProperty("DialogOwner");
+            Assert.NotNull(dialogOwner);
+            Assert.Equal(typeof(object), dialogOwner.PropertyType);
+            Assert.Null(typeof(IRunUi).GetProperty("Owner"));
+        }
+
+        [Fact]
+        public void IncompleteRun_IsWarning()
+        {
+            RunSummary summary = RunSummary.Incomplete(new List<ModuleOutcome>(), RunVerb.Restore,
+                                                        "The pre-restore snapshot was incomplete.");
+
+            Assert.Equal(RunSeverity.Warning, summary.Severity);
+        }
 
         [Fact]
         public void Problems_DetailNamesEveryFailedModule()

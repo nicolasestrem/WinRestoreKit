@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Security.Principal;
+using System.Threading;
 using System.Windows.Forms;
 using WinRestoreKit;
 
@@ -138,7 +139,7 @@ namespace Views
                 ForeColor = Theme.Current.TextMuted,
                 Margin = new Padding(0, 0, 0, Ui.SpaceS),
                 MaximumSize = new Size(270, 0),
-                Text = "VERSION " + Program.GetCurrentVersionTostring()
+                Text = "VERSION " + VersionInfo.GetCurrentVersion(typeof(AboutPageView).Assembly)
                     + Environment.NewLine + "BUILD " + BuildIdentity()
                     + Environment.NewLine + "OS " + Environment.OSVersion.VersionString
             };
@@ -350,7 +351,11 @@ namespace Views
 
             try
             {
-                await UpdateCheck.CheckForUpdatesAsync();
+                WinFormsUpdatePresenter updates = new WinFormsUpdatePresenter(
+                    new UpdateCheckService(),
+                    this,
+                    VersionInfo.GetCurrentVersion(typeof(AboutPageView).Assembly));
+                await updates.CheckAsync(CancellationToken.None);
                 SetUpdateStatus("UPDATE CHECK FINISHED.", Theme.Current.Accent700);
             }
             catch (Exception ex)
@@ -379,14 +384,7 @@ namespace Views
 
         private static void releaseNotesLink_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
-            try
-            {
-                Process.Start(new ProcessStartInfo(ReleasesUrl) { UseShellExecute = true });
-            }
-            catch (Exception)
-            {
-                // Opening a browser is best-effort. The user can still copy the visible release URL.
-            }
+            Utils.OpenUrl(ReleasesUrl);
         }
 
         private void SetUpdateStatus(string text, Color color)
@@ -405,7 +403,7 @@ namespace Views
         }
 
         private static string BuildIdentity()
-            => typeof(Program).Assembly.GetName().Version?.ToString() ?? "Unknown";
+            => typeof(AboutPageView).Assembly.GetName().Version?.ToString() ?? "Unknown";
 
         private static bool IsElevated()
         {

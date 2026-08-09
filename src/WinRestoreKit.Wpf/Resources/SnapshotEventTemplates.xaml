@@ -1,0 +1,282 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:vm="clr-namespace:WinRestoreKit.Wpf.ViewModels.Snapshots">
+  <!--
+    Snapshot status is drawn as vector geometry rather than icon-font text, so no symbol
+    name can leak into rendered output and nothing depends on an installed icon face.
+    Every status surface pairs the shape with its written label; colour alone never carries meaning.
+
+      Positive  filled node + check  "Verified"            selectable restore point
+      Caution   hollow node + bang   "Partial snapshot"    selectable, incomplete
+      Critical  filled node + cross  "Backup failed"       diagnostic only
+      Neutral   hollow node + dash   "Details unavailable" diagnostic only
+
+    Selection and hover are expressed with element styles rather than DataTemplate triggers so
+    the FindAncestor bindings resolve from a concrete element in the row.
+  -->
+  <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+
+  <!-- ============ Status shape and pill (SnapshotEventStatus data context) ============ -->
+
+  <Style x:Key="SnapshotStatusGlyphStyle" TargetType="{x:Type Path}">
+    <Setter Property="Width" Value="14" />
+    <Setter Property="Height" Value="14" />
+    <Setter Property="StrokeThickness" Value="1.7" />
+    <Setter Property="StrokeStartLineCap" Value="Round" />
+    <Setter Property="StrokeEndLineCap" Value="Round" />
+    <Setter Property="StrokeLineJoin" Value="Round" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="Stroke" Value="{DynamicResource MutedTextBrush}" />
+    <Setter Property="Data" Value="M 3,7 L 11,7" />
+    <Style.Triggers>
+      <DataTrigger Binding="{Binding Tone}" Value="Positive">
+        <Setter Property="Stroke" Value="{DynamicResource AccentTextBrush}" />
+        <Setter Property="Data" Value="M 2.6,7.3 L 5.7,10.4 L 11.4,3.9" />
+      </DataTrigger>
+      <DataTrigger Binding="{Binding Tone}" Value="Caution">
+        <Setter Property="Stroke" Value="{DynamicResource WarningTextBrush}" />
+        <Setter Property="Data" Value="M 7,2.8 L 7,8.1 M 7,10.7 L 7,11.2" />
+      </DataTrigger>
+      <DataTrigger Binding="{Binding Tone}" Value="Critical">
+        <Setter Property="Stroke" Value="{DynamicResource DangerTextBrush}" />
+        <Setter Property="Data" Value="M 3.6,3.6 L 10.4,10.4 M 10.4,3.6 L 3.6,10.4" />
+      </DataTrigger>
+    </Style.Triggers>
+  </Style>
+
+  <Style x:Key="SnapshotStatusPillBorderStyle" TargetType="{x:Type Border}">
+    <Setter Property="Background" Value="{DynamicResource SubtleBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Padding" Value="7,2,10,3" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="SnapsToDevicePixels" Value="True" />
+    <Style.Triggers>
+      <DataTrigger Binding="{Binding Tone}" Value="Positive">
+        <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+      </DataTrigger>
+      <DataTrigger Binding="{Binding Tone}" Value="Caution">
+        <Setter Property="Background" Value="{DynamicResource WarningSoftBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}" />
+      </DataTrigger>
+      <DataTrigger Binding="{Binding Tone}" Value="Critical">
+        <Setter Property="Background" Value="{DynamicResource DangerSoftBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}" />
+      </DataTrigger>
+    </Style.Triggers>
+  </Style>
+
+  <Style x:Key="SnapshotStatusPillTextStyle" TargetType="{x:Type TextBlock}">
+    <Setter Property="FontFamily" Value="{DynamicResource ApplicationFont}" />
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="Margin" Value="6,0,0,0" />
+    <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}" />
+    <Style.Triggers>
+      <DataTrigger Binding="{Binding Tone}" Value="Positive">
+        <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}" />
+      </DataTrigger>
+      <DataTrigger Binding="{Binding Tone}" Value="Caution">
+        <Setter Property="Foreground" Value="{DynamicResource WarningTextBrush}" />
+      </DataTrigger>
+      <DataTrigger Binding="{Binding Tone}" Value="Critical">
+        <Setter Property="Foreground" Value="{DynamicResource DangerTextBrush}" />
+      </DataTrigger>
+    </Style.Triggers>
+  </Style>
+
+  <!-- Dense inline form: shape plus the full status sentence. Used by advanced history. -->
+  <DataTemplate x:Key="SnapshotEventStatusTemplate" DataType="{x:Type vm:SnapshotEventStatus}">
+    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+      <Path Style="{StaticResource SnapshotStatusGlyphStyle}" />
+      <TextBlock Text="{Binding Label}" Margin="7,0,0,0" VerticalAlignment="Center"
+                 Foreground="{DynamicResource TextBrush}" />
+    </StackPanel>
+  </DataTemplate>
+
+  <!-- Compact pill form: shape plus the condensed status word. Used by timeline cards. -->
+  <DataTemplate x:Key="SnapshotEventStatusPillTemplate" DataType="{x:Type vm:SnapshotEventStatus}">
+    <Border Style="{StaticResource SnapshotStatusPillBorderStyle}">
+      <StackPanel Orientation="Horizontal">
+        <Path Style="{StaticResource SnapshotStatusGlyphStyle}" />
+        <TextBlock Text="{Binding ShortLabel}" Style="{StaticResource SnapshotStatusPillTextStyle}" />
+      </StackPanel>
+    </Border>
+  </DataTemplate>
+
+  <!-- ============ Timeline row chrome (SnapshotEventViewModel data context) ============ -->
+
+  <Style x:Key="SnapshotTimelineNodeRingStyle" TargetType="{x:Type Ellipse}">
+    <Setter Property="StrokeThickness" Value="2" />
+    <Setter Property="Stroke" Value="{DynamicResource StrongDividerBrush}" />
+    <Setter Property="Fill" Value="Transparent" />
+    <Style.Triggers>
+      <DataTrigger Binding="{Binding Status.Tone}" Value="Positive">
+        <Setter Property="Stroke" Value="{DynamicResource AccentBrush}" />
+        <Setter Property="Fill" Value="{DynamicResource AccentBrush}" />
+      </DataTrigger>
+      <DataTrigger Binding="{Binding Status.Tone}" Value="Caution">
+        <Setter Property="Stroke" Value="{DynamicResource WarningBrush}" />
+      </DataTrigger>
+      <DataTrigger Binding="{Binding Status.Tone}" Value="Critical">
+        <Setter Property="Stroke" Value="{DynamicResource DangerBrush}" />
+        <Setter Property="Fill" Value="{DynamicResource DangerBrush}" />
+      </DataTrigger>
+    </Style.Triggers>
+  </Style>
+
+  <Style x:Key="SnapshotTimelineNodeHaloStyle" TargetType="{x:Type Ellipse}">
+    <Setter Property="Margin" Value="-5" />
+    <Setter Property="Stroke" Value="{DynamicResource AccentBrush}" />
+    <Setter Property="StrokeThickness" Value="1.5" />
+    <Setter Property="Opacity" Value="0.5" />
+    <Setter Property="IsHitTestVisible" Value="False" />
+    <Setter Property="Visibility" Value="Collapsed" />
+    <Style.Triggers>
+      <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType={x:Type ListBoxItem}}}" Value="True">
+        <Setter Property="Visibility" Value="Visible" />
+      </DataTrigger>
+    </Style.Triggers>
+  </Style>
+
+  <Style x:Key="SnapshotTimelineCardStyle" TargetType="{x:Type Border}">
+    <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Padding" Value="16,13,16,14" />
+    <Setter Property="SnapsToDevicePixels" Value="True" />
+    <Style.Triggers>
+      <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType={x:Type ListBoxItem}}}" Value="True">
+        <Setter Property="Background" Value="{DynamicResource SurfaceAltBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource StrongDividerBrush}" />
+      </DataTrigger>
+      <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType={x:Type ListBoxItem}}}" Value="True">
+        <Setter Property="Background" Value="{DynamicResource SelectedBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+      </DataTrigger>
+    </Style.Triggers>
+  </Style>
+
+  <!-- Drawn outside the card so selection never reflows the card's content. -->
+  <Style x:Key="SnapshotTimelineSelectionRingStyle" TargetType="{x:Type Border}">
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+    <Setter Property="BorderThickness" Value="1.4" />
+    <Setter Property="CornerRadius" Value="9.4" />
+    <Setter Property="Margin" Value="-1.4" />
+    <Setter Property="IsHitTestVisible" Value="False" />
+    <Setter Property="SnapsToDevicePixels" Value="True" />
+    <Setter Property="Visibility" Value="Collapsed" />
+    <Style.Triggers>
+      <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType={x:Type ListBoxItem}}}" Value="True">
+        <Setter Property="Visibility" Value="Visible" />
+      </DataTrigger>
+      <!-- Selection alone is an accent ring; keyboard focus thickens it into the focus colour. -->
+      <MultiDataTrigger>
+        <MultiDataTrigger.Conditions>
+          <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType={x:Type ListBoxItem}}}" Value="True" />
+          <Condition Binding="{Binding IsKeyboardFocusWithin, RelativeSource={RelativeSource AncestorType={x:Type ListBox}}}" Value="True" />
+        </MultiDataTrigger.Conditions>
+        <Setter Property="Visibility" Value="Visible" />
+        <Setter Property="BorderBrush" Value="{DynamicResource FocusBrush}" />
+        <Setter Property="BorderThickness" Value="2.2" />
+        <Setter Property="CornerRadius" Value="10.6" />
+        <Setter Property="Margin" Value="-2.6" />
+      </MultiDataTrigger>
+    </Style.Triggers>
+  </Style>
+
+  <Style x:Key="SnapshotDiagnosticBorderStyle" TargetType="{x:Type Border}">
+    <Setter Property="Margin" Value="0,11,0,0" />
+    <Setter Property="Padding" Value="11,7,11,8" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="BorderThickness" Value="3,0,0,0" />
+    <Setter Property="SnapsToDevicePixels" Value="True" />
+    <Setter Property="Background" Value="{DynamicResource WarningSoftBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}" />
+    <Style.Triggers>
+      <DataTrigger Binding="{Binding Status.Tone}" Value="Critical">
+        <Setter Property="Background" Value="{DynamicResource DangerSoftBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}" />
+      </DataTrigger>
+      <DataTrigger Binding="{Binding Status.Tone}" Value="Neutral">
+        <Setter Property="Background" Value="{DynamicResource SurfaceAltBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource StrongDividerBrush}" />
+      </DataTrigger>
+    </Style.Triggers>
+  </Style>
+
+  <Style x:Key="SnapshotDiagnosticTextStyle" TargetType="{x:Type TextBlock}">
+    <Setter Property="FontFamily" Value="{DynamicResource ApplicationFont}" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+    <Setter Property="Foreground" Value="{DynamicResource WarningTextBrush}" />
+    <Style.Triggers>
+      <DataTrigger Binding="{Binding Status.Tone}" Value="Critical">
+        <Setter Property="Foreground" Value="{DynamicResource DangerTextBrush}" />
+      </DataTrigger>
+      <DataTrigger Binding="{Binding Status.Tone}" Value="Neutral">
+        <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}" />
+      </DataTrigger>
+    </Style.Triggers>
+  </Style>
+
+  <DataTemplate x:Key="SnapshotEventRowTemplate" DataType="{x:Type vm:SnapshotEventViewModel}">
+    <Grid Margin="0,0,0,10">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="48" />
+        <ColumnDefinition Width="*" />
+      </Grid.ColumnDefinitions>
+
+      <Grid Grid.Column="0" Width="16" Height="16" HorizontalAlignment="Left"
+            VerticalAlignment="Top" Margin="16,18,0,0">
+        <!-- Opaque backing so the continuous rail reads as passing behind the node. -->
+        <Ellipse Fill="{DynamicResource WindowBackgroundBrush}" Margin="-3" />
+        <Ellipse Style="{StaticResource SnapshotTimelineNodeRingStyle}" />
+        <Ellipse Style="{StaticResource SnapshotTimelineNodeHaloStyle}" />
+      </Grid>
+
+      <Grid Grid.Column="1">
+        <Border Style="{StaticResource SnapshotTimelineCardStyle}">
+          <StackPanel>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Text="{Binding DisplayName}"
+                         FontSize="14" FontWeight="SemiBold"
+                         Foreground="{DynamicResource TextBrush}"
+                         TextTrimming="CharacterEllipsis"
+                         VerticalAlignment="Center" />
+              <ContentPresenter Grid.Column="1" Margin="14,0,0,0"
+                                Content="{Binding Status}"
+                                ContentTemplate="{StaticResource SnapshotEventStatusPillTemplate}" />
+            </Grid>
+
+            <TextBlock Text="{Binding CreatedDisplay}"
+                       Margin="0,4,0,0" FontSize="12.5"
+                       Foreground="{DynamicResource MutedTextBrush}"
+                       TextTrimming="CharacterEllipsis" />
+
+            <TextBlock Text="{Binding MetaDisplay}"
+                       Visibility="{Binding HasMeta, Converter={StaticResource BooleanToVisibilityConverter}}"
+                       Margin="0,3,0,0" FontSize="11.5"
+                       Foreground="{DynamicResource MutedTextBrush}"
+                       TextTrimming="CharacterEllipsis" />
+
+            <Border Style="{StaticResource SnapshotDiagnosticBorderStyle}"
+                    Visibility="{Binding HasDiagnostic, Converter={StaticResource BooleanToVisibilityConverter}}">
+              <TextBlock Text="{Binding DiagnosticReason}"
+                         Style="{StaticResource SnapshotDiagnosticTextStyle}" />
+            </Border>
+          </StackPanel>
+        </Border>
+        <Border Style="{StaticResource SnapshotTimelineSelectionRingStyle}" />
+      </Grid>
+    </Grid>
+  </DataTemplate>
+</ResourceDictionary>

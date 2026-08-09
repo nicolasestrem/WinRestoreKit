@@ -1,0 +1,172 @@
+<Window x:Class="WinRestoreKit.Wpf.Views.AppRestoreDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:ClassModifier="internal"
+        xmlns:vm="clr-namespace:WinRestoreKit.Wpf.ViewModels"
+        Title="Reinstall apps"
+        Width="560"
+        Height="500"
+        MinWidth="500"
+        MinHeight="360"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource WindowBackgroundBrush}"
+        AutomationProperties.Name="Reinstall apps">
+    <Window.Resources>
+        <Style x:Key="PackageRowStyle" TargetType="{x:Type ListBoxItem}">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ListBoxItem}">
+                        <Border x:Name="PackageRow" Background="Transparent" Padding="10,5,10,6">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="PackageRow" Property="Background"
+                                        Value="{DynamicResource HoverBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="EmptyPackagesHintStyle" TargetType="{x:Type TextBlock}">
+            <Setter Property="Visibility" Value="Collapsed" />
+            <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="10,8,10,0" />
+            <Setter Property="VerticalAlignment" Value="Top" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding HasItems, ElementName=AppPackageList}" Value="False">
+                    <Setter Property="Visibility" Value="Visible" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="24,20,24,20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Margin="0,0,0,16">
+            <TextBlock Text="Reinstall apps"
+                       Style="{DynamicResource PageTitleStyle}"
+                       Foreground="{DynamicResource TextBrush}"
+                       FontSize="20"
+                       FontWeight="SemiBold" />
+            <TextBlock Text="Pick a captured app list, then choose which apps to install on this PC."
+                       Style="{DynamicResource BodyTextStyle}"
+                       Foreground="{DynamicResource MutedTextBrush}"
+                       TextWrapping="Wrap"
+                       Margin="0,4,0,0" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" Margin="0,0,0,14">
+            <Label Content="App backup source"
+                   Padding="0"
+                   Margin="0,0,0,4"
+                   FontSize="12"
+                   Foreground="{DynamicResource MutedTextBrush}"
+                   Target="{Binding ElementName=AppSourceComboBox}" />
+            <ComboBox x:Name="AppSourceComboBox"
+                      ItemsSource="{Binding Sources}"
+                      SelectedItem="{Binding SelectedSource}"
+                      DisplayMemberPath="DisplayName"
+                      IsEnabled="{Binding CanChooseSource}"
+                      Padding="8,6"
+                      AutomationProperties.Name="App backup source" />
+        </StackPanel>
+
+        <Border Grid.Row="2" Style="{DynamicResource CardBorderStyle}" Padding="8,10,8,10">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <TextBlock Text="Apps to install"
+                           Style="{DynamicResource SectionTitleStyle}"
+                           Foreground="{DynamicResource TextBrush}"
+                           FontSize="14"
+                           FontWeight="SemiBold"
+                           Margin="10,0,10,8" />
+                <Grid Grid.Row="1">
+                    <ListBox x:Name="AppPackageList"
+                             ItemsSource="{Binding Packages}"
+                             IsEnabled="{Binding CanChoosePackages}"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             Padding="0"
+                             HorizontalContentAlignment="Stretch"
+                             ItemContainerStyle="{StaticResource PackageRowStyle}"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             AutomationProperties.Name="Apps to install">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate DataType="{x:Type vm:AppRestorePackageViewModel}">
+                                <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                          VerticalContentAlignment="Center"
+                                          AutomationProperties.Name="{Binding Identifier}">
+                                    <TextBlock Text="{Binding Identifier}"
+                                               Style="{DynamicResource TechnicalTextStyle}"
+                                               Foreground="{DynamicResource TextBrush}"
+                                               TextWrapping="Wrap"
+                                               Margin="8,0,0,0" />
+                                </CheckBox>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    <TextBlock Text="This source lists no apps to install."
+                               Style="{StaticResource EmptyPackagesHintStyle}"
+                               IsHitTestVisible="False" />
+                </Grid>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="3"
+                Margin="0,14,0,0"
+                Padding="12,9,14,10"
+                CornerRadius="6"
+                BorderThickness="1"
+                BorderBrush="{DynamicResource DividerBrush}"
+                Background="{DynamicResource SurfaceBrush}">
+            <TextBlock TextWrapping="Wrap"
+                       Text="{Binding StatusText}"
+                       Style="{DynamicResource BodyTextStyle}"
+                       Foreground="{DynamicResource MutedTextBrush}"
+                       AutomationProperties.Name="App restore status"
+                       AutomationProperties.LiveSetting="Polite" />
+        </Border>
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Margin="0,0,8,0"
+                    Padding="14,6"
+                    MinWidth="150"
+                    Content="Install selected apps"
+                    Style="{DynamicResource PrimaryButtonStyle}"
+                    Command="{Binding InstallCommand}" />
+            <Button Padding="14,6"
+                    MinWidth="110"
+                    Content="{Binding StopCaption}"
+                    Style="{DynamicResource SecondaryButtonStyle}"
+                    Command="{Binding StopOrCloseCommand}">
+                <Button.ContentTemplate>
+                    <!-- StopCaption grows to a full sentence while a stop is pending, so the
+                         caption wraps instead of stretching the dialog. -->
+                    <DataTemplate>
+                        <TextBlock Text="{Binding}"
+                                   TextWrapping="Wrap"
+                                   TextAlignment="Center"
+                                   MaxWidth="230" />
+                    </DataTemplate>
+                </Button.ContentTemplate>
+            </Button>
+        </StackPanel>
+    </Grid>
+</Window>

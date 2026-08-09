@@ -3,10 +3,11 @@ using DataHelper;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Globalization;
 using System.Linq;
 using System.Windows.Forms;
 using WinRestoreKit;
+using ApplicationScopeGroupRow = WinRestoreKit.ScopeGroupRow;
+using ApplicationScopeGroups = WinRestoreKit.ScopeGroups;
 
 namespace Views
 {
@@ -19,10 +20,9 @@ namespace Views
     /// </remarks>
     public partial class BackupPageView : UserControl
     {
-        private readonly IReadOnlyList<ScopeGroupRow> scopeGroups;
-        private readonly Dictionary<ScopeGroupRow, CustomCheckbox> scopeToggles = new();
+        private readonly IReadOnlyList<ApplicationScopeGroupRow> scopeGroups;
+        private readonly Dictionary<ApplicationScopeGroupRow, CustomCheckbox> scopeToggles = new();
         private readonly Label selectionSummary;
-        private readonly Label estimateValue;
         private readonly Label validationMessage;
         private readonly TextBox snapshotNameInput;
         private readonly TextBox destinationInput;
@@ -33,14 +33,10 @@ namespace Views
         /// </summary>
         internal Action<IReadOnlyList<BackupBase>, string, SnapshotCompression, string> StartBackupRequested;
 
-        /// <summary>
-        /// Retained for callers that supply the restore-wizard navigation seam.
-        /// </summary>
-        internal Action ShowRestoreView = () => { };
 
         public BackupPageView()
         {
-            scopeGroups = ScopeGroups.Build();
+            scopeGroups = ApplicationScopeGroups.Build();
 
             BackColor = Theme.Current.Bg;
             Dock = DockStyle.Fill;
@@ -83,7 +79,7 @@ namespace Views
             content.Controls.Add(scopes, 0, 0);
 
             BlueprintFrame options = CreateOptionsPanel(out snapshotNameInput, out destinationInput,
-                out compressionSelector, out estimateValue, out validationMessage);
+                out compressionSelector, out validationMessage);
             options.Margin = new Padding(Ui.SpaceL, 0, 0, 0);
             content.Controls.Add(options, 1, 0);
 
@@ -168,7 +164,7 @@ namespace Views
 
             for (int index = 0; index < scopeGroups.Count; index++)
             {
-                ScopeGroupRow group = scopeGroups[index];
+                ApplicationScopeGroupRow group = scopeGroups[index];
                 Panel row = CreateScopeRow(group, index, out CustomCheckbox toggle);
                 scopeToggles.Add(group, toggle);
                 rows.Controls.Add(row);
@@ -179,7 +175,7 @@ namespace Views
             return panel;
         }
 
-        private Panel CreateScopeRow(ScopeGroupRow group, int index, out CustomCheckbox toggle)
+        private Panel CreateScopeRow(ApplicationScopeGroupRow group, int index, out CustomCheckbox toggle)
         {
             int rowHeight = string.IsNullOrWhiteSpace(group.CautionNote) ? 68 : 106;
             Panel row = new Panel
@@ -238,33 +234,19 @@ namespace Views
                     UseMnemonic = false
                 };
             }
-            Label size = new Label
-            {
-                Anchor = AnchorStyles.Top | AnchorStyles.Right,
-                Font = Ui.MonoSmall(),
-                ForeColor = Theme.Current.TextMuted,
-                Location = new Point(0, 25),
-                Size = new Size(74, 20),
-                Text = group.SizeLabel,
-                TextAlign = ContentAlignment.MiddleRight,
-                UseMnemonic = false
-            };
             row.SizeChanged += (sender, args) =>
             {
-                int detailWidth = Math.Max(120, row.ClientSize.Width - 132);
+                int detailWidth = Math.Max(120, row.ClientSize.Width - 56);
                 name.Width = detailWidth;
                 detail.Width = detailWidth;
                 if (caution != null)
                     caution.Width = detailWidth;
-
-                size.Left = row.ClientSize.Width - size.Width - Ui.SpaceM;
             };
 
             EventHandler toggleRow = (sender, args) => rowToggle.Checked = !rowToggle.Checked;
             row.Click += toggleRow;
             name.Click += toggleRow;
             detail.Click += toggleRow;
-            size.Click += toggleRow;
             if (caution != null)
                 caution.Click += toggleRow;
 
@@ -274,13 +256,11 @@ namespace Views
             if (caution != null)
                 row.Controls.Add(caution);
 
-            row.Controls.Add(size);
             return row;
         }
 
         private BlueprintFrame CreateOptionsPanel(out TextBox snapshotName, out TextBox destination,
-                                                  out SegmentedControl compression, out Label estimate,
-                                                  out Label message)
+                                                  out SegmentedControl compression, out Label message)
         {
             BlueprintFrame frame = new BlueprintFrame
             {
@@ -317,7 +297,6 @@ namespace Views
                 SelectedIndex = 1,
                 Name = "compressionSelector"
             };
-            compression.SelectedIndexChanged += (sender, args) => RefreshSelectionSummary();
 
             options.Controls.Add(CreateOptionLabel("SNAPSHOT NAME"), 0, 0);
             options.SetColumnSpan(snapshotName, 2);
@@ -333,35 +312,18 @@ namespace Views
             options.SetColumnSpan(compression, 2);
             options.Controls.Add(compression, 0, 7);
 
-            Panel footer = new Panel { Dock = DockStyle.Fill, Height = 78, Margin = new Padding(0, Ui.SpaceL, 0, 0) };
-            Label estimateCaption = new Label
-            {
-                AutoSize = true,
-                Text = "ESTIMATED TOTAL",
-                Font = Ui.Kicker(),
-                ForeColor = Theme.Current.TextMuted,
-                Location = new Point(0, 0)
-            };
-            estimate = new Label
-            {
-                AutoSize = true,
-                Font = Ui.Mono(),
-                ForeColor = Theme.Current.Text,
-                Location = new Point(0, 18)
-            };
+            Panel footer = new Panel { Dock = DockStyle.Fill, Margin = new Padding(0, Ui.SpaceL, 0, 0) };
             Label messageLabel = new Label
             {
                 AutoEllipsis = true,
                 ForeColor = Theme.Current.Accent2_600,
                 Font = Ui.MonoSmall(),
-                Location = new Point(0, 40),
+                Location = new Point(0, 0),
                 Size = new Size(10, 19),
                 Visible = false
             };
             message = messageLabel;
             footer.SizeChanged += (sender, args) => messageLabel.Width = footer.ClientSize.Width;
-            footer.Controls.Add(estimateCaption);
-            footer.Controls.Add(estimate);
             footer.Controls.Add(message);
             options.SetColumnSpan(footer, 2);
             options.Controls.Add(footer, 0, 8);
@@ -507,59 +469,6 @@ namespace Views
         {
             int selected = scopeToggles.Values.Count(toggle => toggle.Checked);
             selectionSummary.Text = selected + " of " + scopeGroups.Count + " groups";
-            estimateValue.Text = EstimateSelection();
-        }
-
-        private string EstimateSelection()
-        {
-            long totalBytes = 0;
-            foreach (ScopeGroupRow group in scopeGroups)
-            {
-                if (!scopeToggles[group].Checked || !TryParseSize(group.SizeLabel, out long bytes))
-                    return "--";
-
-                totalBytes += bytes;
-            }
-
-            return FormatSize(totalBytes);
-        }
-
-        private static bool TryParseSize(string label, out long bytes)
-        {
-            bytes = 0;
-            string[] parts = (label ?? string.Empty).Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length != 2 || !double.TryParse(parts[0], NumberStyles.Number, CultureInfo.InvariantCulture, out double value))
-                return false;
-
-            double multiplier = parts[1].ToUpperInvariant() switch
-            {
-                "B" => 1d,
-                "KB" => 1024d,
-                "MB" => 1024d * 1024d,
-                "GB" => 1024d * 1024d * 1024d,
-                _ => 0d
-            };
-            if (multiplier == 0d || value < 0d || value > long.MaxValue / multiplier)
-                return false;
-
-            bytes = (long)Math.Round(value * multiplier, MidpointRounding.AwayFromZero);
-            return true;
-        }
-
-        private static string FormatSize(long bytes)
-        {
-            const long Gigabyte = 1024L * 1024L * 1024L;
-            const long Megabyte = 1024L * 1024L;
-            const long Kilobyte = 1024L;
-
-            if (bytes >= Gigabyte)
-                return (bytes / (double)Gigabyte).ToString("0.0", CultureInfo.InvariantCulture) + " GB";
-            if (bytes >= Megabyte)
-                return (bytes / (double)Megabyte).ToString("0.0", CultureInfo.InvariantCulture) + " MB";
-            if (bytes >= Kilobyte)
-                return (bytes / (double)Kilobyte).ToString("0.0", CultureInfo.InvariantCulture) + " KB";
-
-            return bytes + " B";
         }
 
         private void SetValidationMessage(string text)
@@ -577,7 +486,7 @@ namespace Views
                 moduleTypeNames?.Where(name => !string.IsNullOrWhiteSpace(name)) ?? Array.Empty<string>(),
                 StringComparer.Ordinal);
 
-            foreach (ScopeGroupRow group in scopeGroups)
+            foreach (ApplicationScopeGroupRow group in scopeGroups)
             {
                 scopeToggles[group].Checked = group.Modules.Any(module =>
                     wanted.Contains(module.GetType().Name));

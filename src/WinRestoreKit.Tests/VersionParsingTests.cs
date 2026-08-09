@@ -68,12 +68,13 @@ namespace WinRestoreKit.Tests
         }
 
         [Fact]
-        public void ParseLatestVersion_OnRealAssemblyInfo_AgreesWithGetCurrentVersionTostring()
+        public void ParseLatestVersion_OnRealAssemblyInfo_AgreesWithGetCurrentVersion()
         {
-            // THE load-bearing invariant. CheckForUpdatesAsync compares these two values with ==; if they
-            // can differ for an up-to-date client, the app reports a phantom update forever.
+            // The fallback-version invariant. UpdateCheckService.Decide normalizes and compares both
+            // sides, so a difference for an up-to-date client must never become a phantom update offer.
             string remoteSide = global::DataHelper.Data.ParseLatestVersion(RealAssemblyInfoText());
-            string localSide = global::WinRestoreKit.Program.GetCurrentVersionTostring();
+            string localSide = global::WinRestoreKit.VersionInfo.GetCurrentVersion(
+                typeof(global::WinRestoreKit.MainForm).Assembly);
 
             Assert.Equal(localSide, remoteSide);
         }
@@ -157,8 +158,8 @@ namespace WinRestoreKit.Tests
         [Fact]
         public void ParseLatestVersion_NoMatchingLine_ReturnsEmptyString()
         {
-            // Empty string - not null, and no throw. CheckForUpdatesAsync then compares "" against the
-            // current version, finds them unequal, and offers a bogus update. Documented, not fixed.
+            // Empty string - not null, and no throw. UpdateCheckService.Decide classifies it as
+            // LatestVersionUnreadable and shows no download offer.
             string text = "using System;\n[assembly: AssemblyVersion(\"1.2.3\")]\n";
 
             Assert.Equal(string.Empty, global::DataHelper.Data.ParseLatestVersion(text));
@@ -174,8 +175,8 @@ namespace WinRestoreKit.Tests
         public void ParseLatestVersion_MatchingLineWithoutParentheses_Throws()
         {
             // CURRENT BEHAVIOR: IndexOf returns -1 for both parens, producing a negative Substring
-            // length. In production this is swallowed by CheckForUpdatesAsync' catch and surfaces as
-            // "Checking for App updates failed."
+            // length. In production this escapes the fallback parser and CheckForUpdatesAsync shows
+            // its owner-guarded update-check failure prompt.
             string text = "[assembly: AssemblyFileVersion is mentioned in a comment";
 
             Assert.Throws<ArgumentOutOfRangeException>(
@@ -195,34 +196,18 @@ namespace WinRestoreKit.Tests
         // ---------------------------------------------------------------------------------------
 
         [Fact]
-        public void GetCurrentVersionTostring_ReturnsWellFormedThreePartVersion()
+        public void GetCurrentVersion_UsesTheAssemblyFileVersionAttribute()
         {
-            string version = global::WinRestoreKit.Program.GetCurrentVersionTostring();
+            string version = global::WinRestoreKit.VersionInfo.GetCurrentVersion(
+                typeof(VersionParsingTests).Assembly);
 
-            Assert.False(string.IsNullOrWhiteSpace(version));
-            Assert.Equal(3, version.Split('.').Length);
-            Assert.Equal(version, new Version(version).ToString(3));
-            // A "+<sha>" or "-preview" suffix would make new Version(...) throw upstream of here.
-            Assert.DoesNotContain("+", version);
-            Assert.DoesNotContain("-", version);
-        }
-
-        [Fact]
-        public void GetCurrentVersionTostring_MatchesAssemblyFileVersionAttribute()
-        {
-            // Pins the source of truth: the value must come from AssemblyFileVersion (what the
-            // remote checker parses), NOT from AssemblyInformationalVersion or a csproj <Version>.
-            string expected = new Version(
-                typeof(global::WinRestoreKit.MainForm).Assembly
-                    .GetCustomAttribute<AssemblyFileVersionAttribute>()
-                    .Version).ToString(3);
-
-            Assert.Equal(expected, global::WinRestoreKit.Program.GetCurrentVersionTostring());
+            Assert.NotEqual(global::WinRestoreKit.VersionInfo.UnknownVersion, version);
+            Assert.Matches("^\\d+\\.\\d+\\.\\d+$", version);
         }
 
         // ---------------------------------------------------------------------------------------
-        // NormalizeVersion - the pure half of the local side. GetCurrentVersionTostring runs during
-        // MainForm construction, so anything that makes this throw is a startup crash.
+        // VersionInfo.Normalize - the pure half of the local side. VersionInfo is used during shell
+        // construction, so anything that makes this throw is a startup crash.
         // ---------------------------------------------------------------------------------------
 
         [Theory]
@@ -232,7 +217,7 @@ namespace WinRestoreKit.Tests
         [InlineData("  1.2.3  ", "1.2.3")]
         public void NormalizeVersion_WellFormed_ReturnsThreePartVersion(string raw, string expected)
         {
-            Assert.Equal(expected, global::WinRestoreKit.Program.NormalizeVersion(raw));
+            Assert.Equal(expected, global::WinRestoreKit.VersionInfo.Normalize(raw));
         }
 
         [Theory]
@@ -241,7 +226,7 @@ namespace WinRestoreKit.Tests
         public void NormalizeVersion_SemVerSuffix_IsStripped(string raw, string expected)
         {
             // What an AssemblyInformationalVersion would look like if one were ever introduced.
-            Assert.Equal(expected, global::WinRestoreKit.Program.NormalizeVersion(raw));
+            Assert.Equal(expected, global::WinRestoreKit.VersionInfo.Normalize(raw));
         }
 
         [Fact]
@@ -249,7 +234,7 @@ namespace WinRestoreKit.Tests
         {
             // The trap that made the naive Version.TryParse fix wrong: "1.2" parses just fine, but
             // Version.ToString(3) throws ArgumentException because Build was never set.
-            Assert.Equal("1.2", global::WinRestoreKit.Program.NormalizeVersion("1.2"));
+            Assert.Equal("1.2", global::WinRestoreKit.VersionInfo.Normalize("1.2"));
         }
 
         [Theory]
@@ -259,10 +244,9 @@ namespace WinRestoreKit.Tests
         [InlineData("+")]
         public void NormalizeVersion_Unparseable_ReturnsInputVerbatim(string raw)
         {
-            // Passed through, not replaced with a plausible-looking placeholder - see the remarks
-            // on NormalizeVersion. "-" and "+" also cover the suffix strip producing an empty
-            // candidate, which must not turn into an empty return value.
-            Assert.Equal(raw, global::WinRestoreKit.Program.NormalizeVersion(raw));
+            // Passed through, not replaced with a plausible-looking placeholder. "-" and "+" also
+            // cover the suffix strip producing an empty candidate, which must not turn into empty.
+            Assert.Equal(raw, global::WinRestoreKit.VersionInfo.Normalize(raw));
         }
 
         [Theory]
@@ -271,30 +255,24 @@ namespace WinRestoreKit.Tests
         [InlineData("   ")]
         public void NormalizeVersion_Missing_ReturnsUnknown(string raw)
         {
-            // Reachable only if both AssemblyFileVersion and Application.ProductVersion come back
-            // empty. Previously this dereferenced null and took the app down at startup.
-            Assert.Equal(global::WinRestoreKit.Program.UnknownVersion,
-                         global::WinRestoreKit.Program.NormalizeVersion(raw));
+            Assert.Equal(global::WinRestoreKit.VersionInfo.UnknownVersion,
+                         global::WinRestoreKit.VersionInfo.Normalize(raw));
         }
 
         [Fact]
         public void NormalizeVersion_UnknownPlaceholder_IsNotMistakableForAVersion()
         {
-            // The placeholder must never look like a real version, or a user reading the title bar
-            // cannot tell "we don't know" from "0.0.0 is installed".
-            Assert.False(Version.TryParse(global::WinRestoreKit.Program.UnknownVersion, out _));
+            Assert.False(Version.TryParse(global::WinRestoreKit.VersionInfo.UnknownVersion, out _));
         }
 
         [Fact]
         public void Assembly_DeclaresNoInformationalVersion_SoProductVersionCannotDrift()
         {
-            // Guards the trap described in Program.GetCurrentVersionTostring's remarks. Adding an
-            // AssemblyInformationalVersion - directly, or implicitly by setting <Version> in the
-            // csproj - makes the SDK append "+<commit-sha>", and Application.ProductVersion prefers
-            // that attribute over the Win32 resource. Asserting absence outright (rather than
-            // "absent OR clean") is deliberate: it makes the failure fire at the moment someone
-            // introduces the attribute, which is when the decision needs re-examining, instead of
-            // waiting for the suffix to actually appear in a release build.
+            // Guards the source-of-truth invariant in VersionInfo. Adding an
+            // AssemblyInformationalVersion can make release metadata diverge from the Win32 resource.
+            // Asserting absence outright (rather than "absent OR clean") is deliberate: it makes the
+            // failure fire at the moment someone introduces the attribute, which is when the decision
+            // needs re-examining, instead of waiting for the suffix to actually appear in a release build.
             var informational = typeof(global::WinRestoreKit.MainForm).Assembly
                 .GetCustomAttribute<AssemblyInformationalVersionAttribute>();
 

@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
-using System.Windows.Forms;
 using Xunit;
 
 namespace WinRestoreKit.Tests
@@ -21,7 +20,8 @@ namespace WinRestoreKit.Tests
                 await runner.RunBackup(new BackupBase[] { new ArtifactModule() }, isolation.DestinationRoot,
                     "archive-progress", SnapshotCompression.Fast);
 
-                string backupPath = Path.Combine(isolation.DestinationRoot, Data.NowShort);
+                string backupPath = runner.BackupOutputPath;
+                Assert.Equal(Path.Combine(isolation.DestinationRoot, Data.NowShort), backupPath);
                 ManifestData manifest = BackupManifest.TryParse(
                     File.ReadAllText(Path.Combine(backupPath, BackupManifest.FileName)));
 
@@ -51,7 +51,7 @@ namespace WinRestoreKit.Tests
         {
             internal List<string> ProgressTexts { get; } = new List<string>();
 
-            public IWin32Window Owner => null;
+            public object DialogOwner => null;
 
             public void SetProgressText(string text) => ProgressTexts.Add(text);
             public void SetProgressPercent(int percent) { }

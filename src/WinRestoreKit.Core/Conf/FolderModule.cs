@@ -1,3 +1,4 @@
+using System;
 using WinRestoreKit;
 using System.Collections.Generic;
 using System.IO;
@@ -110,9 +111,41 @@ namespace Conf
             return false;
         }
 
+        /// <summary>
+        /// Removes this module's previous backup directory before a fresh copy begins.
+        /// </summary>
+        private static string TryClear(string directoryPath)
+        {
+            try
+            {
+                if (Directory.Exists(directoryPath))
+                    Directory.Delete(directoryPath, recursive: true);
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                LogHelper.Instance.LogMessage(
+                    "Could not clear the previous backup folder at " + directoryPath + ": " + ex.Message);
+                return ex.Message;
+            }
+        }
+
         public sealed override async Task<ModuleResult> BackupAsync(string path)
         {
-            CopyResult copy = await Utils.CopyFolder(Folder, Path.Combine(path, Title));
+            string backupDir = Path.Combine(path, Title);
+            string clearError = TryClear(backupDir);
+
+            if (clearError != null)
+            {
+                return ModuleResult.Aggregate(new[]
+                {
+                    StepResult.Failed(Title,
+                        "could not clear the previous backup folder at " + backupDir + ": " + clearError)
+                });
+            }
+
+            CopyResult copy = await Utils.CopyFolder(Folder, backupDir);
 
             return ModuleResult.Aggregate(new[] { BackupStepFor(copy) });
         }

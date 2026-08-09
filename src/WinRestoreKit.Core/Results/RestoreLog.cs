@@ -102,27 +102,22 @@ namespace WinRestoreKit
                 yield break;
             }
 
-            // RequiresOverride means the gate stopped the restore and the user pushed past it: the
-            // restore happened DESPITE the snapshot, not on the strength of it.
-            //
-            // Everything else defers to the verdict, and ONLY Complete may say the snapshot
-            // completed. Stated as an allowlist rather than by excluding the states that must not
-            // claim it, because excluding them is what went wrong: PartiallyCaptured was added to
-            // the gate and inherited the completion line by default, so a restore that overwrote
-            // items the snapshot had nothing to save for was recorded as fully protected. A verdict
-            // added later must fall back to its own summary, not to a claim nobody checked.
-            bool claimsCompletion =
-                !snapshot.RequiresOverride && snapshot.Verdict == SnapshotVerdict.Complete;
+            // Consent and log wording are independent. PartiallyCaptured needs consent because
+            // some writes have no fallback, but it did capture a snapshot; its own summary names
+            // the missing fallback more accurately than the no-snapshot warning. A NothingCaptured
+            // verdict only gets that warning when the gate required consent: an entirely empty
+            // selection is a legitimate no-op and has no snapshot risk to warn about.
+            bool claimsCompletion = snapshot.Verdict == SnapshotVerdict.Complete;
+            bool isPartialCapture = snapshot.Verdict == SnapshotVerdict.PartiallyCaptured;
+            bool isSafeEmptySnapshot =
+                snapshot.Verdict == SnapshotVerdict.NothingCaptured && !snapshot.RequiresOverride;
 
-            if (snapshot.RequiresOverride)
-                yield return NoSnapshotWarning;
-            else if (claimsCompletion)
+            if (claimsCompletion)
                 yield return SnapshotTakenLine;
-            else
-                yield return "# " + snapshot.Summary;
+            else if (!isPartialCapture && !isSafeEmptySnapshot)
+                yield return NoSnapshotWarning;
 
-            if (claimsCompletion || snapshot.RequiresOverride)
-                yield return "# " + snapshot.Summary;
+            yield return "# " + snapshot.Summary;
 
             for (int i = 0; i < snapshot.Failures.Count; i++)
                 yield return "#   " + snapshot.Failures[i];

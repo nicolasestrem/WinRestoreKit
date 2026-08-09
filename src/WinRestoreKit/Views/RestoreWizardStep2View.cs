@@ -258,9 +258,11 @@ namespace Views
 
         private Control MakeRow(RestoreContentsRow row)
         {
-            string caption = row.HasBackup
-                ? row.Module.Title
-                : row.Module.Title + " (nothing in this snapshot)";
+            string caption = row.CouldNotBeRead
+                ? row.Module.Title + " (could not be read)"
+                : row.HasBackup
+                    ? row.Module.Title
+                    : row.Module.Title + " (nothing in this snapshot)";
 
             CustomCheckbox checkbox = new CustomCheckbox
             {
@@ -278,7 +280,7 @@ namespace Views
                 AutoSize = true,
                 Anchor = AnchorStyles.Left,
                 Font = Ui.BodyBold(),
-                ForeColor = row.HasBackup ? Theme.Current.Text : Theme.Current.TextMuted,
+                ForeColor = row.HasBackup || row.CouldNotBeRead ? Theme.Current.Text : Theme.Current.TextMuted,
                 Margin = new Padding(0, 0, Ui.SpaceS, 0),
                 Text = caption,
             };
@@ -332,7 +334,7 @@ namespace Views
             FlowLayoutPanel content = CreateVerticalFlow();
             content.Controls.Add(rowTop);
 
-            if (row.HasBackup && !string.IsNullOrWhiteSpace(row.Warning))
+            if ((row.HasBackup || row.CouldNotBeRead) && !string.IsNullOrWhiteSpace(row.Warning))
             {
                 AccentLabel rowWarning = new AccentLabel
                 {

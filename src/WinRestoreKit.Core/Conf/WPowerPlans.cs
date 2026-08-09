@@ -220,7 +220,7 @@ namespace Conf
         /// <summary>
         /// A powercfg run together with whatever it printed.
         /// </summary>
-        private sealed class ToolCapture
+        protected sealed class ToolCapture
         {
             internal ProcessOutcome Outcome;
 
@@ -245,7 +245,7 @@ namespace Conf
         /// It is removed in a finally. A removal that fails is logged and dropped: it leaves a few
         /// hundred bytes in %TEMP% and must never displace the real result of the run.
         /// </remarks>
-        private static async Task<ToolCapture> CaptureAsync(params string[] args)
+        protected virtual async Task<ToolCapture> CaptureAsync(params string[] args)
         {
             ToolCapture capture = new ToolCapture();
 
@@ -375,6 +375,16 @@ namespace Conf
 
             try
             {
+                string manifestPath = ManifestPathIn(path);
+                string clearError = TryClear(manifestPath);
+
+                if (clearError != null)
+                {
+                    steps.Add(StepResult.Failed(Title,
+                        "could not clear the previous manifest at " + manifestPath + ": " + clearError));
+                    return ModuleResult.Aggregate(steps);
+                }
+
                 ToolCapture list = await CaptureAsync("/list");
 
                 string problem = ProblemWith(list.Outcome);
