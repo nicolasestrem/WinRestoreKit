@@ -28,13 +28,13 @@ namespace WinRestoreKit.Tests
 
                 Assert.Equal(ComparisonFilter.All, workspace.SelectedFilter);
                 Assert.Equal(4, workspace.VisibleRows.Count);
-                workspace.RestoreSet.Add(workspace.Rows[2].Comparison);
+                workspace.RestoreSet.Add(workspace.Rows[1].Comparison);
 
                 workspace.SelectedFilter = ComparisonFilter.ChangedOnly;
 
                 Assert.Single(workspace.VisibleRows);
                 Assert.Equal("Changed", workspace.VisibleRows[0].Title);
-                Assert.True(workspace.RestoreSet.Contains(workspace.Rows[2].Comparison.Module));
+                Assert.True(workspace.RestoreSet.Contains(workspace.Rows[1].Comparison.Module));
             });
         }
 
@@ -98,7 +98,7 @@ namespace WinRestoreKit.Tests
 
                 ModuleComparison selected = new ModuleComparison(
                     navigator.CurrentWorkspace.Rows[0].Registration.Module,
-                    ComparisonState.Unavailable, true, "Artifact captured.", "Comparison unavailable.");
+                    ComparisonState.Changed, true, "Artifact captured.", "Current state differs.");
                 navigator.CurrentWorkspace.RestoreSet.Add(selected);
 
                 string incomingOwnedPath = Path.Combine(Path.GetTempPath(), "WinRestoreKit.Tests", Guid.NewGuid().ToString("N"));
@@ -134,7 +134,7 @@ namespace WinRestoreKit.Tests
                 ComparisonWorkspaceViewModel firstWorkspace = navigator.CurrentWorkspace;
                 firstWorkspace.RestoreSet.Add(new ModuleComparison(
                     firstWorkspace.Rows[0].Registration.Module,
-                    ComparisonState.Unavailable, true, "Artifact captured.", "Comparison unavailable."));
+                    ComparisonState.Changed, true, "Artifact captured.", "Current state differs."));
 
                 await navigator.LeaveCompareAsync();
 

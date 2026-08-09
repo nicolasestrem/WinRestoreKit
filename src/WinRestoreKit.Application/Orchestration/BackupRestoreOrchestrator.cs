@@ -79,9 +79,9 @@ namespace WinRestoreKit
         /// Runs a user backup below <paramref name="destinationPath"/> with an optional display name.
         /// </summary>
         /// <remarks>
-        /// The physical folder always retains the frozen Data.NowShort shape. A present custom name
-        /// is validated and stored only in the manifest for display after a backup folder is copied
-        /// or renamed.
+        /// The physical folder keeps the established timestamp shape, with seconds and a numeric
+        /// collision suffix when needed. A present custom name is validated and stored only in the
+        /// manifest for display after a backup folder is copied or renamed.
         /// </remarks>
         internal Task RunBackup(IReadOnlyList<BackupBase> selection, string destinationPath,
                                 string snapshotName, SnapshotCompression compression)
@@ -111,7 +111,7 @@ namespace WinRestoreKit
             }
 
             SnapshotCompression = compression;
-            string backupPath = Path.Combine(destinationPath, Data.NowShort);
+            string backupPath = Path.Combine(destinationPath, BackupNaming.TimestampNameFor(DateTime.Now));
             BackupOutputPath = backupPath;
 
             if (DestinationInsideSelectedSource(backupPath, selection, out string containingSource))
@@ -242,34 +242,52 @@ namespace WinRestoreKit
                                          string snapshotName, SnapshotCompression compression,
                                          string destinationRoot)
         {
-            bool folderExistedBeforeRun = Directory.Exists(backupPath);
             string createError;
+            bool folderExistedBeforeRun;
+            bool exclusivelyOwned;
 
-            if (!TryCreateBackupFolder(backupPath, out createError))
+            if (destinationRoot != null)
             {
-                // Reported as a run that DID NOT RUN, not as a crash and not as a silent
-                // no-op: the user asked for a backup and got nothing, and they need to be
-                // told which of those two it was.
-                ui.ShowSummary(RunSummary.For(new List<ModuleOutcome>(), false, RunVerb.Backup,
-                    "the backup folder could not be created: " + createError), "Backup",
-                    new List<ModuleOutcome>());
-                return;
-            }
+                string baseFolderName = Path.GetFileName(backupPath);
+                if (!TryCreateFreshBackupFolder(destinationRoot, baseFolderName,
+                    out backupPath, out createError))
+                {
+                    BackupOutputPath = backupPath;
+                    ui.ShowSummary(RunSummary.For(new List<ModuleOutcome>(), false, RunVerb.Backup,
+                        "the backup folder could not be reserved: " + createError), "Backup",
+                        new List<ModuleOutcome>());
+                    return;
+                }
 
-            // Claimed only when this run itself observed the folder as absent: a folder that
-            // already existed is never this run's to claim, exclusively or otherwise, and is
-            // handled by the folderExistedBeforeRun branch below regardless of this flag.
-            bool exclusivelyOwned = !folderExistedBeforeRun && TryClaimExclusiveFolderOwnership(backupPath);
+                BackupOutputPath = backupPath;
+                folderExistedBeforeRun = false;
+                exclusivelyOwned = true;
+            }
+            else
+            {
+                folderExistedBeforeRun = Directory.Exists(backupPath);
+                if (!TryCreateBackupFolder(backupPath, out createError))
+                {
+                    // Reported as a run that DID NOT RUN, not as a crash and not as a silent
+                    // no-op: the user asked for a backup and got nothing, and they need to be
+                    // told which of those two it was.
+                    ui.ShowSummary(RunSummary.For(new List<ModuleOutcome>(), false, RunVerb.Backup,
+                        "the backup folder could not be created: " + createError), "Backup",
+                        new List<ModuleOutcome>());
+                    return;
+                }
+
+                // Claimed only when this run itself observed the folder as absent: a folder that
+                // already existed is never this run's to claim, exclusively or otherwise.
+                exclusivelyOwned = !folderExistedBeforeRun && TryClaimExclusiveFolderOwnership(backupPath);
+            }
 
             if (destinationRoot != null)
                 BackupRootRegistry.Remember(destinationRoot);
 
-            // Before a single module writes anything. The backup path is built from Data.NowShort
-            // by the caller, stamped once per process, so a second Backup click in the same session
-            // runs into the SAME folder - and the first run's manifest would otherwise survive
-            // alongside files the second run has already replaced. That is the confidently-green
-            // failure the whole-and-last write exists to prevent, arriving by a different route: an
-            // interrupted second run must read as unknown, not as the first run's verdict.
+            // Before a single module writes anything. The direct-path overload may intentionally
+            // reuse a folder, and old builds also reused one process-scoped timestamp. In either
+            // case the first run's manifest must not survive beside files a later run replaces.
             if (InvalidateBackupManifest(backupPath))
             {
                 ui.ShowSummary(RunSummary.For(new List<ModuleOutcome>(), false, RunVerb.Backup,
@@ -393,6 +411,50 @@ namespace WinRestoreKit
         }
 
         /// <summary>
+        /// Creates and exclusively claims a new timestamped child below a user-selected root.
+        /// </summary>
+        /// <remarks>
+        /// Directory creation alone is not exclusive on Windows. Two processes can both observe a
+        /// missing directory and both receive success from Directory.CreateDirectory. The owner
+        /// marker uses FileMode.CreateNew, so only one contender may keep a candidate. The other
+        /// advances to a numeric suffix without touching the first run's files.
+        /// </remarks>
+        private bool TryCreateFreshBackupFolder(string destinationRoot, string baseFolderName,
+                                                out string backupPath, out string error)
+        {
+            backupPath = Path.Combine(destinationRoot, baseFolderName);
+            error = null;
+
+            for (int candidateNumber = 1; candidateNumber <= 999; candidateNumber++)
+            {
+                string folderName = candidateNumber == 1
+                    ? baseFolderName
+                    : baseFolderName + " (" + candidateNumber.ToString(CultureInfo.InvariantCulture) + ")";
+                string candidatePath = Path.Combine(destinationRoot, folderName);
+                backupPath = candidatePath;
+
+                if (Directory.Exists(candidatePath))
+                    continue;
+
+                if (!TryCreateBackupFolder(candidatePath, out error))
+                    return false;
+
+                if (TryClaimExclusiveFolderOwnership(candidatePath))
+                    return true;
+
+                string markerPath = Path.Combine(candidatePath, OwnershipMarkerFileName);
+                if (!File.Exists(markerPath))
+                {
+                    error = "exclusive ownership of " + candidatePath + " could not be established";
+                    return false;
+                }
+            }
+
+            error = "no unused timestamped folder name remained below " + destinationRoot;
+            return false;
+        }
+
+        /// <summary>
         /// Marker filename used to break the folder-creation race between two app instances.
         /// </summary>
         /// <remarks>
@@ -407,11 +469,11 @@ namespace WinRestoreKit
         /// this folder as its own to delete on cancellation.
         /// </summary>
         /// <remarks>
-        /// Data.NowShort is minute-granularity, so two app instances started in the same minute and
-        /// targeting the same destination compute the identical backup path. Both then observe
-        /// Directory.Exists as false and both succeed at Directory.CreateDirectory, which is
-        /// idempotent and tells neither of them anything about the other. Left unresolved, whichever
-        /// one cancels first would delete a folder the other is actively writing into.
+        /// Two app instances can choose the same second-resolution candidate before either creates
+        /// it. Both then observe Directory.Exists as false and both succeed at
+        /// Directory.CreateDirectory, which is idempotent and tells neither of them anything about
+        /// the other. Left unresolved, whichever one cancels first could delete a folder the other
+        /// is actively writing into.
         ///
         /// FileMode.CreateNew is the one filesystem primitive here that is genuinely atomic: it
         /// throws if the file already exists, so at most one caller across any number of racing
@@ -613,11 +675,10 @@ namespace WinRestoreKit
         /// </summary>
         /// <remarks>
         /// The whole-and-last write guarantees a manifest describes a COMPLETED run, but only for a
-        /// folder that started empty. Backing up twice in one session reuses the folder, because
-        /// the backup path is built from Data.NowShort and that is stamped once per process. Then
-        /// the first run's manifest sits beside files the second run has already overwritten, and if
-        /// the second run is interrupted the reader trusts a verdict for data that is no longer
-        /// there - a stale green, which is the failure this file exists to make impossible.
+        /// folder that started empty. The direct-path overload and folders produced by older builds
+        /// can still be reused intentionally. Then the first run's manifest can sit beside files a
+        /// later run already overwrote, and an interruption would leave a verdict for data that is
+        /// no longer there. That stale green is the failure this method makes impossible.
         ///
         /// Deleting up front means the window between "modules started" and "manifest published" has
         /// no manifest in it at all, which is exactly the state the reader renders as unknown.
@@ -700,13 +761,11 @@ namespace WinRestoreKit
         /// The scratch path the manifest is written to before being moved into place.
         /// </summary>
         /// <remarks>
-        /// Process-scoped. Data.NowShort has minute precision and there is no single-instance guard,
-        /// so two copies of the app started in the same minute address the same backup folder. They
-        /// would otherwise share one .tmp and overwrite each other's half-written document, which is
-        /// the one way this write can publish a well-formed manifest describing neither run. Their
-        /// racing over the FINAL file is a pre-existing hazard of the shared folder - two processes
-        /// writing one backup was already unsound before this file existed - but the temp collision
-        /// is created here, so it is closed here.
+        /// Process-scoped. Direct-path callers and older builds can address the same backup folder.
+        /// They would otherwise share one .tmp and overwrite each other's half-written document,
+        /// which can publish a well-formed manifest describing neither run. Their racing over the
+        /// final file is a pre-existing hazard of a shared folder, but this method does not add a
+        /// second collision at the temporary path.
         /// </remarks>
         private static string TempManifestPath(string finalPath)
             => finalPath + "." + Environment.ProcessId.ToString(CultureInfo.InvariantCulture) + ".tmp";

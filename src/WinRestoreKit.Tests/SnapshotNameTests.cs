@@ -5,6 +5,15 @@ namespace WinRestoreKit.Tests
 {
     public class SnapshotNameTests
     {
+        [Fact]
+        public void TimestampNameFor_UsesFreshSecondPrecisionInvariantShape()
+        {
+            string name = BackupNaming.TimestampNameFor(
+                new DateTime(2026, 8, 10, 7, 8, 9, DateTimeKind.Local));
+
+            Assert.Equal("2026-08-10 - 07.08.09", name);
+        }
+
         [Theory]
         [InlineData("before-driver-update")]
         [InlineData("2026-08-03 baseline")]

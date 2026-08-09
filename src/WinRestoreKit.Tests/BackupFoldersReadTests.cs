@@ -113,7 +113,7 @@ namespace WinRestoreKit.Tests
             RunWithRoots((defaultRoot, customRoot) =>
             {
                 string timestamp = Directory.CreateDirectory(
-                    Path.Combine(customRoot, "2024-01-02 - 03.04 (3)")).FullName;
+                    Path.Combine(customRoot, "2024-01-02 - 03.04.05 (3)")).FullName;
                 string manifested = Directory.CreateDirectory(Path.Combine(customRoot, "named-backup")).FullName;
                 File.WriteAllText(Path.Combine(manifested, BackupManifest.FileName), "{}");
 

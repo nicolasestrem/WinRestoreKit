@@ -22,7 +22,7 @@ namespace WinRestoreKit.Wpf.ViewModels
         public string Category => Registration.Category;
         public ModuleImpactViewModel Impact { get; }
         public bool IsChecking => Comparison == null;
-        public bool CanChangeRestoreSet => Comparison != null && Comparison.HasUsableArtifact;
+        public bool CanChangeRestoreSet => Comparison?.CanRestore == true;
         public bool IsInRestoreSet => restoreSet.Contains(Registration.Module);
         public string StateLabel => IsChecking ? "Checking" : Comparison.State.ToString();
         public string ArtifactSummary => IsChecking ? "Comparison has not finished." : Comparison.ArtifactSummary;

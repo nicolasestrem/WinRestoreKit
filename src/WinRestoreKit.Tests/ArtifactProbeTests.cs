@@ -154,16 +154,17 @@ namespace WinRestoreKit.Tests
         }
 
         [Fact]
-        public void AppStoreApps_SaysYesOnPurposeRatherThanCannotTell()
+        public void AppStoreApps_ReportsOnlyItsOwnExportAsAnArtifact()
         {
-            // Its restore opens a dialog with its own folder picker, so folder contents are the
-            // wrong question. It must answer a literal true, never null - null would let the
-            // manifest-silence rule grey out a dialog that was perfectly able to open.
             string dir = NewTempDir();
 
             try
             {
-                Assert.True(ByName("AppStoreApps").HasArtifactIn(dir));
+                BackupBase module = ByName("AppStoreApps");
+                Assert.False(module.HasArtifactIn(dir));
+
+                File.WriteAllText(AppStoreApps.ExportPathIn(dir), "{\"Sources\":[{\"Packages\":[]}]}");
+                Assert.True(module.HasArtifactIn(dir));
             }
             finally
             {

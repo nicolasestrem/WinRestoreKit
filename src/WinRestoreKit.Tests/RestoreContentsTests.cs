@@ -65,7 +65,7 @@ namespace WinRestoreKit.Tests
         }
 
         [Fact]
-        public void For_ManifestSucceeded_OverridesAProbeThatSaysNo()
+        public void For_ManifestSucceeded_DoesNotOverrideAProbeThatSaysNo()
         {
             AbsentModule module = new AbsentModule();
             ManifestData manifest = Manifest("M", "U", Entry(module, BackupManifest.StateSucceeded));
@@ -73,7 +73,7 @@ namespace WinRestoreKit.Tests
             IReadOnlyList<RestoreContentsRow> rows = RestoreContents.For(
                 new BackupBase[] { module }, @"X:\backup\", manifest);
 
-            Assert.True(rows[0].HasBackup);
+            Assert.False(rows[0].HasBackup);
         }
 
         [Theory]

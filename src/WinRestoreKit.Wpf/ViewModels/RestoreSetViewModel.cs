@@ -20,7 +20,7 @@ namespace WinRestoreKit.Wpf.ViewModels
 
         internal void Add(ModuleComparison comparison)
         {
-            if (comparison == null || !comparison.HasUsableArtifact || modules.Contains(comparison.Module))
+            if (comparison?.CanRestore != true || modules.Contains(comparison.Module))
                 return;
 
             modules.Add(comparison.Module);

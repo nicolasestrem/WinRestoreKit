@@ -164,7 +164,7 @@ namespace WinRestoreKit.Wpf.ViewModels
                 return;
             }
 
-            AppExport export = AppRestoreService.ReadFromSource(SelectedSource.Path);
+            AppExport export = AppRestoreService.ReadFromSourceEntry(SelectedSource);
             AppRestoreListState listState = AppRestoreService.ComposeListState(export);
             foreach (string identifier in listState.Items)
                 packages.Add(new AppRestorePackageViewModel(identifier, RefreshInstallAvailability));

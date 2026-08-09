@@ -28,9 +28,9 @@ namespace WinRestoreKit
     }
 
     /// <summary>
-    /// Builds the wizard's step-2 rows and the provenance banner: the parsed manifest for state and
-    /// for presence, with <see cref="BackupBase.HasArtifactIn"/> answering for whatever the manifest
-    /// does not mention.
+    /// Builds the wizard's step-2 rows and the provenance banner. The parsed manifest supplies run
+    /// state, while <see cref="BackupBase.HasArtifactIn"/> verifies physical presence whenever a
+    /// module can answer. A succeeded manifest remains the fallback for modules without a probe.
     /// </summary>
     /// <remarks>
     /// Unknown renders as unknown, never inferred: a module absent from the manifest (every backup
@@ -61,8 +61,7 @@ namespace WinRestoreKit
                         continue;
 
                     string state = ManifestStateFor(manifest, module.GetType().Name);
-                    bool needsPayload = state != BackupManifest.StateSucceeded
-                        && state != BackupManifest.StateSkipped
+                    bool needsPayload = state != BackupManifest.StateSkipped
                         && state != BackupManifest.StateFailed;
 
                     if (!payloadPrepared && needsPayload)
@@ -102,8 +101,9 @@ namespace WinRestoreKit
         }
 
         /// <summary>
-        /// Whether the folder has anything this module could restore. The manifest decides for the
-        /// modules it names; the module's own artifact probe decides for the rest.
+        /// Whether the folder has anything this module could restore. Failed and skipped manifest
+        /// rows refuse the restore. Otherwise the module's physical probe decides when available,
+        /// with manifest success as the fallback for modules that cannot inspect their own shape.
         /// </summary>
         /// <remarks>
         /// This deliberately does NOT ask <see cref="RestoreScope.HasBackup"/>, which was the first
@@ -123,17 +123,19 @@ namespace WinRestoreKit
         private static bool HoldsSomethingFor(BackupBase module, string backupPath,
                                               ManifestData manifest, string manifestState)
         {
-            if (manifestState == BackupManifest.StateSucceeded)
-                return true;
-
             if (manifestState == BackupManifest.StateSkipped || manifestState == BackupManifest.StateFailed)
                 return false;
 
-            // No manifest, or one that does not mention this module. Ask the module to look.
+            // A successful manifest says what the run intended to write. The module's physical
+            // probe still gets the final word when it can answer, so deleted or stale artifacts are
+            // not offered for restore merely because the manifest survived.
             bool? probe = Probe(module, backupPath);
 
             if (probe != null)
                 return probe.Value;
+
+            if (manifestState == BackupManifest.StateSucceeded)
+                return true;
 
             // It cannot tell. With a manifest present, silence means it was not part of that run.
             // Without one there is nothing left to consult, and refusing a restore we cannot

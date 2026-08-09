@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using Conf;
-using DataHelper;
 using WinRestoreKit;
 using Xunit;
 
@@ -39,12 +38,13 @@ namespace WinRestoreKit.Tests
 
                 await runner.RunBackup(new BackupBase[] { new FolderSourceModule(source) },
                     destination, "nested", SnapshotCompression.None);
-                Assert.Equal(Path.Combine(destination, Data.NowShort), runner.BackupOutputPath);
+                Assert.Equal(Path.GetFullPath(destination), Path.GetDirectoryName(runner.BackupOutputPath),
+                    StringComparer.OrdinalIgnoreCase);
 
                 Assert.NotNull(ui.LastSummary);
                 Assert.Equal(RunState.DidNotRun, ui.LastSummary.State);
                 // No timestamp folder was created under the destination, so no copy began.
-                Assert.False(Directory.Exists(Path.Combine(destination, Data.NowShort)));
+                Assert.False(Directory.Exists(runner.BackupOutputPath));
             }
             finally
             {

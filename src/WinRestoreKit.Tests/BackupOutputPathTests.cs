@@ -1,5 +1,4 @@
 using Conf;
-using DataHelper;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -38,7 +37,6 @@ namespace WinRestoreKit.Tests
             string source = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "WinRestoreKitTests",
                 Guid.NewGuid().ToString("N"))).FullName;
             string destination = Path.Combine(source, "backups");
-            string expectedPath = Path.Combine(destination, Data.NowShort);
             var ui = new TestRunUi();
 
             try
@@ -48,13 +46,60 @@ namespace WinRestoreKit.Tests
                 await runner.RunBackup(new BackupBase[] { new FolderSourceModule(source) }, destination,
                     "contained", SnapshotCompression.None);
 
-                Assert.Equal(expectedPath, runner.BackupOutputPath);
+                Assert.Equal(Path.GetFullPath(destination),
+                    Path.GetDirectoryName(runner.BackupOutputPath), StringComparer.OrdinalIgnoreCase);
+                Assert.Matches(@"^\d{4}-\d{2}-\d{2} - \d{2}\.\d{2}\.\d{2}$",
+                    Path.GetFileName(runner.BackupOutputPath));
                 Assert.Equal(RunState.DidNotRun, ui.Summary.State);
             }
             finally
             {
                 if (Directory.Exists(source))
                     Directory.Delete(source, true);
+            }
+        }
+
+        [Fact]
+        public async Task RunBackup_TwoUserBackupsNeverReuseTheFirstRestorePoint()
+        {
+            using (BackupRunIsolation isolation = new BackupRunIsolation())
+            {
+                var runner = new BackupRestoreOrchestrator(new TestRunUi());
+
+                await runner.RunBackup(new BackupBase[] { new EmptyModule() }, isolation.DestinationRoot,
+                    "first", SnapshotCompression.None);
+                string first = runner.BackupOutputPath;
+
+                await runner.RunBackup(new BackupBase[] { new EmptyModule() }, isolation.DestinationRoot,
+                    "second", SnapshotCompression.None);
+                string second = runner.BackupOutputPath;
+
+                Assert.NotEqual(first, second, StringComparer.OrdinalIgnoreCase);
+                Assert.NotNull(BackupManifest.TryParse(
+                    File.ReadAllText(Path.Combine(first, BackupManifest.FileName))));
+                Assert.NotNull(BackupManifest.TryParse(
+                    File.ReadAllText(Path.Combine(second, BackupManifest.FileName))));
+            }
+        }
+
+        [Fact]
+        public async Task RunBackup_ConcurrentUserBackupsClaimDifferentFolders()
+        {
+            using (BackupRunIsolation isolation = new BackupRunIsolation())
+            {
+                var firstRunner = new BackupRestoreOrchestrator(new TestRunUi());
+                var secondRunner = new BackupRestoreOrchestrator(new TestRunUi());
+
+                await Task.WhenAll(
+                    firstRunner.RunBackup(new BackupBase[] { new EmptyModule() }, isolation.DestinationRoot,
+                        "first", SnapshotCompression.None),
+                    secondRunner.RunBackup(new BackupBase[] { new EmptyModule() }, isolation.DestinationRoot,
+                        "second", SnapshotCompression.None));
+
+                Assert.NotEqual(firstRunner.BackupOutputPath, secondRunner.BackupOutputPath,
+                    StringComparer.OrdinalIgnoreCase);
+                Assert.True(Directory.Exists(firstRunner.BackupOutputPath));
+                Assert.True(Directory.Exists(secondRunner.BackupOutputPath));
             }
         }
 

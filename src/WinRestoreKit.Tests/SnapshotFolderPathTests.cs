@@ -1,4 +1,3 @@
-using DataHelper;
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
@@ -13,7 +12,7 @@ namespace WinRestoreKit.Tests
     public class SnapshotFolderPathTests
     {
         [Fact]
-        public async Task RunBackup_CustomSnapshotNameKeepsTheFrozenTimestampFolderName()
+        public async Task RunBackup_CustomSnapshotNameKeepsATimestampedPhysicalFolderName()
         {
             string root = Path.Combine(Path.GetTempPath(), "WinRestoreKitTests", Guid.NewGuid().ToString("N"));
             object originalRoots = null;
@@ -39,7 +38,10 @@ namespace WinRestoreKit.Tests
                     SnapshotCompression.None);
 
                 string timestampFolder = runner.BackupOutputPath;
-                Assert.Equal(Path.Combine(root, Data.NowShort), timestampFolder);
+                Assert.Equal(Path.GetFullPath(root), Path.GetDirectoryName(timestampFolder),
+                    StringComparer.OrdinalIgnoreCase);
+                Assert.Matches(@"^\d{4}-\d{2}-\d{2} - \d{2}\.\d{2}\.\d{2}( \(\d+\))?$",
+                    Path.GetFileName(timestampFolder));
                 Assert.True(Directory.Exists(timestampFolder));
                 Assert.False(Directory.Exists(Path.Combine(root, "before-driver-update")));
 

@@ -1,4 +1,3 @@
-using DataHelper;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -21,7 +20,8 @@ namespace WinRestoreKit.Tests
                     "archive-progress", SnapshotCompression.Fast);
 
                 string backupPath = runner.BackupOutputPath;
-                Assert.Equal(Path.Combine(isolation.DestinationRoot, Data.NowShort), backupPath);
+                Assert.Equal(Path.GetFullPath(isolation.DestinationRoot), Path.GetDirectoryName(backupPath),
+                    StringComparer.OrdinalIgnoreCase);
                 ManifestData manifest = BackupManifest.TryParse(
                     File.ReadAllText(Path.Combine(backupPath, BackupManifest.FileName)));
 

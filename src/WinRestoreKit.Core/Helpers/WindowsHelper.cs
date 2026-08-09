@@ -303,13 +303,11 @@ namespace WinRestoreKit
             // 1. Provenance. The verification below could otherwise be satisfied by a file this run
             //    did not write, making this method's promise to verify what it produced false.
             //
-            // 2. Stale artifacts across runs. ConfPageView reuses one timestamped folder for every
-            //    Backup click in an app session, so clicking Backup twice writes into the same
-            //    place. If the key existed on the first click and is gone on the second, returning
-            //    early on Absent leaves the FIRST run's .reg file sitting there while the log says
-            //    the item was skipped. A later restore then imports registry state the user was
-            //    told had not been captured - the same landmine as a part-written export, arriving
-            //    by a different route.
+            // 2. Stale artifacts across runs. A direct-path caller or a folder from an older build
+            //    can be reused. If the key existed on the first run and is gone on the second,
+            //    returning early on Absent leaves the first run's .reg file sitting there while the
+            //    log says the item was skipped. A later restore then imports registry state the user
+            //    was told had not been captured.
             //
             // A delete failure fails the step even when absence is normal: a file we cannot remove
             // is a file we cannot vouch for, and "skipped" would imply the folder holds nothing.

@@ -433,10 +433,9 @@ namespace Conf
             string filePath = Path.Combine(path, PowFileNameFor(scheme.Guid));
 
             // Cleared before the export, for the two reasons ExportRegistryKey documents: the
-            // artifact check below could otherwise be satisfied by a file this run did not write,
-            // and ConfPageView reuses one timestamped folder for every Backup click in an app
-            // session - so a failed re-export would leave the previous run's .pow sitting there,
-            // restorable, while the row says Failed.
+            // artifact check below could otherwise be satisfied by a file this run did not write.
+            // A direct-path caller or a folder from an older build can be reused, so a failed
+            // re-export must not leave the previous run's .pow restorable while the row says Failed.
             string clearError = TryClear(filePath);
 
             if (clearError != null)
