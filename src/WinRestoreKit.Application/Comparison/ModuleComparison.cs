@@ -21,7 +21,6 @@ namespace WinRestoreKit
         public bool HasUsableArtifact { get; }
 
         public bool CanRestore => HasUsableArtifact
-            && State != ComparisonState.Unavailable
             && State != ComparisonState.NotCaptured;
 
         public string ArtifactSummary { get; }
