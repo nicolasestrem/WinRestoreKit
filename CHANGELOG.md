@@ -16,7 +16,8 @@ version numbers, because that is what those releases were called.
 - Made final restore consent resizable and scrollable so long paths wrap without clipping, and only
   promised a pre-restore snapshot for modules that actually write settings.
 - Routed completed restores to the result workspace and prevented the same confirmation page from
-  accidentally starting a second restore.
+  accidentally starting a second restore, while keeping long result summaries scrollable so the
+  Timeline action stays reachable.
 
 ### Fixed: restore and snapshot integrity
 
