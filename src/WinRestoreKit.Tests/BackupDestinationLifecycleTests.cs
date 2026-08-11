@@ -6,7 +6,6 @@ using System.IO;
 using System.Reflection;
 using System.Linq;
 using System.Threading.Tasks;
-using Views;
 using Xunit;
 
 namespace WinRestoreKit.Tests

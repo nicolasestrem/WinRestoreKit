@@ -5,11 +5,11 @@
     <RootNamespace>WinRestoreKit.Tests</RootNamespace>
     <AssemblyName>WinRestoreKit.Tests</AssemblyName>
     <!--
-      The code under test lives in a WinForms assembly (WinRestoreKit references System.Windows.Forms
-      from its type graph), so the test project must pull in the same WindowsDesktop framework
-      reference in order to resolve those types. No test opens a window.
+      The shipping app is WPF (WinRestoreKit references System.Windows.Window and WPF controls), so
+      the test project pulls in the same WPF framework reference to resolve those types. No test
+      opens a window: the WPF control tests host workspaces on a dedicated STA thread (WpfTestHost)
+      without an Application instance.
     -->
-    <UseWindowsForms>true</UseWindowsForms>
     <UseWPF>true</UseWPF>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
@@ -30,7 +30,6 @@
     <ProjectReference Include="..\WinRestoreKit.Application\WinRestoreKit.Application.csproj">
       <Aliases>global,Application</Aliases>
     </ProjectReference>
-    <ProjectReference Include="..\WinRestoreKit.Wpf\WinRestoreKit.Wpf.csproj" />
   </ItemGroup>
 
   <ItemGroup>

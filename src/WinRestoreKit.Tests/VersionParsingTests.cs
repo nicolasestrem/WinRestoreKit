@@ -60,7 +60,7 @@ namespace WinRestoreKit.Tests
             // breaks, this is what catches it.
             string parsed = global::DataHelper.Data.ParseLatestVersion(RealAssemblyInfoText());
 
-            string compiled = typeof(global::WinRestoreKit.MainForm).Assembly
+            string compiled = typeof(global::WinRestoreKit.Wpf.App).Assembly
                 .GetCustomAttribute<AssemblyFileVersionAttribute>()
                 .Version;
 
@@ -74,7 +74,7 @@ namespace WinRestoreKit.Tests
             // sides, so a difference for an up-to-date client must never become a phantom update offer.
             string remoteSide = global::DataHelper.Data.ParseLatestVersion(RealAssemblyInfoText());
             string localSide = global::WinRestoreKit.VersionInfo.GetCurrentVersion(
-                typeof(global::WinRestoreKit.MainForm).Assembly);
+                typeof(global::WinRestoreKit.Wpf.App).Assembly);
 
             Assert.Equal(localSide, remoteSide);
         }
@@ -273,7 +273,7 @@ namespace WinRestoreKit.Tests
             // Asserting absence outright (rather than "absent OR clean") is deliberate: it makes the
             // failure fire at the moment someone introduces the attribute, which is when the decision
             // needs re-examining, instead of waiting for the suffix to actually appear in a release build.
-            var informational = typeof(global::WinRestoreKit.MainForm).Assembly
+            var informational = typeof(global::WinRestoreKit.Wpf.App).Assembly
                 .GetCustomAttribute<AssemblyInformationalVersionAttribute>();
 
             Assert.True(
@@ -284,8 +284,8 @@ namespace WinRestoreKit.Tests
         }
 
         // ---------------------------------------------------------------------------------------
-        // DescribeStartupFailure - the text of the last-resort startup MessageBox in Program.Main.
-        // Program's coverage lives in this file, so it goes here rather than in OsVersionTests.
+        // DescribeStartupFailure - the text of the last-resort startup MessageBox shown by the shell's
+        // startup guard (StartupDiagnostics in Application, surfaced by App.OnStartup's catch).
         // ---------------------------------------------------------------------------------------
 
         [Fact]
@@ -296,7 +296,7 @@ namespace WinRestoreKit.Tests
             // IO failure reading a path are investigated in completely different places).
             var ex = new InvalidOperationException("registry key vanished");
 
-            string described = global::WinRestoreKit.Program.DescribeStartupFailure(ex);
+            string described = global::WinRestoreKit.StartupDiagnostics.DescribeStartupFailure(ex);
 
             Assert.Contains("InvalidOperationException", described);
             Assert.Contains("registry key vanished", described);
@@ -307,7 +307,7 @@ namespace WinRestoreKit.Tests
         {
             // This runs on the way out of a startup failure. Throwing while DESCRIBING the first
             // failure would destroy the only diagnostic the user ever sees.
-            string described = global::WinRestoreKit.Program.DescribeStartupFailure(null);
+            string described = global::WinRestoreKit.StartupDiagnostics.DescribeStartupFailure(null);
 
             Assert.False(string.IsNullOrWhiteSpace(described));
         }
@@ -321,7 +321,7 @@ namespace WinRestoreKit.Tests
             // would be back to a process that vanishes silently. Hence plain concatenation.
             var ex = new InvalidOperationException("bad {0} key");
 
-            string described = global::WinRestoreKit.Program.DescribeStartupFailure(ex);
+            string described = global::WinRestoreKit.StartupDiagnostics.DescribeStartupFailure(ex);
 
             Assert.Contains("bad {0} key", described);
         }

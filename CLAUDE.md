@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-WinRestoreKit is a Windows Forms desktop app (.NET 8, C#) that backs up and restores Windows 11 settings locally - an offline alternative to the built-in Windows Backup app. Backups are lightweight: each module exports registry keys (as `.reg` files) and/or copies folders/files into a timestamped folder.
+WinRestoreKit is a WPF desktop app (.NET 8, C#) that backs up and restores Windows 11 settings locally - an offline alternative to the built-in Windows Backup app. Backups are lightweight: each module exports registry keys (as `.reg` files) and/or copies folders/files into a timestamped folder.
 
 ## Build
 
@@ -16,17 +16,22 @@ dotnet test src\WinRestoreKit.sln
 ```
 
 - **`src/WinRestoreKit.Core`** - the engine: `BackupBase`, all of `Conf/`, most of `Results/`, and the
-  `Utils`/`Data`/`OsHelper`/`LogHelper` helpers. It deliberately does **not** set `UseWindowsForms`,
-  and that is load-bearing: being unable to compile against WinForms is what keeps a `MessageBox` out
+  `Utils`/`Data`/`OsHelper`/`LogHelper` helpers. It deliberately sets neither `UseWindowsForms` nor `UseWPF`,
+  and that is load-bearing: being unable to compile against any UI framework is what keeps a `MessageBox` out
   of a backup module by construction rather than by review. Extracted in Phase 4 PR 2.
-- **`src/WinRestoreKit`** - the WinForms app: `MainForm`, `Views/`, `Forms/`, `Program`, `RunSummary`,
-  and the three sinks/seams that hand the engine its UI (below). References Core.
-- **`src/WinRestoreKit.Tests`** - xUnit. References the app project only; Core arrives transitively.
+- **`src/WinRestoreKit.Application`** - the framework-neutral orchestration layer: `Orchestration`
+  (`BackupRestoreOrchestrator`, `RunCoordinator`), `Settings`, `Updates` (`VersionInfo`, `UpdateCheckService`,
+  `StartupDiagnostics`), `Snapshots`, `Comparison`, `Backup`, `AppRestore`, `Modules`. References Core only -
+  neither WinForms nor WPF, by construction.
+- **`src/WinRestoreKit`** - the WPF app: `App.xaml`/`MainWindow.xaml`, `Views/`, `ViewModels/`, `Services/`,
+  `Themes/`, and the seams that hand the engine its UI (below). References Core and Application.
+- **`src/WinRestoreKit.Tests`** - xUnit. References the app and Application projects; Core arrives transitively.
 
 **The engine reaches the user through three registered seams, never by referencing UI.** All three are
-filled in by `Program.RegisterUiSeams()` before the message pump starts: `LogHelper`'s `ILogSink`
-(implemented by `RichTextBoxLogSink`), `Utils.UrlFailureUi` (the could-not-open-link dialog), and
-`Conf.AppStoreApps.RestoreDialog` (opens `RestAppsForm`). Unregistered, each fails safe on purpose -
+filled in during WPF startup: `LogHelper`'s `ILogSink` (registered to `WpfLogSink` in `ShellViewModel`),
+`Utils.UrlFailureUi` (the could-not-open-link dialog, wired in `App.OnStartup`), and
+`Conf.AppStoreApps.RestoreDialog` (registered via `WpfAppRestoreDialog.Register` in the `ShellViewModel`
+constructor; opens the `AppRestoreDialog` window). Unregistered, each fails safe on purpose -
 logging goes nowhere, the link failure only logs, and the app-restore module reports **`Failed`**,
 which is deliberately not `Skipped` because `Skipped` is already that module's genuine success reason.
 
@@ -36,7 +41,7 @@ compile, the project reference is wrong, not the modifier.
 
 Output lands in `src\WinRestoreKit\bin\<Configuration>\net8.0-windows\`. This dev build is framework-dependent, so running it needs the **.NET Desktop Runtime 8** (`Microsoft.WindowsDesktop.App` 8.0.x) installed.
 
-Releases are different: they ship **self-contained single-file**, so end users install nothing. The `/release` skill has the exact publish command and the flags it depends on - all of them matter, and the artifact must come out as exactly one ~69 MB `WinRestoreKit.exe`. Never ship the framework-dependent `bin\Release\` exe; on its own it cannot start. Do not add `PublishTrimmed` - WinForms resolves types by reflection and is not trim-safe.
+Releases are different: they ship **self-contained single-file**, so end users install nothing. The `/release` skill has the exact publish command and the flags it depends on - all of them matter, and the artifact must come out as exactly one ~69 MB `WinRestoreKit.exe`. Never ship the framework-dependent `bin\Release\` exe; on its own it cannot start. Do not add `PublishTrimmed` - WPF resolves types by reflection and is not trim-safe.
 
 The only runtime NuGet dependency is Newtonsoft.Json, declared as a `<PackageReference>` in the app, Application, and Core projects at the same version (`packages.config` is gone). Tests are xUnit, in `src/WinRestoreKit.Tests`. There is no linter.
 
@@ -130,7 +135,7 @@ that from coming back; each was written after the corresponding mistake was actu
   nothing. Always check the artifact the command was supposed to produce.
 - **Log data-bearing text with `LogHelper.LogMessage`, never `LogHelper.Log`.** `Log` treats its first
   argument as a format string, so a registry path or exception message containing `{` throws inside
-  the logger and the line is routed to `Console.WriteLine` - invisible in a WinForms app. The message
+  the logger and the line is routed to `Console.WriteLine` - invisible in a GUI app. The message
   is not lost loudly; it is lost silently.
 - **Don't identify files by a name pattern you did not write.** `CWiFiConf` matched `WLAN*.xml` while
   `netsh` writes `<adapter name>-<SSID>.xml`, so restore found 0 of 19 profiles. Match on content when
@@ -140,20 +145,31 @@ The csproj no longer needs a `<Compile Include>` entry - the SDK project globs `
 
 ### UI navigation
 
-`MainForm` is the shell - a left rail (Home · Back up · Restore · History, About in the footer) and a content host - and `NavigationService` (`Helpers/NavigationService.cs`) owns which view is in `pnlForm`, with `Show` for rail navigation, `Push`/`Pop` for going deeper and back, and `IRefreshableView` for views that must re-read disk on every visit. Views live in `Views/`: `HomePageView` (am I okay?), `BackupPageView` (presets + the module tree; renamed from `ConfPageView` in Phase 4 PR 7), `RestoreWizardStep1View`/`RestoreWizardStep2View` (pick a backup, then its contents), `HistoryPageView` (the merged backup/undo-point timeline, which replaced `RestPageView`), `AboutPageView`, and the shared `RunResultsPanel` that renders a run's per-module outcomes in-page. `Forms/RestAppsForm` is a dialog for reinstalling apps from a winget export, and `Forms/RestoreConfirmForm` is the consent dialog. Every view is built with `TableLayoutPanel`/`Dock`/`AutoSize` - absolute positioning is gone, because the process runs `HighDpiMode.PerMonitorV2`.
+The shell is `MainWindow.xaml` + `ShellViewModel` (MVVM). `ShellViewModel` owns navigation between the
+workspaces - Timeline (am I okay?), Create snapshot (presets + scope tree + compression), History
+(advanced timeline search), Settings (theme), About - and the backup/restore run lifecycle. Selecting a
+snapshot on the Timeline opens the Compare workspace (`ComparisonWorkspaceView`/`ComparisonWorkspaceViewModel`),
+which continues to Confirm (`ConfirmView`/`ConfirmViewModel`) and then the pre-restore consent dialog.
+Views live in `Views/` (one `.xaml` + code-behind per workspace), view models in `ViewModels/`, themes in
+`Themes/`, and WPF services in `Services/` (`WpfRunUi`, `WpfLogSink`, `WpfThemeService`, `WpfAppRestoreDialog`).
+Workspace controls carry stable UI Automation identifiers (`TimelineEventList`, `ComparisonWorkspace`,
+`CompareModuleList`, `ConfirmRestoreButton`, `CreateSnapshotButton`, `SettingsThemeFollowSystem`, etc.) -
+these are contracts, not layout details. The WPF STA smoke tests construct the real `ShellViewModel` and
+`MainWindow` on a dedicated thread (`WpfTestHost`) and assert those identifiers, so a renamed or removed
+automation surface fails the suite.
 
 ### Data flow and paths
 
 - `DataHelper.Data` (`src/WinRestoreKit.Core/Helpers/DataHelper.cs`) centralizes paths and URLs. Backups go to `<exe dir>\app\<yyyy-MM-dd - HH.mm>\` (`Data.DataRootDir`); each backup folder gets a `backup_log.txt` listing what was backed up plus a machine-readable `backup_manifest.json`, both read by Home and the History timeline. `DataRootDir` resolves the exe directory from `Environment.ProcessPath` - **measured** under a real single-file self-contained publish, because the modes need not agree there and nothing in build or test exercises it. The trailing separator is part of the field's contract. Read the comment there before touching the line.
-- `LogHelper` (singleton) composes the line and hands the text to an `ILogSink`; the app registers `RichTextBoxLogSink`, which owns the `InvokeRequired`/`Invoke` marshaling. `SetTarget(richTextBox)` still exists as an app-side extension, so call sites read as before. With no sink registered, logging is silent rather than fatal - every test class outside `LogHelperTests` runs that way while product code logs freely.
+- `LogHelper` (singleton) composes the line and hands the text to an `ILogSink`; the WPF app registers `WpfLogSink`, which marshals onto the UI `Dispatcher`. With no sink registered, logging is silent rather than fatal - every test class outside `LogHelperTests` runs that way while product code logs freely.
 - Open web links with `Utils.OpenUrl`, never `Process.Start` directly. The app runs elevated, and `ShellExecute` passes that elevated token to the browser it launches; `OpenUrl` goes through `explorer.exe` so the browser runs as the user, rejects anything that is not an `http`/`https` URL (a shell launch would otherwise execute it), and cannot throw - it is called from a timer thread where .NET 8 turns an escaping exception into process termination.
-- Update check (`UpdateCheck.CheckForUpdatesAsync`, app-side since Phase 4 PR 2 - it is almost all MessageBoxes and it calls `Program`) asks the **GitHub Releases API** for the newest release and takes `tag_name` via `Data.ParseLatestReleaseTag`. On ANY failure of that path - non-2xx including the shared-IP rate-limit 403, timeout, malformed JSON, or an empty tag - it falls back to `Data.Uri.URL_ASSEMBLY`, which fetches `src/WinRestoreKit/Properties/AssemblyInfo.cs` from `nicolasestrem/WinRestoreKit`, and string-parses `[assembly: AssemblyFileVersion("x.y.z")]` with `Data.ParseLatestVersion`. That fallback is inherited from Appcopier, but WinRestoreKit starts at 0.0.1 and has no deployed clients of its own, so it is kept on current merit rather than for compatibility: the rate-limit 403 is common, and once the repository is public but before the first Release is published the Releases API has nothing to return while main already carries an AssemblyFileVersion, making the raw path the only one that answers. Note that NEITHER source answers while the repository is private: both requests are unauthenticated, so both 404 and the check reports a failure. The update path only works once the repository is published. `Program.GetCurrentVersionTostring()` reads that same attribute off the running assembly by reflection. Both sides then go through `Version.ToString(3)`, so three-part AssemblyFileVersion values are required. Note the asymmetry: the FALLBACK reads the same attribute this app reads, so a difference there is always a real version difference, but the PRIMARY tag is a separate hand-entered value that never reads the attribute, so a tag that disagrees with the shipped `AssemblyFileVersion` produces a permanent phantom update. Keeping them equal is the release process's job, not the code's.
+- Update check (Application's `UpdateCheckService`, presented by the WPF `WpfUpdatePresenter`) asks the **GitHub Releases API** for the newest release and takes `tag_name` via `Data.ParseLatestReleaseTag`. On ANY failure of that path - non-2xx including the shared-IP rate-limit 403, timeout, malformed JSON, or an empty tag - it falls back to `Data.Uri.URL_ASSEMBLY`, which fetches `src/WinRestoreKit/Properties/AssemblyInfo.cs` from `nicolasestrem/WinRestoreKit`, and string-parses `[assembly: AssemblyFileVersion("x.y.z")]` with `Data.ParseLatestVersion`. That fallback is inherited from Appcopier, but WinRestoreKit starts at 0.0.1 and has no deployed clients of its own, so it is kept on current merit rather than for compatibility: the rate-limit 403 is common, and once the repository is public but before the first Release is published the Releases API has nothing to return while main already carries an AssemblyFileVersion, making the raw path the only one that answers. Note that NEITHER source answers while the repository is private: both requests are unauthenticated, so both 404 and the check reports a failure. The update path only works once the repository is published. `VersionInfo.GetCurrentVersion` (Application) reads that same attribute off the running assembly by reflection. Both sides then go through `VersionInfo.Normalize` / `Version.ToString(3)`, so three-part AssemblyFileVersion values are required. Note the asymmetry: the FALLBACK reads the same attribute this app reads, so a difference there is always a real version difference, but the PRIMARY tag is a separate hand-entered value that never reads the attribute, so a tag that disagrees with the shipped `AssemblyFileVersion` produces a permanent phantom update. Keeping them equal is the release process's job, not the code's.
 
 ### Namespace quirk
 
-Namespaces do not follow folder structure and are flat: `WinRestoreKit` (core + helpers like `Utils`, `LogHelper`, plus app-side `Ui`/`Theme`/`NavigationService`/`BackupRestoreOrchestrator`), `Conf` (all backup modules and `ModuleCatalog`), `Views`, `DataHelper`. Match the existing namespace of the folder you're working in.
+Namespaces do not follow folder structure and are flat: `WinRestoreKit` (Core helpers like `Utils`, `LogHelper`, plus Application orchestration like `BackupRestoreOrchestrator`, `VersionInfo`, `StartupDiagnostics`), `Conf` (all backup modules and `ModuleCatalog`), `DataHelper`, and `WinRestoreKit.Wpf` (the shell: views, view models, services). Match the existing namespace of the folder you're working in.
 
-They also **straddle the two assemblies** since the Core extraction - `WinRestoreKit` and `DataHelper` each have types in both `WinRestoreKit.Core.dll` and `WinRestoreKit.dll` (e.g. `Utils` in Core, `RunSummary` in the app, both in namespace `WinRestoreKit`). That is legal and deliberate: renaming namespaces to match the split would have made a rename-only refactor into a whole-tree edit. It is also why the `InternalsVisibleTo` pair is mandatory rather than a convenience.
+They also **straddle assemblies** since the Core extraction - namespace `WinRestoreKit` has types in `WinRestoreKit.Core.dll`, `WinRestoreKit.Application.dll`, and `WinRestoreKit.dll` (e.g. `Utils` in Core, `BackupRestoreOrchestrator` in Application, all in namespace `WinRestoreKit`). That is legal and deliberate: renaming namespaces to match the split would have made a rename-only refactor into a whole-tree edit. It is also why the `InternalsVisibleTo` set is mandatory rather than a convenience: Core grants it to `WinRestoreKit` (the app), `WinRestoreKit.Application`, and `WinRestoreKit.Tests`; Application grants it to `WinRestoreKit` and `WinRestoreKit.Tests`.
 
 ## Project automation (`.claude/`)
 

@@ -11,8 +11,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WinRestoreKit.Core", "WinRe
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WinRestoreKit.Application", "WinRestoreKit.Application\WinRestoreKit.Application.csproj", "{A1E91A1C-8A8D-4F60-AEF9-A5D6D32A704A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WinRestoreKit.Wpf", "WinRestoreKit.Wpf\WinRestoreKit.Wpf.csproj", "{B2F0F9B0-5F5A-4A13-90B5-1F8E1EB6F791}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -107,26 +105,6 @@ Global
 		{A1E91A1C-8A8D-4F60-AEF9-A5D6D32A704A}.Release|x64.Build.0 = Release|Any CPU
 		{A1E91A1C-8A8D-4F60-AEF9-A5D6D32A704A}.Release|x86.ActiveCfg = Release|Any CPU
 		{A1E91A1C-8A8D-4F60-AEF9-A5D6D32A704A}.Release|x86.Build.0 = Release|Any CPU
-		{B2F0F9B0-5F5A-4A13-90B5-1F8E1EB6F791}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{B2F0F9B0-5F5A-4A13-90B5-1F8E1EB6F791}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{B2F0F9B0-5F5A-4A13-90B5-1F8E1EB6F791}.Debug|ARM.ActiveCfg = Debug|Any CPU
-		{B2F0F9B0-5F5A-4A13-90B5-1F8E1EB6F791}.Debug|ARM.Build.0 = Debug|Any CPU
-		{B2F0F9B0-5F5A-4A13-90B5-1F8E1EB6F791}.Debug|ARM64.ActiveCfg = Debug|Any CPU
-		{B2F0F9B0-5F5A-4A13-90B5-1F8E1EB6F791}.Debug|ARM64.Build.0 = Debug|Any CPU
-		{B2F0F9B0-5F5A-4A13-90B5-1F8E1EB6F791}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{B2F0F9B0-5F5A-4A13-90B5-1F8E1EB6F791}.Debug|x64.Build.0 = Debug|Any CPU
-		{B2F0F9B0-5F5A-4A13-90B5-1F8E1EB6F791}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{B2F0F9B0-5F5A-4A13-90B5-1F8E1EB6F791}.Debug|x86.Build.0 = Debug|Any CPU
-		{B2F0F9B0-5F5A-4A13-90B5-1F8E1EB6F791}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{B2F0F9B0-5F5A-4A13-90B5-1F8E1EB6F791}.Release|Any CPU.Build.0 = Release|Any CPU
-		{B2F0F9B0-5F5A-4A13-90B5-1F8E1EB6F791}.Release|ARM.ActiveCfg = Release|Any CPU
-		{B2F0F9B0-5F5A-4A13-90B5-1F8E1EB6F791}.Release|ARM.Build.0 = Release|Any CPU
-		{B2F0F9B0-5F5A-4A13-90B5-1F8E1EB6F791}.Release|ARM64.ActiveCfg = Release|Any CPU
-		{B2F0F9B0-5F5A-4A13-90B5-1F8E1EB6F791}.Release|ARM64.Build.0 = Release|Any CPU
-		{B2F0F9B0-5F5A-4A13-90B5-1F8E1EB6F791}.Release|x64.ActiveCfg = Release|Any CPU
-		{B2F0F9B0-5F5A-4A13-90B5-1F8E1EB6F791}.Release|x64.Build.0 = Release|Any CPU
-		{B2F0F9B0-5F5A-4A13-90B5-1F8E1EB6F791}.Release|x86.ActiveCfg = Release|Any CPU
-		{B2F0F9B0-5F5A-4A13-90B5-1F8E1EB6F791}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

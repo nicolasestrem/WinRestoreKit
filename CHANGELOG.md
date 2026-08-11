@@ -8,6 +8,26 @@ version numbers, because that is what those releases were called.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.1.0] - 2026-08-11
+
+### Changed: WPF is the sole shipping application
+
+First production release of the WPF Timeline + Compare shell. The WPF app is now the only
+shipping WinRestoreKit; the WinForms shell is removed and the release artifact is one
+self-contained WinRestoreKit.exe (~69 MB, no .NET install required).
+
+- Cutover with no compatibility shims: `src/WinRestoreKit` is the WPF app (assembly and executable
+  identity WinRestoreKit; version sourced from the unchanged `AssemblyInfo.cs`). Removed all
+  WinForms source, controls, and WinForms-only fonts; preserved the load-bearing `app.manifest`,
+  `WinRestoreKit.ico`, and `Properties/AssemblyInfo.cs` at their paths.
+- Restored the startup-failure guard for the new shell: `App.OnStartup` wraps construction in a
+  try/catch backed by a neutral `StartupDiagnostics`, preserving the guarantee that a startup
+  failure is a visible message rather than a silent crash.
+- Repointed tests to the WPF assembly identity; deleted WinForms-only tests whose contracts the
+  WPF STA tests already cover (985 pass, 0 fail).
+
 ### Fixed: WPF restore completion and release truth
 
 - Aligned the WPF shell assembly and displayed product version with the canonical 0.0.1 release.

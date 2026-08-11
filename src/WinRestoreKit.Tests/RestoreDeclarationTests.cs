@@ -61,7 +61,7 @@ namespace WinRestoreKit.Tests
         [Fact]
         public void NoModuleIsLeftBehindInTheAppAssembly()
         {
-            Assembly app = typeof(MainForm).Assembly;
+            Assembly app = typeof(global::WinRestoreKit.Wpf.App).Assembly;
 
             Assert.NotEqual(app, typeof(BackupBase).Assembly);
 

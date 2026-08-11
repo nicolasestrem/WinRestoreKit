@@ -38,7 +38,7 @@ namespace WinRestoreKit.Tests
         [Fact]
         public void ProductAssembly_DeclaresProductAndExecutableNames()
         {
-            Assembly productAssembly = typeof(global::WinRestoreKit.Program).Assembly;
+            Assembly productAssembly = typeof(global::WinRestoreKit.Wpf.App).Assembly;
             AssemblyProductAttribute product = productAssembly.GetCustomAttribute<AssemblyProductAttribute>();
 
             Assert.Equal("WinRestoreKit", product?.Product);
@@ -74,7 +74,7 @@ namespace WinRestoreKit.Tests
             string path = Path.Combine(AppContext.BaseDirectory, "TestData", "AssemblyInfo.cs");
 
             Assert.True(File.Exists(path), $"Expected AssemblyInfo test data at '{path}'.");
-            Assert.Equal("0.0.1", global::DataHelper.Data.ParseLatestVersion(File.ReadAllText(path)));
+            Assert.Equal("0.1.0", global::DataHelper.Data.ParseLatestVersion(File.ReadAllText(path)));
         }
 
         [Fact]

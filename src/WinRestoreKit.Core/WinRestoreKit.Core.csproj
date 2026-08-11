@@ -44,7 +44,6 @@
     <InternalsVisibleTo Include="WinRestoreKit" />
     <InternalsVisibleTo Include="WinRestoreKit.Tests" />
     <InternalsVisibleTo Include="WinRestoreKit.Application" />
-    <InternalsVisibleTo Include="WinRestoreKit.Wpf" />
   </ItemGroup>
 
 </Project>

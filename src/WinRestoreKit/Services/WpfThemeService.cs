@@ -84,8 +84,8 @@ namespace WinRestoreKit.Wpf.Services
             ResourceDictionary nextThemeDictionary = (ResourceDictionary)Application.LoadComponent(
                 new Uri(
                     effectiveMode == ThemeMode.Dark
-                        ? "/WinRestoreKit.Wpf;component/Themes/Dark.xaml"
-                        : "/WinRestoreKit.Wpf;component/Themes/Light.xaml",
+                        ? "/WinRestoreKit;component/Themes/Dark.xaml"
+                        : "/WinRestoreKit;component/Themes/Light.xaml",
                     UriKind.Relative));
 
             if (activeThemeDictionary != null)
