@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.Windows;
+using System.Windows.Input;
 using WinRestoreKit;
 using WinRestoreKit.Wpf.Navigation;
 using WinRestoreKit.Wpf.Services;
@@ -29,6 +30,25 @@ namespace WinRestoreKit.Wpf
                 e.Cancel = true;
 
             base.OnClosing(e);
+        }
+
+        private void OnPreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Escape && ReturnToTimelineFromCompare())
+                e.Handled = true;
+        }
+
+        internal bool ReturnToTimelineFromCompare()
+        {
+            if (DataContext is not ShellViewModel shell
+                || shell.CurrentWorkspace is not ComparisonWorkspaceViewModel
+                || !shell.ShowTimelineCommand.CanExecute(null))
+            {
+                return false;
+            }
+
+            shell.ShowTimelineCommand.Execute(null);
+            return true;
         }
     }
 }

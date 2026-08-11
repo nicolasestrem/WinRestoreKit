@@ -76,5 +76,15 @@ namespace WinRestoreKit.Tests
             Assert.True(File.Exists(path), $"Expected AssemblyInfo test data at '{path}'.");
             Assert.Equal("0.0.1", global::DataHelper.Data.ParseLatestVersion(File.ReadAllText(path)));
         }
+
+        [Fact]
+        public void WpfShell_ReportsTheCanonicalProductVersion()
+        {
+            string path = Path.Combine(AppContext.BaseDirectory, "TestData", "AssemblyInfo.cs");
+            string canonical = global::DataHelper.Data.ParseLatestVersion(File.ReadAllText(path));
+
+            Assert.Equal(canonical,
+                global::WinRestoreKit.VersionInfo.GetCurrentVersion(typeof(global::WinRestoreKit.Wpf.App).Assembly));
+        }
     }
 }

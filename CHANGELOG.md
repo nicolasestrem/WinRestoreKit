@@ -8,6 +8,17 @@ version numbers, because that is what those releases were called.
 
 ## [Unreleased]
 
+### Fixed: WPF restore completion and release truth
+
+- Aligned the WPF shell assembly and displayed product version with the canonical 0.0.1 release.
+- Cleared snapshot validation as soon as invalid input is corrected and exposed the full validation,
+  severity, headline, and detail text to assistive technology.
+- Made final restore consent resizable and scrollable so long paths wrap without clipping, and only
+  promised a pre-restore snapshot for modules that actually write settings.
+- Routed completed restores to the result workspace and prevented the same confirmation page from
+  accidentally starting a second restore, while keeping long result summaries scrollable so the
+  Timeline action stays reachable.
+
 ### Fixed: restore and snapshot integrity
 
 - Verified successful manifest rows against their physical artifacts and kept unavailable modules out
@@ -31,7 +42,8 @@ version numbers, because that is what those releases were called.
 ### Fixed: WPF lifecycle-safe navigation
 
 - Added explicit Timeline and Advanced history destinations to the command bar so every read-only
-  snapshot workspace is reachable and users can always leave Compare.
+  snapshot workspace is reachable, and bound Escape to Timeline so keyboard users can always leave
+  Compare.
 - Cancelled and cleared an active comparison before user-driven navigation, including when the same
   snapshot is opened again later.
 - Disabled workspace navigation while backup or restore work is running, and prevented the final WPF

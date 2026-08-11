@@ -66,7 +66,7 @@
           <StackPanel>
             <TextBlock Text="Selected source is partial." TextWrapping="Wrap" FontSize="13" FontWeight="SemiBold"
                        Foreground="{DynamicResource WarningTextBrush}" />
-            <TextBlock Text="Some modules may be missing from this snapshot. You will be asked to consent again before anything is written."
+            <TextBlock Text="Some modules may be missing from this snapshot. You will be asked to consent again before the restore continues."
                        TextWrapping="Wrap" FontSize="12" Margin="0,3,0,0"
                        Foreground="{DynamicResource MutedTextBrush}" />
           </StackPanel>
@@ -341,10 +341,10 @@
           <ColumnDefinition Width="*" />
           <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
-        <TextBlock VerticalAlignment="Center" FontSize="13" Foreground="{DynamicResource MutedTextBrush}">
-          <Run Text="{Binding Modules.Count, Mode=OneWay}" />
-          <Run Text="modules will be written from this snapshot." />
-        </TextBlock>
+        <TextBlock Text="{Binding RestoreSelectionSummary}"
+                   VerticalAlignment="Center" FontSize="13"
+                   TextWrapping="Wrap"
+                   Foreground="{DynamicResource MutedTextBrush}" />
         <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
           <Button Content="Back to compare" Command="{Binding BackToCompareCommand}" IsEnabled="{Binding CanNavigate}"
                   Style="{DynamicResource SecondaryButtonStyle}" />

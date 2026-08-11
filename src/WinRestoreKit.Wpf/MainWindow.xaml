@@ -11,7 +11,8 @@
         FontFamily="{DynamicResource ApplicationFont}"
         FontSize="13"
         Foreground="{DynamicResource TextBrush}"
-        Background="{DynamicResource WindowBackgroundBrush}">
+        Background="{DynamicResource WindowBackgroundBrush}"
+        PreviewKeyDown="OnPreviewKeyDown">
   <Window.Resources>
     <DataTemplate DataType="{x:Type timeline:TimelineViewModel}"><views:TimelineView /></DataTemplate>
     <DataTemplate DataType="{x:Type history:AdvancedHistoryViewModel}"><views:AdvancedHistoryView /></DataTemplate>

@@ -98,7 +98,8 @@ namespace WinRestoreKit.Wpf.Navigation
 
         private void ShowConfirm(SnapshotEvent snapshot, IReadOnlyList<BackupBase> modules)
         {
-            ConfirmViewModel confirm = new ConfirmViewModel(snapshot, modules, () => shell.ShowCompare(currentWorkspace));
+            ConfirmViewModel confirm = new ConfirmViewModel(snapshot, modules,
+                () => shell.ShowCompare(currentWorkspace), shell.ShowResult);
             shell.ShowConfirm(confirm);
         }
     }

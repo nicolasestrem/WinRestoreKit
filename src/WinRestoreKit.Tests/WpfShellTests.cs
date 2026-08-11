@@ -49,6 +49,30 @@ namespace WinRestoreKit.Tests
         }
 
         [Fact]
+        public void MainWindow_EscapeReturnsFromCompareToTimeline()
+        {
+            WpfTestHost.Run(() =>
+            {
+                ShellViewModel shell = CreateShell();
+                MainWindow window = new MainWindow(shell);
+                var snapshot = new SnapshotEvent(SnapshotEventKind.Partial, DateTime.UtcNow, "snapshot",
+                    string.Empty, string.Empty, string.Empty, 0, true, null);
+                var comparison = new ComparisonWorkspaceViewModel(snapshot,
+                    Array.Empty<BackupModuleRegistration>(), new SnapshotComparisonService(), (_, _) => { });
+
+                shell.ShowCompare(comparison);
+                Assert.True(window.ReturnToTimelineFromCompare());
+                Dispatcher.CurrentDispatcher.Invoke(
+                    DispatcherPriority.ApplicationIdle,
+                    new Action(() => { }));
+
+                Assert.Equal("Timeline", shell.WorkflowLabel);
+                Assert.IsType<TimelineViewModel>(shell.CurrentWorkspace);
+                window.Close();
+            });
+        }
+
+        [Fact]
         public void Shell_PrimaryNavigationCommandsCannotHideAnActiveRun()
         {
             WpfTestHost.Run(() =>

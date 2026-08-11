@@ -26,20 +26,27 @@ namespace WinRestoreKit.Wpf.ViewModels
     internal sealed class ConfirmViewModel : ObservableObject, IRunPresentation
     {
         private readonly Action backToCompare;
+        private readonly Action<RunSummary, IReadOnlyList<ModuleOutcome>> showResult;
         private readonly ObservableCollection<string> logLines = new ObservableCollection<string>();
+        private IReadOnlyList<ModuleOutcome> summaryOutcomes = Array.Empty<ModuleOutcome>();
         private Dispatcher dispatcher;
         private IRunDialogService dialogService;
         private Func<Window> ownerProvider;
         private RunControl activeControl;
         private bool isRestoring;
 
-        internal ConfirmViewModel(SnapshotEvent snapshot, IReadOnlyList<BackupBase> modules, Action backToCompare = null)
+        internal ConfirmViewModel(SnapshotEvent snapshot, IReadOnlyList<BackupBase> modules,
+            Action backToCompare = null,
+            Action<RunSummary, IReadOnlyList<ModuleOutcome>> showResult = null)
         {
             Snapshot = snapshot ?? throw new ArgumentNullException(nameof(snapshot));
             Modules = modules == null ? Array.Empty<BackupBase>() : modules.Where(module => module != null).ToArray();
             this.backToCompare = backToCompare;
+            this.showResult = showResult;
             LogLines = new ReadOnlyObservableCollection<string>(logLines);
-            FidelityCaveat = RestorePlan.FidelityCaveat;
+            FidelityCaveat = Modules.Any(module => module.RestoreMakesChanges)
+                ? RestorePlan.FidelityCaveat
+                : RestorePlan.NoSnapshotNotice;
             ConsentProcesses = SelectProcesses(true);
             InformationalProcesses = SelectProcesses(false);
             ExplorerRestartModules = Modules.Where(module => module.RequiresExplorerRestart).ToArray();
@@ -58,6 +65,9 @@ namespace WinRestoreKit.Wpf.ViewModels
         public IReadOnlyList<BackupBase> ExplorerRestartModules { get; }
         public IReadOnlyList<Notice> ModuleWarnings { get; }
         public string FidelityCaveat { get; }
+        public string RestoreSelectionSummary => Modules.Count == 1
+            ? "1 selected module will be evaluated for restore from this snapshot."
+            : Modules.Count + " selected modules will be evaluated for restore from this snapshot.";
         public bool IsSourcePartial => Snapshot.Kind == SnapshotEventKind.Partial;
         public bool IsRestoring
         {
@@ -77,7 +87,9 @@ namespace WinRestoreKit.Wpf.ViewModels
             }
         }
 
-        public bool CanStartRestore => Modules.Count != 0 && !IsRestoring && dialogService != null && ownerProvider != null;
+        public bool HasCompleted { get; private set; }
+        public bool CanStartRestore => Modules.Count != 0 && !IsRestoring && !HasCompleted
+            && dialogService != null && ownerProvider != null;
         public bool CanNavigate => !IsRestoring;
         public string ProgressText { get; private set; } = string.Empty;
         public RunSummary Summary { get; private set; }
@@ -98,7 +110,8 @@ namespace WinRestoreKit.Wpf.ViewModels
 
         internal async Task StartRestoreAsync()
         {
-            if (Modules.Count == 0 || IsRestoring || dialogService == null || ownerProvider == null || !RunCoordinator.TryStart())
+            if (Modules.Count == 0 || IsRestoring || HasCompleted || dialogService == null
+                || ownerProvider == null || !RunCoordinator.TryStart())
                 return;
 
             activeControl = new RunControl();
@@ -126,6 +139,9 @@ namespace WinRestoreKit.Wpf.ViewModels
                 IsRestoring = false;
                 RunCoordinator.SetRunning(false);
             }
+
+            if (Summary != null)
+                showResult?.Invoke(Summary, summaryOutcomes);
         }
 
         public void SetProgressText(string text)
@@ -140,7 +156,12 @@ namespace WinRestoreKit.Wpf.ViewModels
         public void ShowSummary(RunSummary summary, string caption, IReadOnlyList<ModuleOutcome> outcomes)
         {
             Summary = summary;
+            summaryOutcomes = outcomes ?? Array.Empty<ModuleOutcome>();
+            HasCompleted = summary != null;
             OnPropertyChanged(nameof(Summary));
+            OnPropertyChanged(nameof(HasCompleted));
+            OnPropertyChanged(nameof(CanStartRestore));
+            StartRestoreCommand.RaiseCanExecuteChanged();
         }
 
         public void SetExplorerRestartVisible(bool visible)

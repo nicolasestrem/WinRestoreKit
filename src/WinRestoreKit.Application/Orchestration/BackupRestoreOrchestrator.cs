@@ -1152,9 +1152,10 @@ namespace WinRestoreKit
                 logger.LogMessage("Could not choose a snapshot folder name: " + ex.Message);
             }
 
-            // Composing the plan reads four virtual members off every selected module -
-            // RestoreTargets, ProcessesToCloseBeforeRestore, Title and WarningMessage - and any of
-            // the four can throw from a module written later. This stage sits between the try above
+            // Composing the plan reads five virtual members off every selected module:
+            // RestoreTargets, ProcessesToCloseBeforeRestore, Title, WarningMessage, and
+            // RestoreMakesChanges. Any of them can throw from a module written later. This stage sits
+            // between the try above
             // and the confirmation dialog, and the whole chain up to the async void click handler
             // has no catch, so an escaping exception here would surface as WinForms' unhandled
             // exception dialog mid-restore.
