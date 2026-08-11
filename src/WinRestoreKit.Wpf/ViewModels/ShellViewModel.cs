@@ -6,6 +6,7 @@ using System.Windows.Input;
 using System.Windows.Threading;
 using WinRestoreKit.Wpf.Infrastructure;
 using WinRestoreKit.Wpf.Services;
+using WinRestoreKit.Wpf.ViewModels.History;
 using WinRestoreKit.Wpf.ViewModels.Timeline;
 
 namespace WinRestoreKit.Wpf.ViewModels
@@ -18,11 +19,14 @@ namespace WinRestoreKit.Wpf.ViewModels
         private readonly SettingsViewModel settings;
         private readonly AboutViewModel about;
         private readonly SnapshotEventCatalog snapshotEventCatalog;
+        private readonly AdvancedHistoryViewModel advancedHistory;
         private readonly BackupCompletionPublisher completionPublisher;
         private readonly Func<BackupRunRequest, Task<BackupRunCompletion>> runBackupAsync;
         private readonly Func<Task> refreshTimelineAsync;
+        private Func<Task> beforeUserNavigationAsync = () => Task.CompletedTask;
         private TimelineViewModel timelineWorkspace;
         private BackupWorkspaceViewModel backupWorkspace;
+        private bool navigationInProgress;
 
         internal ShellViewModel(IThemeService themes, WpfUpdatePresenter updates, string currentVersion)
         {
@@ -37,6 +41,7 @@ namespace WinRestoreKit.Wpf.ViewModels
             settings = new SettingsViewModel(themes);
             about = new AboutViewModel(updates, currentVersion);
             snapshotEventCatalog = new SnapshotEventCatalog();
+            advancedHistory = new AdvancedHistoryViewModel(snapshotEventCatalog);
             completionPublisher = new BackupCompletionPublisher(snapshotEventCatalog);
             WpfAppRestoreDialog.Register(snapshotEventCatalog);
             runBackupAsync = RunWpfBackupAsync;
@@ -48,6 +53,7 @@ namespace WinRestoreKit.Wpf.ViewModels
         {
             runBackupAsync = runBackup ?? throw new ArgumentNullException(nameof(runBackup));
             snapshotEventCatalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
+            advancedHistory = new AdvancedHistoryViewModel(snapshotEventCatalog);
             completionPublisher = new BackupCompletionPublisher(snapshotEventCatalog);
             refreshTimelineAsync = refreshTimeline ?? throw new ArgumentNullException(nameof(refreshTimeline));
             InitializeCommands();
@@ -57,6 +63,7 @@ namespace WinRestoreKit.Wpf.ViewModels
         public string WorkflowLabel { get; private set; }
         public ICommand CreateSnapshotCommand { get; private set; }
         public ICommand ShowTimelineCommand { get; private set; }
+        public ICommand ShowAdvancedHistoryCommand { get; private set; }
         public ICommand ShowSettingsCommand { get; private set; }
         public ICommand ShowAboutCommand { get; private set; }
 
@@ -70,9 +77,12 @@ namespace WinRestoreKit.Wpf.ViewModels
         internal void SetTimeline(TimelineViewModel value)
         {
             timelineWorkspace = value ?? throw new ArgumentNullException(nameof(value));
-            (ShowTimelineCommand as DelegateCommand)?.RaiseCanExecuteChanged();
+            (ShowTimelineCommand as AsyncDelegateCommand)?.RaiseCanExecuteChanged();
             ShowTimeline();
         }
+
+        internal void SetBeforeUserNavigation(Func<Task> callback)
+            => beforeUserNavigationAsync = callback ?? throw new ArgumentNullException(nameof(callback));
 
         internal void NavigateTo(object workspace, string workflowLabel)
         {
@@ -99,6 +109,19 @@ namespace WinRestoreKit.Wpf.ViewModels
         internal void ShowConfirm(ConfirmViewModel confirm)
             => NavigateTo(confirm ?? throw new ArgumentNullException(nameof(confirm)), "Confirm");
 
+        internal bool RequestWindowClose()
+        {
+            if (!RunCoordinator.IsRunning)
+                return true;
+
+            const string message = "A backup or restore is still running. Wait for it to finish, "
+                + "or use Cancel in the active run before closing WinRestoreKit.";
+            WorkflowLabel = "Run in progress";
+            OnPropertyChanged(nameof(WorkflowLabel));
+            dialogs?.ShowWarning(message, "Run in progress");
+            return false;
+        }
+
         internal void ShowInlineWorkflowError(string text)
         {
             if (string.IsNullOrWhiteSpace(text))
@@ -110,19 +133,63 @@ namespace WinRestoreKit.Wpf.ViewModels
 
         private void InitializeCommands()
         {
-            CreateSnapshotCommand = new DelegateCommand(_ => ShowCreateSnapshot(),
-                _ => !RunCoordinator.IsRunning);
-            ShowTimelineCommand = new DelegateCommand(_ => ShowTimeline(), _ => timelineWorkspace != null);
-            ShowSettingsCommand = new DelegateCommand(_ => NavigateTo(settings, "Settings"));
-            ShowAboutCommand = new DelegateCommand(_ => NavigateTo(about, "About"));
+            Action<Exception> reportNavigationFailure = ex =>
+                ShowInlineWorkflowError("Navigation could not complete: " + ex.Message);
+            CreateSnapshotCommand = new AsyncDelegateCommand(ShowCreateSnapshotAsync,
+                reportNavigationFailure, CanNavigate);
+            ShowTimelineCommand = new AsyncDelegateCommand(
+                () => NavigateUserAsync(() => timelineWorkspace, "Timeline"),
+                reportNavigationFailure,
+                () => timelineWorkspace != null && CanNavigate());
+            ShowAdvancedHistoryCommand = new AsyncDelegateCommand(
+                () => NavigateUserAsync(() => advancedHistory, "Advanced history"),
+                reportNavigationFailure,
+                CanNavigate);
+            ShowSettingsCommand = new AsyncDelegateCommand(
+                () => NavigateUserAsync(() => settings, "Settings"),
+                reportNavigationFailure,
+                () => settings != null && CanNavigate());
+            ShowAboutCommand = new AsyncDelegateCommand(
+                () => NavigateUserAsync(() => about, "About"),
+                reportNavigationFailure,
+                () => about != null && CanNavigate());
             RunCoordinator.RunningChanged += OnRunningChanged;
         }
 
-        private void ShowCreateSnapshot()
+        private Task ShowCreateSnapshotAsync()
+            => NavigateUserAsync(CreateBackupWorkspace, "Create snapshot");
+
+        private object CreateBackupWorkspace()
         {
             backupWorkspace = new BackupWorkspaceViewModel(StartBackupAsync, Data.DataRootDir);
-            NavigateTo(backupWorkspace, "Create snapshot");
+            return backupWorkspace;
         }
+
+        private async Task NavigateUserAsync(Func<object> workspaceFactory, string workflowLabel)
+        {
+            if (!CanNavigate())
+                return;
+
+            navigationInProgress = true;
+            RefreshNavigationCommandStates();
+            try
+            {
+                await beforeUserNavigationAsync();
+                if (RunCoordinator.IsRunning)
+                    return;
+
+                object workspace = workspaceFactory?.Invoke();
+                if (workspace != null)
+                    NavigateTo(workspace, workflowLabel);
+            }
+            finally
+            {
+                navigationInProgress = false;
+                RefreshNavigationCommandStates();
+            }
+        }
+
+        private bool CanNavigate() => !navigationInProgress && !RunCoordinator.IsRunning;
 
         private async Task StartBackupAsync(BackupRunRequest request)
         {
@@ -163,10 +230,7 @@ namespace WinRestoreKit.Wpf.ViewModels
         }
 
         private Task ReturnToTimelineAsync()
-        {
-            ShowTimeline();
-            return Task.CompletedTask;
-        }
+            => NavigateUserAsync(() => timelineWorkspace, "Timeline");
 
         private Task RefreshTimelineAsync()
         {
@@ -178,7 +242,7 @@ namespace WinRestoreKit.Wpf.ViewModels
 
         private void OnRunningChanged(bool running)
         {
-            Action refresh = () => (CreateSnapshotCommand as DelegateCommand)?.RaiseCanExecuteChanged();
+            Action refresh = RefreshNavigationCommandStates;
             if (dispatcher == null || dispatcher.HasShutdownStarted || dispatcher.HasShutdownFinished
                 || dispatcher.CheckAccess())
             {
@@ -193,6 +257,15 @@ namespace WinRestoreKit.Wpf.ViewModels
             catch (InvalidOperationException)
             {
             }
+        }
+
+        private void RefreshNavigationCommandStates()
+        {
+            (CreateSnapshotCommand as AsyncDelegateCommand)?.RaiseCanExecuteChanged();
+            (ShowTimelineCommand as AsyncDelegateCommand)?.RaiseCanExecuteChanged();
+            (ShowAdvancedHistoryCommand as AsyncDelegateCommand)?.RaiseCanExecuteChanged();
+            (ShowSettingsCommand as AsyncDelegateCommand)?.RaiseCanExecuteChanged();
+            (ShowAboutCommand as AsyncDelegateCommand)?.RaiseCanExecuteChanged();
         }
     }
 }

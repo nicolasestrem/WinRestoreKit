@@ -8,6 +8,17 @@ version numbers, because that is what those releases were called.
 
 ## [Unreleased]
 
+### Fixed: WPF lifecycle-safe navigation
+
+- Added explicit Timeline and Advanced history destinations to the command bar so every read-only
+  snapshot workspace is reachable and users can always leave Compare.
+- Cancelled and cleared an active comparison before user-driven navigation, including when the same
+  snapshot is opened again later.
+- Disabled workspace navigation while backup or restore work is running, and prevented the final WPF
+  window from closing until the active run finishes or is cancelled.
+- Moved Advanced history catalog reads off the UI thread so a slow disk or large snapshot collection
+  does not freeze the window.
+
 ### Added — WPF Timeline + Compare shell (side-by-side with WinForms)
 
 A new WPF application (`WinRestoreKit.Wpf`) ships alongside the existing WinForms app, implementing the

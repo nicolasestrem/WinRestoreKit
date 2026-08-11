@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:views="clr-namespace:WinRestoreKit.Wpf.Views"
         xmlns:vm="clr-namespace:WinRestoreKit.Wpf.ViewModels"
+        xmlns:history="clr-namespace:WinRestoreKit.Wpf.ViewModels.History"
         xmlns:timeline="clr-namespace:WinRestoreKit.Wpf.ViewModels.Timeline"
         Title="WinRestoreKit" MinWidth="1024" MinHeight="640"
         UseLayoutRounding="True"
@@ -13,6 +14,7 @@
         Background="{DynamicResource WindowBackgroundBrush}">
   <Window.Resources>
     <DataTemplate DataType="{x:Type timeline:TimelineViewModel}"><views:TimelineView /></DataTemplate>
+    <DataTemplate DataType="{x:Type history:AdvancedHistoryViewModel}"><views:AdvancedHistoryView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:ComparisonWorkspaceViewModel}"><views:ComparisonWorkspaceView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:ConfirmViewModel}"><views:ConfirmView /></DataTemplate>
     <DataTemplate DataType="{x:Type vm:BackupWorkspaceViewModel}"><views:BackupWorkspaceView /></DataTemplate>
@@ -24,7 +26,7 @@
   <DockPanel>
     <!--
       Compact command bar, not a navigation chrome: wordmark, the stage the user is in, and the
-      three always-available commands. Everything else belongs to the workspace below it.
+      primary workspace commands. Everything else belongs to the workspace below it.
     -->
     <Border DockPanel.Dock="Top"
             Background="{DynamicResource SurfaceBrush}"
@@ -35,6 +37,8 @@
       <Grid Height="52">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="Auto" />
           <ColumnDefinition Width="Auto" />
           <ColumnDefinition Width="Auto" />
           <ColumnDefinition Width="Auto" />
@@ -60,24 +64,43 @@
         </StackPanel>
 
         <Button Grid.Column="1"
+                Content="Timeline"
+                Command="{Binding ShowTimelineCommand}"
+                Style="{DynamicResource SubtleButtonStyle}"
+                VerticalAlignment="Center"
+                AutomationProperties.AutomationId="NavTimeline"
+                AutomationProperties.Name="Timeline" />
+        <Button Grid.Column="2"
+                Content="History"
+                Command="{Binding ShowAdvancedHistoryCommand}"
+                Style="{DynamicResource SubtleButtonStyle}"
+                Margin="4,0,0,0"
+                VerticalAlignment="Center"
+                AutomationProperties.AutomationId="NavAdvancedHistory"
+                AutomationProperties.Name="Advanced history" />
+        <Button Grid.Column="3"
                 Content="Create snapshot"
                 Command="{Binding CreateSnapshotCommand}"
                 Style="{DynamicResource PrimaryButtonStyle}"
+                Margin="8,0,0,0"
                 VerticalAlignment="Center"
+                AutomationProperties.AutomationId="NavCreateSnapshot"
                 AutomationProperties.Name="Create snapshot" />
-        <Button Grid.Column="2"
+        <Button Grid.Column="4"
                 Content="Settings"
                 Command="{Binding ShowSettingsCommand}"
                 Style="{DynamicResource SubtleButtonStyle}"
                 Margin="8,0,0,0"
                 VerticalAlignment="Center"
+                AutomationProperties.AutomationId="NavSettings"
                 AutomationProperties.Name="Settings" />
-        <Button Grid.Column="3"
+        <Button Grid.Column="5"
                 Content="About"
                 Command="{Binding ShowAboutCommand}"
                 Style="{DynamicResource SubtleButtonStyle}"
                 Margin="4,0,0,0"
                 VerticalAlignment="Center"
+                AutomationProperties.AutomationId="NavAbout"
                 AutomationProperties.Name="About" />
       </Grid>
     </Border>

@@ -18,37 +18,60 @@ namespace WinRestoreKit.Tests
         [Fact]
         public async Task SearchText_FiltersTheSharedProjectionByDisplayMachinePathAndStatus()
         {
-            SnapshotEvent verified = NewEvent(SnapshotEventKind.Verified, @"C:\history\alpha", "ALPHA-PC");
-            SnapshotEvent partial = NewEvent(SnapshotEventKind.Partial, @"C:\history\bravo", "BRAVO-PC");
-            SnapshotEvent failed = NewEvent(SnapshotEventKind.Failed, @"C:\history\charlie", "CHARLIE-PC", "disk full");
-            FakeCatalog catalog = new FakeCatalog(verified, partial, failed);
-            AdvancedHistoryViewModel history = new AdvancedHistoryViewModel(catalog);
+            await WpfTestHost.RunAsync(async () =>
+            {
+                SnapshotEvent verified = NewEvent(SnapshotEventKind.Verified, @"C:\history\alpha", "ALPHA-PC");
+                SnapshotEvent partial = NewEvent(SnapshotEventKind.Partial, @"C:\history\bravo", "BRAVO-PC");
+                SnapshotEvent failed = NewEvent(SnapshotEventKind.Failed, @"C:\history\charlie", "CHARLIE-PC", "disk full");
+                FakeCatalog catalog = new FakeCatalog(verified, partial, failed);
+                AdvancedHistoryViewModel history = new AdvancedHistoryViewModel(catalog);
 
-            await history.RefreshAsync();
+                await history.RefreshAsync();
 
-            AssertVisible(history, verified, "alpha");
-            AssertVisible(history, partial, "BRAVO-PC");
-            AssertVisible(history, partial, "history\\bravo");
-            AssertVisible(history, partial, "partial snapshot");
+                AssertVisible(history, verified, "alpha");
+                AssertVisible(history, partial, "BRAVO-PC");
+                AssertVisible(history, partial, "history\\bravo");
+                AssertVisible(history, partial, "partial snapshot");
+            });
         }
 
         [Fact]
         public async Task RefreshAsync_ReusesTheSameStableStatusProjectionAsTimeline()
         {
-            SnapshotEvent failed = NewEvent(SnapshotEventKind.Failed, @"C:\history\failed", "TEST-PC", "disk full");
-            FakeCatalog catalog = new FakeCatalog(failed);
-            TimelineViewModel timeline = new TimelineViewModel(
-                catalog, new FakePreparationService(), new RecordingNavigator());
-            AdvancedHistoryViewModel history = new AdvancedHistoryViewModel(catalog);
+            await WpfTestHost.RunAsync(async () =>
+            {
+                SnapshotEvent failed = NewEvent(SnapshotEventKind.Failed, @"C:\history\failed", "TEST-PC", "disk full");
+                FakeCatalog catalog = new FakeCatalog(failed);
+                TimelineViewModel timeline = new TimelineViewModel(
+                    catalog, new FakePreparationService(), new RecordingNavigator());
+                AdvancedHistoryViewModel history = new AdvancedHistoryViewModel(catalog);
 
-            await timeline.RefreshAsync();
-            await history.RefreshAsync();
+                await timeline.RefreshAsync();
+                await history.RefreshAsync();
 
-            SnapshotEventViewModel timelineEvent = Assert.Single(timeline.Events);
-            SnapshotEventViewModel historyEvent = Assert.Single(history.Events.Cast<SnapshotEventViewModel>());
-            Assert.Same(timelineEvent.Status, historyEvent.Status);
-            Assert.Equal("Backup failed", historyEvent.Status.Label);
-            Assert.Equal("disk full", historyEvent.DiagnosticReason);
+                SnapshotEventViewModel timelineEvent = Assert.Single(timeline.Events);
+                SnapshotEventViewModel historyEvent = Assert.Single(history.Events.Cast<SnapshotEventViewModel>());
+                Assert.Same(timelineEvent.Status, historyEvent.Status);
+                Assert.Equal("Backup failed", historyEvent.Status.Label);
+                Assert.Equal("disk full", historyEvent.DiagnosticReason);
+            });
+        }
+
+        [Fact]
+        public async Task RefreshAsync_ReadsTheCatalogAwayFromTheUiThread()
+        {
+            await WpfTestHost.RunAsync(async () =>
+            {
+                int uiThreadId = Thread.CurrentThread.ManagedThreadId;
+                FakeCatalog catalog = new FakeCatalog(
+                    NewEvent(SnapshotEventKind.Verified, @"C:\history\alpha", "ALPHA-PC"));
+                AdvancedHistoryViewModel history = new AdvancedHistoryViewModel(catalog);
+
+                await history.RefreshAsync();
+
+                Assert.NotEqual(uiThreadId, catalog.ReadThreadId);
+                Assert.Single(history.Events.Cast<SnapshotEventViewModel>());
+            });
         }
 
         private static void AssertVisible(AdvancedHistoryViewModel history, SnapshotEvent expected, string search)
@@ -68,7 +91,13 @@ namespace WinRestoreKit.Tests
 
             internal FakeCatalog(params SnapshotEvent[] events) => this.events = events;
 
-            public IReadOnlyList<SnapshotEvent> Read() => events;
+            internal int ReadThreadId { get; private set; }
+
+            public IReadOnlyList<SnapshotEvent> Read()
+            {
+                ReadThreadId = Thread.CurrentThread.ManagedThreadId;
+                return events;
+            }
         }
 
         private sealed class FakePreparationService : ISnapshotPayloadPreparationService

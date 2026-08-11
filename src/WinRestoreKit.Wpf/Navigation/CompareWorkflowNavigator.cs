@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using WinRestoreKit;
@@ -14,6 +15,7 @@ namespace WinRestoreKit.Wpf.Navigation
         private readonly Window owner;
         private readonly ICompareDialogService dialogs;
         private ComparisonWorkspaceViewModel currentWorkspace;
+        private int transitionVersion;
 
         internal CompareWorkflowNavigator(ShellViewModel shell, Window owner, ICompareDialogService dialogs)
         {
@@ -44,20 +46,40 @@ namespace WinRestoreKit.Wpf.Navigation
                 return;
             }
 
-            PendingTransition = ReplaceWorkspaceAsync(incoming);
+            int version = Interlocked.Increment(ref transitionVersion);
+            PendingTransition = ReplaceWorkspaceAsync(incoming, version);
         }
 
         public void ShowSnapshotDiagnostic(SnapshotEvent snapshot)
             => dialogs.ShowSnapshotDiagnostic(owner, snapshot);
 
-        private async Task ReplaceWorkspaceAsync(SnapshotPayloadPreparation incoming)
+        internal async Task LeaveCompareAsync()
+        {
+            Interlocked.Increment(ref transitionVersion);
+            ComparisonWorkspaceViewModel workspace = currentWorkspace;
+            currentWorkspace = null;
+            if (workspace == null)
+                return;
+
+            await workspace.CancelAsync();
+            workspace.RestoreSet.Clear();
+        }
+
+        private async Task ReplaceWorkspaceAsync(SnapshotPayloadPreparation incoming, int version)
         {
             bool comparisonStarted = false;
             try
             {
-                if (currentWorkspace != null)
-                    await currentWorkspace.CancelAsync();
-                currentWorkspace?.RestoreSet.Clear();
+                ComparisonWorkspaceViewModel previous = currentWorkspace;
+                if (previous != null)
+                    await previous.CancelAsync();
+                previous?.RestoreSet.Clear();
+
+                if (version != Volatile.Read(ref transitionVersion))
+                {
+                    incoming.Dispose();
+                    return;
+                }
 
                 currentWorkspace = new ComparisonWorkspaceViewModel(incoming.Snapshot,
                     BackupModuleCatalog.CreateAll(), new SnapshotComparisonService(), ShowConfirm);
@@ -69,7 +91,8 @@ namespace WinRestoreKit.Wpf.Navigation
             {
                 if (!comparisonStarted)
                     incoming.Dispose();
-                shell.ShowInlineWorkflowError("Comparison could not start: " + ex.Message);
+                if (version == Volatile.Read(ref transitionVersion))
+                    shell.ShowInlineWorkflowError("Comparison could not start: " + ex.Message);
             }
         }
 

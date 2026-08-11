@@ -6,6 +6,7 @@ using WinRestoreKit;
 using WinRestoreKit.Wpf;
 using WinRestoreKit.Wpf.Services;
 using WinRestoreKit.Wpf.ViewModels;
+using WinRestoreKit.Wpf.ViewModels.History;
 using WinRestoreKit.Wpf.ViewModels.Timeline;
 using Xunit;
 
@@ -28,19 +29,82 @@ namespace WinRestoreKit.Tests
         }
 
         [Fact]
-        public void Shell_SettingsAndAboutCommandsReturnToTheRealTimeline()
+        public void Shell_PrimaryNavigationCommandsReachEveryWorkspaceAndReturnToTimeline()
         {
             WpfTestHost.Run(() =>
             {
                 ShellViewModel shell = CreateShell();
                 MainWindow window = new MainWindow(shell);
+                shell.ShowAdvancedHistoryCommand.Execute(null);
+                Assert.Equal("Advanced history", shell.WorkflowLabel);
+                Assert.IsType<AdvancedHistoryViewModel>(shell.CurrentWorkspace);
                 shell.ShowSettingsCommand.Execute(null);
                 Assert.Equal("Settings", shell.WorkflowLabel);
                 shell.ShowAboutCommand.Execute(null);
                 Assert.Equal("About", shell.WorkflowLabel);
-                shell.ShowTimeline();
+                shell.ShowTimelineCommand.Execute(null);
                 Assert.IsType<TimelineViewModel>(shell.CurrentWorkspace);
                 window.Close();
+            });
+        }
+
+        [Fact]
+        public void Shell_PrimaryNavigationCommandsCannotHideAnActiveRun()
+        {
+            WpfTestHost.Run(() =>
+            {
+                RunCoordinator.SetRunning(false);
+                ShellViewModel shell = CreateShell();
+                MainWindow window = new MainWindow(shell);
+                try
+                {
+                    RunCoordinator.SetRunning(true);
+
+                    Assert.False(shell.CreateSnapshotCommand.CanExecute(null));
+                    Assert.False(shell.ShowTimelineCommand.CanExecute(null));
+                    Assert.False(shell.ShowAdvancedHistoryCommand.CanExecute(null));
+                    Assert.False(shell.ShowSettingsCommand.CanExecute(null));
+                    Assert.False(shell.ShowAboutCommand.CanExecute(null));
+
+                    shell.ShowSettingsCommand.Execute(null);
+                    Assert.Equal("Timeline", shell.WorkflowLabel);
+                    Assert.IsType<TimelineViewModel>(shell.CurrentWorkspace);
+                }
+                finally
+                {
+                    RunCoordinator.SetRunning(false);
+                    window.Close();
+                }
+            });
+        }
+
+        [Fact]
+        public void MainWindow_CloseIsCanceledUntilTheActiveRunFinishes()
+        {
+            WpfTestHost.Run(() =>
+            {
+                RunCoordinator.SetRunning(false);
+                ShellViewModel shell = ShellViewModel.ForTest(
+                    _ => Task.FromResult<BackupRunCompletion>(null),
+                    new SnapshotEventCatalog(),
+                    () => Task.CompletedTask);
+                MainWindow window = new MainWindow(shell);
+                window.Show();
+                try
+                {
+                    RunCoordinator.SetRunning(true);
+                    window.Close();
+
+                    Assert.True(window.IsVisible);
+                    Assert.Equal("Run in progress", shell.WorkflowLabel);
+                }
+                finally
+                {
+                    RunCoordinator.SetRunning(false);
+                    window.Close();
+                }
+
+                Assert.False(window.IsVisible);
             });
         }
 
