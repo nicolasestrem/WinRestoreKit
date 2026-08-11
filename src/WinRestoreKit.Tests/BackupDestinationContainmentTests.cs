@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
-using System.Windows.Forms;
 using Conf;
 using DataHelper;
 using WinRestoreKit;
@@ -40,6 +39,7 @@ namespace WinRestoreKit.Tests
 
                 await runner.RunBackup(new BackupBase[] { new FolderSourceModule(source) },
                     destination, "nested", SnapshotCompression.None);
+                Assert.Equal(Path.Combine(destination, Data.NowShort), runner.BackupOutputPath);
 
                 Assert.NotNull(ui.LastSummary);
                 Assert.Equal(RunState.DidNotRun, ui.LastSummary.State);
@@ -84,7 +84,7 @@ namespace WinRestoreKit.Tests
 
                 Assert.NotNull(ui.LastSummary);
                 Assert.NotEqual(RunState.DidNotRun, ui.LastSummary.State);
-                Assert.True(Directory.Exists(Path.Combine(destination, Data.NowShort)));
+                Assert.True(Directory.Exists(runner.BackupOutputPath));
             }
             finally
             {
@@ -108,7 +108,7 @@ namespace WinRestoreKit.Tests
         {
             internal RunSummary LastSummary { get; private set; }
 
-            public IWin32Window Owner => null;
+            public object DialogOwner => null;
             public void SetProgressText(string text) { }
             public void SetProgressPercent(int percent) { }
             public void SetProgressDetail(string groupInfo, string elapsed, string remaining,

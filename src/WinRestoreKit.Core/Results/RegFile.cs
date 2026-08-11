@@ -9,6 +9,7 @@ namespace WinRestoreKit
         Missing,
         Empty,
         BadHeader,
+        Invalid,
 
         /// <summary>Present, but we could not read it. Says nothing about its contents.</summary>
         Unreadable
@@ -61,9 +62,45 @@ namespace WinRestoreKit
             if (string.IsNullOrWhiteSpace(text))
                 return RegFileCheck.Empty;
 
-            return text.StartsWith(Header, StringComparison.OrdinalIgnoreCase)
-                ? RegFileCheck.Valid
-                : RegFileCheck.BadHeader;
+            if (!text.StartsWith(Header, StringComparison.OrdinalIgnoreCase)
+                || (text.Length > Header.Length
+                    && text[Header.Length] != '\r'
+                    && text[Header.Length] != '\n'))
+            {
+                return RegFileCheck.BadHeader;
+            }
+
+            return HasRegistryContent(text) ? RegFileCheck.Valid : RegFileCheck.Invalid;
+        }
+
+        /// <summary>
+        /// A registry export must name at least one exported key after its header. This rejects
+        /// captures interrupted after the header and a final backslash whose continuation was lost.
+        /// </summary>
+        private static bool HasRegistryContent(string text)
+        {
+            string[] lines = text.Replace("\r\n", "\n").Replace("\r", "\n").Split('\n');
+            bool hasKeyDeclaration = false;
+            string lastContent = null;
+
+            foreach (string line in lines)
+            {
+                string trimmed = line.Trim();
+
+                if (trimmed.Length == 0)
+                    continue;
+
+                lastContent = trimmed;
+                if (trimmed.StartsWith("[HKEY_", StringComparison.OrdinalIgnoreCase)
+                    && trimmed.EndsWith("]", StringComparison.Ordinal))
+                {
+                    hasKeyDeclaration = true;
+                }
+            }
+
+            return hasKeyDeclaration
+                && lastContent != null
+                && !lastContent.EndsWith("\\", StringComparison.Ordinal);
         }
 
         /// <summary>

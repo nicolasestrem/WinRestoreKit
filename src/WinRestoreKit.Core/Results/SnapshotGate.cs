@@ -181,11 +181,10 @@ namespace WinRestoreKit
 
                     // Reported, never dropped. Every module reaching this gate is one the restore is
                     // about to overwrite, so a skip means that particular item has no fallback -
-                    // restoring it will write state the snapshot cannot put back. It does not force
-                    // an override, because on this path a skip means the item had nothing to capture
-                    // rather than that the capture refused: the snapshot runs with prompts
-                    // suppressed, so a module cannot decline it. Silently dropping it was how a
-                    // module could be listed as snapshotted while nothing of it was saved.
+                    // restoring it will write state the snapshot cannot put back. A legitimate
+                    // absence still needs an override: whether the capture skipped because there
+                    // was nothing live or failed outright, the user has no fallback for a write
+                    // this restore may make.
                     default:
                         notCaptured.Add(Describe(outcome.Title, outcome.Result.Reason));
                         break;
@@ -201,8 +200,8 @@ namespace WinRestoreKit
                 return SnapshotDecision.Create(SnapshotVerdict.ModulesFailed, true, summary, failures);
             }
 
-            // Nothing failed and nothing was captured. This proceeds, but it must SAY so: a user
-            // told "snapshot taken" who then needs to roll back would find an empty folder.
+            // An empty snapshot is safe to proceed only when no considered module can write.
+            // Otherwise the user must explicitly accept that the restore has no fallback.
             if (captured == 0)
             {
                 string summary;
@@ -224,7 +223,7 @@ namespace WinRestoreKit
                     summary = "No pre-restore snapshot was taken: none of the selected items change anything when restored.";
                 }
 
-                return SnapshotDecision.Create(SnapshotVerdict.NothingCaptured, false, summary, notCaptured);
+                return SnapshotDecision.Create(SnapshotVerdict.NothingCaptured, considered > 0, summary, notCaptured);
             }
 
             if (notCaptured.Count > 0)
@@ -237,7 +236,7 @@ namespace WinRestoreKit
                     "The pre-restore snapshot captured {0} of {1} item(s). The rest had nothing to save, so restoring them cannot be undone:",
                     captured, considered);
 
-                return SnapshotDecision.Create(SnapshotVerdict.PartiallyCaptured, false, summary, notCaptured);
+                return SnapshotDecision.Create(SnapshotVerdict.PartiallyCaptured, true, summary, notCaptured);
             }
 
             return SnapshotDecision.Create(

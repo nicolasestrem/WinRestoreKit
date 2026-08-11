@@ -1,0 +1,86 @@
+<Window x:Class="WinRestoreKit.Wpf.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="clr-namespace:WinRestoreKit.Wpf.Views"
+        xmlns:vm="clr-namespace:WinRestoreKit.Wpf.ViewModels"
+        xmlns:timeline="clr-namespace:WinRestoreKit.Wpf.ViewModels.Timeline"
+        Title="WinRestoreKit" MinWidth="1024" MinHeight="640"
+        UseLayoutRounding="True"
+        TextOptions.TextFormattingMode="Ideal"
+        FontFamily="{DynamicResource ApplicationFont}"
+        FontSize="13"
+        Foreground="{DynamicResource TextBrush}"
+        Background="{DynamicResource WindowBackgroundBrush}">
+  <Window.Resources>
+    <DataTemplate DataType="{x:Type timeline:TimelineViewModel}"><views:TimelineView /></DataTemplate>
+    <DataTemplate DataType="{x:Type vm:ComparisonWorkspaceViewModel}"><views:ComparisonWorkspaceView /></DataTemplate>
+    <DataTemplate DataType="{x:Type vm:ConfirmViewModel}"><views:ConfirmView /></DataTemplate>
+    <DataTemplate DataType="{x:Type vm:BackupWorkspaceViewModel}"><views:BackupWorkspaceView /></DataTemplate>
+    <DataTemplate DataType="{x:Type vm:ProgressWorkspaceViewModel}"><views:ProgressWorkspaceView /></DataTemplate>
+    <DataTemplate DataType="{x:Type vm:ResultWorkspaceViewModel}"><views:ResultWorkspaceView /></DataTemplate>
+    <DataTemplate DataType="{x:Type vm:SettingsViewModel}"><views:SettingsView /></DataTemplate>
+    <DataTemplate DataType="{x:Type vm:AboutViewModel}"><views:AboutView /></DataTemplate>
+  </Window.Resources>
+  <DockPanel>
+    <!--
+      Compact command bar, not a navigation chrome: wordmark, the stage the user is in, and the
+      three always-available commands. Everything else belongs to the workspace below it.
+    -->
+    <Border DockPanel.Dock="Top"
+            Background="{DynamicResource SurfaceBrush}"
+            BorderBrush="{DynamicResource DividerBrush}"
+            BorderThickness="0,0,0,1"
+            Padding="20,0"
+            SnapsToDevicePixels="True">
+      <Grid Height="52">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+          <Border Width="3" Height="17" CornerRadius="1.5"
+                  Background="{DynamicResource AccentBrush}"
+                  SnapsToDevicePixels="True" />
+          <TextBlock Text="WinRestoreKit"
+                     Margin="10,0,0,0"
+                     FontSize="14" FontWeight="SemiBold"
+                     Foreground="{DynamicResource TextBrush}"
+                     VerticalAlignment="Center" />
+          <Border Width="1" Height="16" Margin="14,0"
+                  Background="{DynamicResource DividerBrush}"
+                  SnapsToDevicePixels="True" />
+          <TextBlock Text="{Binding WorkflowLabel}"
+                     FontSize="12.5"
+                     Foreground="{DynamicResource MutedTextBrush}"
+                     VerticalAlignment="Center"
+                     TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+
+        <Button Grid.Column="1"
+                Content="Create snapshot"
+                Command="{Binding CreateSnapshotCommand}"
+                Style="{DynamicResource PrimaryButtonStyle}"
+                VerticalAlignment="Center"
+                AutomationProperties.Name="Create snapshot" />
+        <Button Grid.Column="2"
+                Content="Settings"
+                Command="{Binding ShowSettingsCommand}"
+                Style="{DynamicResource SubtleButtonStyle}"
+                Margin="8,0,0,0"
+                VerticalAlignment="Center"
+                AutomationProperties.Name="Settings" />
+        <Button Grid.Column="3"
+                Content="About"
+                Command="{Binding ShowAboutCommand}"
+                Style="{DynamicResource SubtleButtonStyle}"
+                Margin="4,0,0,0"
+                VerticalAlignment="Center"
+                AutomationProperties.Name="About" />
+      </Grid>
+    </Border>
+    <ContentControl Content="{Binding CurrentWorkspace}" Focusable="False" />
+  </DockPanel>
+</Window>

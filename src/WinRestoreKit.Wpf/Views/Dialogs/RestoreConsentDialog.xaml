@@ -1,0 +1,86 @@
+<Window x:Class="WinRestoreKit.Wpf.Views.Dialogs.RestoreConsentDialog"
+        x:ClassModifier="internal"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Restore" WindowStartupLocation="CenterOwner"
+        AutomationProperties.Name="Restore consent"
+        Background="{DynamicResource WindowBackgroundBrush}"
+        Foreground="{DynamicResource TextBrush}"
+        Width="560" MinWidth="480" MaxHeight="720"
+        SizeToContent="Height" ResizeMode="NoResize" ShowInTaskbar="False">
+  <!-- Shared keys use DynamicResource: this dialog is constructed in tests on a bare STA thread
+       with no Application, where a StaticResource lookup for an app-level key would throw. -->
+  <Grid Margin="24">
+    <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel>
+      <StackPanel Orientation="Horizontal">
+        <TextBlock Text="&#xE7BA;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="18"
+                   VerticalAlignment="Top" Margin="0,1,12,0"
+                   Foreground="{DynamicResource WarningTextBrush}" />
+        <TextBlock Text="{Binding ConfirmationText}" TextWrapping="Wrap" FontSize="14"
+                   Foreground="{DynamicResource TextBrush}" />
+      </StackPanel>
+
+      <Grid>
+        <Grid.Style>
+          <Style TargetType="{x:Type Grid}">
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding HasItems, ElementName=consentChoiceList}" Value="False">
+                <Setter Property="Visibility" Value="Collapsed" />
+              </DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </Grid.Style>
+        <Border Style="{DynamicResource CardBorderStyle}" Padding="16" Margin="0,18,0,0">
+          <StackPanel>
+            <TextBlock Text="Applications you agree to close" Style="{DynamicResource SectionTitleStyle}"
+                       Foreground="{DynamicResource TextBrush}" />
+            <TextBlock Text="Unselected applications are left running, and the modules that need them are skipped."
+                       TextWrapping="Wrap" FontSize="12" Margin="0,4,0,10"
+                       Foreground="{DynamicResource MutedTextBrush}" />
+            <ItemsControl x:Name="consentChoiceList" ItemsSource="{Binding ConsentChoices}" AutomationProperties.Name="Applications you agree to close">
+              <ItemsControl.ItemTemplate><DataTemplate>
+                <CheckBox Content="{Binding Label}" IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                          Margin="0,0,0,8" Foreground="{DynamicResource TextBrush}" />
+              </DataTemplate></ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <StackPanel Margin="0,16,0,0">
+        <StackPanel.Style>
+          <Style TargetType="{x:Type StackPanel}">
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding HasItems, ElementName=informationalCloseList}" Value="False">
+                <Setter Property="Visibility" Value="Collapsed" />
+              </DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </StackPanel.Style>
+        <TextBlock Text="Applications that may close without consent" FontSize="12" FontWeight="SemiBold"
+                   Foreground="{DynamicResource TextBrush}" />
+        <ItemsControl x:Name="informationalCloseList" ItemsSource="{Binding InformationalCloseLines}" Margin="0,6,0,0"
+                      AutomationProperties.Name="Applications that may close without consent">
+          <ItemsControl.ItemTemplate><DataTemplate>
+            <TextBlock Text="{Binding}" TextWrapping="Wrap" FontSize="12" Margin="0,0,0,4"
+                       Foreground="{DynamicResource MutedTextBrush}" />
+          </DataTemplate></ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+
+      <StackPanel Orientation="Horizontal" Margin="0,18,0,0">
+        <TextBlock Text="&#xE946;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="13"
+                   VerticalAlignment="Top" Margin="0,1,10,0"
+                   Foreground="{DynamicResource MutedTextBrush}" />
+        <TextBlock Text="{Binding FidelityCaveat}" TextWrapping="Wrap" FontSize="12"
+                   Foreground="{DynamicResource MutedTextBrush}" />
+      </StackPanel>
+    </StackPanel></ScrollViewer>
+    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+      <Button Content="Cancel" IsCancel="True" Style="{DynamicResource SecondaryButtonStyle}" />
+      <Button Content="Restore" IsDefault="False" Click="Restore_Click" Margin="8,0,0,0"
+              Style="{DynamicResource PrimaryButtonStyle}" AutomationProperties.Name="Confirm restore" />
+    </StackPanel>
+  </Grid>
+</Window>

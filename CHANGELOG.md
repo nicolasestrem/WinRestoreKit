@@ -8,6 +8,47 @@ version numbers, because that is what those releases were called.
 
 ## [Unreleased]
 
+### Added — WPF Timeline + Compare shell (side-by-side with WinForms)
+
+A new WPF application (`WinRestoreKit.Wpf`) ships alongside the existing WinForms app, implementing the
+approved Timeline + Comparison Workspace design direction. It does not replace WinForms yet; both run
+from the same solution and share the same Core engine and Application layer.
+
+**Timeline is the home experience.** Every snapshot and failed attempt on this PC appears as a card on a
+point-in-time rail, newest first. Selecting a verified snapshot opens comparison; failed and unreadable
+entries open their diagnostic reason. Arrow keys navigate the list and every custom visual exposes UI
+Automation names, roles, and states.
+
+**Compare shows evidence before restore.** Selecting a snapshot compares each module against the current
+PC and reports honest state: captured, not captured, or changed. You build a restore set by selecting
+whole modules, then move to a Confirm stage that reviews impact, warnings, and application-close
+consent before any restore starts.
+
+**Backup, Progress, and Results are migrated.** The backup workspace offers scope presets, destination,
+compression, and validation. Progress shows stage, percent, throughput, byte counts, errors, warnings,
+and a live log. Results present a severity summary with per-module outcomes.
+
+**Visual system.** Neutral Windows surfaces, one mineral-blue action colour, one restrained coral
+warning, Light/Dark/Follow-system themes, Segoe UI Variable typography, IBM Plex Mono for technical
+identifiers, 6–10 px corner radii, flat panes, and visible keyboard focus throughout. Raw icon-enum
+text (e.g. `ErrorCircle`) was eliminated at its source: status glyphs are vector paths keyed by tone,
+never text.
+
+**Application layer extraction.** Orchestration, backup presets, scope groups, run UI, snapshot
+services, and update/theme services moved from the WinForms project into a new
+`WinRestoreKit.Application` library shared by both shells. Core remains unchanged in its isolation
+guarantee: no WinForms or WPF dependency can compile against it.
+
+### Fixed — WPF crashes on snapshot creation and About navigation
+
+Two read-only property bindings in the redesigned WPF views caused `InvalidOperationException` crashes:
+
+- **About page** bound `Run.Text` to the read-only `CurrentVersion` property (TwoWay by default).
+- **Progress view** bound `ProgressBar.Value` to the read-only `Percent` property (TwoWay by default).
+
+Both are fixed with `Mode=OneWay`. Regression tests render each view through the layout dispatcher to
+prove the crash path no longer fires.
+
 ### Design
 
 - Started a three-direction visual identity and WinUI 3 Home-screen exploration around the
@@ -16,12 +57,6 @@ version numbers, because that is what those releases were called.
   warm neutral surfaces, softened slate navigation, muted mineral-blue actions, gentler type, and
   calmer spacing. Logo exploration remains unselected and no runtime or backup-format behavior has
   changed.
-
-### Changed
-
-- Rebuilt the app shell and all primary views with the Industry design system: bundled Barlow, Barlow Condensed, and IBM Plex Mono typography; Voltage, Flux, and Follow system palettes; blueprint frames; icon rail navigation; and a dedicated progress view.
-- Added snapshot display names, selectable destination folders, Fast and Max archive compression, archive-backed restore discovery, live registry drift detection, rich backup progress metrics, and safe pause or cancel controls.
-- Reworked backup, restore, History, Home, and About around real manifest and module data. Existing backup folders and frozen manifest keys remain compatible.
 
 ## [0.0.1] - 2026-08-02
 ### Changed

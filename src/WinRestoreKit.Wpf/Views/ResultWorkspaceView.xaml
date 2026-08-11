@@ -1,0 +1,230 @@
+<UserControl x:Class="WinRestoreKit.Wpf.Views.ResultWorkspaceView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             AutomationProperties.Name="Snapshot results"
+             AutomationProperties.AutomationId="ResultWorkspace">
+  <UserControl.Resources>
+    <!-- Severity is spelled out by the view model; the frame only echoes it, never replaces it. -->
+    <Style x:Key="SeverityPillStyle" TargetType="{x:Type Border}">
+      <Setter Property="Padding" Value="10,3,10,4" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+      <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}" />
+      <Setter Property="HorizontalAlignment" Value="Left" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding Severity}" Value="Warning">
+          <Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}" />
+          <Setter Property="Background" Value="{DynamicResource SurfaceAltBrush}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding Severity}" Value="Error">
+          <Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}" />
+          <Setter Property="Background" Value="{DynamicResource SurfaceAltBrush}" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+
+    <Style x:Key="SeverityTextStyle" TargetType="{x:Type TextBlock}">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding Severity}" Value="Warning">
+          <Setter Property="Foreground" Value="{DynamicResource WarningTextBrush}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding Severity}" Value="Error">
+          <Setter Property="Foreground" Value="{DynamicResource DangerTextBrush}" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+
+    <Style x:Key="OutcomeCardContainerStyle" TargetType="{x:Type ListBoxItem}">
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="{x:Type ListBoxItem}">
+            <Border x:Name="OutcomeCard"
+                    Margin="0,0,0,8"
+                    Padding="14,11,14,12"
+                    CornerRadius="8"
+                    SnapsToDevicePixels="True"
+                    Background="{DynamicResource SurfaceBrush}"
+                    BorderBrush="{DynamicResource DividerBrush}"
+                    BorderThickness="1">
+              <ContentPresenter />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                <Setter TargetName="OutcomeCard" Property="BorderBrush"
+                        Value="{DynamicResource AccentBrush}" />
+                <Setter TargetName="OutcomeCard" Property="BorderThickness" Value="2" />
+                <Setter TargetName="OutcomeCard" Property="Padding" Value="13,10,13,11" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- Module state is a word, chosen here so no enum identifier ever reaches the screen. -->
+    <Style x:Key="OutcomeStatePillStyle" TargetType="{x:Type Border}">
+      <Setter Property="Padding" Value="9,2,9,3" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" />
+      <Setter Property="Background" Value="{DynamicResource SubtleBrush}" />
+      <Setter Property="VerticalAlignment" Value="Top" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding Result.State}" Value="Failed">
+          <Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+
+    <Style x:Key="OutcomeStateTextStyle" TargetType="{x:Type TextBlock}">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Text" Value="Succeeded" />
+      <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding Result.State}" Value="Skipped">
+          <Setter Property="Text" Value="Skipped" />
+          <Setter Property="FontWeight" Value="Normal" />
+          <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding Result.State}" Value="Failed">
+          <Setter Property="Text" Value="Failed" />
+          <Setter Property="Foreground" Value="{DynamicResource DangerTextBrush}" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+
+    <Style x:Key="EmptyOutcomesHintStyle" TargetType="{x:Type TextBlock}">
+      <Setter Property="Visibility" Value="Collapsed" />
+      <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}" />
+      <Setter Property="HorizontalAlignment" Value="Left" />
+      <Setter Property="VerticalAlignment" Value="Top" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding HasItems, ElementName=RunOutcomesList}" Value="False">
+          <Setter Property="Visibility" Value="Visible" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+  </UserControl.Resources>
+
+  <Border Background="{DynamicResource WindowBackgroundBrush}" Padding="32,26,32,24">
+    <Grid>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="*" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
+
+      <Border Style="{DynamicResource CardBorderStyle}" Padding="22,18,22,20">
+        <StackPanel MaxWidth="900" HorizontalAlignment="Left">
+          <StackPanel Orientation="Horizontal">
+            <Border Style="{StaticResource SeverityPillStyle}">
+              <TextBlock x:Name="RunSeverityText"
+                         Text="{Binding SeverityText}"
+                         Style="{StaticResource SeverityTextStyle}"
+                         AutomationProperties.Name="Run severity"
+                         AutomationProperties.AutomationId="RunSeverityText" />
+            </Border>
+            <TextBlock Text="{Binding StatusLabel}"
+                       Style="{DynamicResource CaptionTextStyle}"
+                       Foreground="{DynamicResource MutedTextBrush}"
+                       VerticalAlignment="Center"
+                       Margin="12,0,0,0"
+                       AutomationProperties.Name="Run status" />
+          </StackPanel>
+          <TextBlock x:Name="RunHeadlineText"
+                     Text="{Binding Headline}"
+                     Style="{DynamicResource PageTitleStyle}"
+                     Foreground="{DynamicResource TextBrush}"
+                     FontSize="24"
+                     FontWeight="SemiBold"
+                     TextWrapping="Wrap"
+                     Margin="0,14,0,0"
+                     AutomationProperties.Name="Run headline"
+                     AutomationProperties.AutomationId="RunHeadlineText" />
+          <TextBlock x:Name="RunDetailText"
+                     Text="{Binding Detail}"
+                     Style="{DynamicResource BodyTextStyle}"
+                     Foreground="{DynamicResource MutedTextBrush}"
+                     TextWrapping="Wrap"
+                     Margin="0,8,0,0"
+                     AutomationProperties.Name="Run detail"
+                     AutomationProperties.AutomationId="RunDetailText" />
+        </StackPanel>
+      </Border>
+
+      <TextBlock Grid.Row="1"
+                 Text="Module results"
+                 Style="{DynamicResource SectionTitleStyle}"
+                 Foreground="{DynamicResource TextBrush}"
+                 FontSize="16"
+                 FontWeight="SemiBold"
+                 Margin="0,22,0,10" />
+
+      <Grid Grid.Row="2">
+        <ListBox x:Name="RunOutcomesList"
+                 ItemsSource="{Binding Outcomes}"
+                 Background="Transparent"
+                 BorderThickness="0"
+                 Padding="0"
+                 HorizontalContentAlignment="Stretch"
+                 ItemContainerStyle="{StaticResource OutcomeCardContainerStyle}"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                 AutomationProperties.Name="Module outcomes"
+                 AutomationProperties.AutomationId="RunOutcomesList">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Margin="0,0,16,0">
+                  <TextBlock Text="{Binding Title}"
+                             Foreground="{DynamicResource TextBrush}"
+                             FontWeight="SemiBold"
+                             TextWrapping="Wrap" />
+                  <TextBlock Text="{Binding Result.Reason}"
+                             Style="{DynamicResource BodyTextStyle}"
+                             Foreground="{DynamicResource MutedTextBrush}"
+                             TextWrapping="Wrap"
+                             Margin="0,3,0,0" />
+                </StackPanel>
+                <Border Grid.Column="1" Style="{StaticResource OutcomeStatePillStyle}">
+                  <TextBlock Style="{StaticResource OutcomeStateTextStyle}" />
+                </Border>
+              </Grid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+        <TextBlock Text="No module results were recorded for this run."
+                   Style="{StaticResource EmptyOutcomesHintStyle}"
+                   IsHitTestVisible="False" />
+      </Grid>
+
+      <Border Grid.Row="3"
+              Margin="0,20,0,0"
+              Padding="0,18,0,0"
+              BorderThickness="0,1,0,0"
+              BorderBrush="{DynamicResource DividerBrush}">
+        <Button x:Name="ReturnTimelineButton"
+                Content="Back to Timeline"
+                Command="{Binding ReturnToTimelineCommand}"
+                Style="{DynamicResource PrimaryButtonStyle}"
+                MinWidth="160"
+                HorizontalAlignment="Right"
+                AutomationProperties.Name="Back to Timeline"
+                AutomationProperties.AutomationId="ReturnTimelineButton" />
+      </Border>
+    </Grid>
+  </Border>
+</UserControl>

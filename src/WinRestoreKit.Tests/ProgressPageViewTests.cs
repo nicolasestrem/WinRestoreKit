@@ -75,8 +75,22 @@ namespace WinRestoreKit.Tests
         }
         private static ProgressPageView CreateView()
         {
-            return new ProgressPageView(new NavigationService(new Panel()), Array.Empty<BackupBase>(), "nightly",
+            var view = new ProgressPageView(new NavigationService(new Panel()), Array.Empty<BackupBase>(), "nightly",
                 SnapshotCompression.Fast, @"C:\backup");
+
+            // RenderSummary (called by the Render helper below) sets control properties that lazily
+            // create the view's handle, which fires OnLoad -> RunAsync -> a real async backup run.
+            // That run's completion calls ShowSummary and overwrites the very kicker these tests
+            // assert on, racing the test's read (RenderSummary_LateCancellationAfterCompletedBackup
+            // went deterministically red from this). OnLoad guards on `runStarted`; set it so the
+            // spurious run never starts and RenderSummary is exercised in isolation, which is what
+            // these tests intend.
+            FieldInfo runStarted = typeof(ProgressPageView).GetField("runStarted",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.NotNull(runStarted);
+            runStarted.SetValue(view, true);
+
+            return view;
         }
 
         private static ModuleOutcome SucceededOutcome()

@@ -14,13 +14,16 @@ namespace WinRestoreKit
         internal bool HasBackup { get; }
         internal string ManifestState { get; }
         internal string Warning { get; }
+        internal bool CouldNotBeRead { get; }
 
-        internal RestoreContentsRow(BackupBase module, bool hasBackup, string manifestState, string warning)
+        internal RestoreContentsRow(BackupBase module, bool hasBackup, string manifestState, string warning,
+                                    bool couldNotBeRead = false)
         {
             Module = module;
             HasBackup = hasBackup;
             ManifestState = manifestState;
             Warning = warning;
+            CouldNotBeRead = couldNotBeRead;
         }
     }
 
@@ -48,6 +51,7 @@ namespace WinRestoreKit
             string probePath = restoreSourcePath;
             BackupPayload.ReadScope payload = null;
             bool payloadPrepared = false;
+            string payloadError = null;
 
             try
             {
@@ -57,14 +61,28 @@ namespace WinRestoreKit
                         continue;
 
                     string state = ManifestStateFor(manifest, module.GetType().Name);
-                    if (!payloadPrepared
-                        && state != BackupManifest.StateSucceeded
+                    bool needsPayload = state != BackupManifest.StateSucceeded
                         && state != BackupManifest.StateSkipped
-                        && state != BackupManifest.StateFailed)
+                        && state != BackupManifest.StateFailed;
+
+                    if (!payloadPrepared && needsPayload)
                     {
                         payloadPrepared = true;
-                        if (BackupPayload.TryPrepareForRead(restoreSourcePath, out payload, out string ignoredError))
+                        if (BackupPayload.TryPrepareForRead(restoreSourcePath, out payload, out string preparationError))
+                        {
                             probePath = payload.Path;
+                        }
+                        else
+                        {
+                            payloadError = "The backup payload could not be read"
+                                + (string.IsNullOrWhiteSpace(preparationError) ? "." : ": " + preparationError);
+                        }
+                    }
+
+                    if (payloadError != null && needsPayload)
+                    {
+                        rows.Add(new RestoreContentsRow(module, false, state, payloadError, true));
+                        continue;
                     }
 
                     rows.Add(new RestoreContentsRow(

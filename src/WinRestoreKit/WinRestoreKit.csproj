@@ -46,6 +46,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\WinRestoreKit.Core\WinRestoreKit.Core.csproj" />
+    <ProjectReference Include="..\WinRestoreKit.Application\WinRestoreKit.Application.csproj" />
   </ItemGroup>
 
 </Project>

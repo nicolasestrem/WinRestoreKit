@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>WinRestoreKit</RootNamespace>
+    <AssemblyName>WinRestoreKit.Application</AssemblyName>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Platforms>AnyCPU</Platforms>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\WinRestoreKit.Core\WinRestoreKit.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Same version as Core. AppRestoreService parses winget export JSON directly. -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+</Project>

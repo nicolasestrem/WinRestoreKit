@@ -10,6 +10,7 @@
       reference in order to resolve those types. No test opens a window.
     -->
     <UseWindowsForms>true</UseWindowsForms>
+    <UseWPF>true</UseWPF>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <!-- Match the production project's settings so test code compiles under the same rules. -->
@@ -26,6 +27,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\WinRestoreKit\WinRestoreKit.csproj" />
+    <ProjectReference Include="..\WinRestoreKit.Application\WinRestoreKit.Application.csproj">
+      <Aliases>global,Application</Aliases>
+    </ProjectReference>
+    <ProjectReference Include="..\WinRestoreKit.Wpf\WinRestoreKit.Wpf.csproj" />
   </ItemGroup>
 
   <ItemGroup>

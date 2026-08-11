@@ -2,7 +2,6 @@ using Conf;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Views;
 using WinRestoreKit;
 using Xunit;
 
@@ -13,7 +12,7 @@ namespace WinRestoreKit.Tests
         [Fact]
         public void Build_RequiresExplicitOptInForUnfilteredEnvironmentVariables()
         {
-            IReadOnlyList<ModuleRegistration> registrations = ModuleCatalog.CreateAll();
+            IReadOnlyList<BackupModuleRegistration> registrations = BackupModuleCatalog.CreateAll();
             IReadOnlyList<ScopeGroupRow> groups = ScopeGroups.Build();
 
             ScopeGroupRow appSettings = Assert.Single(groups, group => group.Name == "App settings (AppData)");

@@ -1,3 +1,4 @@
+using System;
 using WinRestoreKit;
 using System.Collections.Generic;
 using System.IO;
@@ -185,6 +186,26 @@ namespace Conf
             return false;
         }
 
+        /// <summary>
+        /// Removes a previous backup artifact before this run decides whether the source exists.
+        /// </summary>
+        private static string TryClear(string filePath)
+        {
+            try
+            {
+                if (File.Exists(filePath))
+                    File.Delete(filePath);
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                LogHelper.Instance.LogMessage(
+                    "Could not clear the previous backup file at " + filePath + ": " + ex.Message);
+                return ex.Message;
+            }
+        }
+
         public sealed override async Task<ModuleResult> BackupAsync(string path)
         {
             List<StepResult> steps = new List<StepResult>();
@@ -192,8 +213,17 @@ namespace Conf
 
             foreach (string f in Files)
             {
-                CopyResult copy = await Utils.CopyFile(f, Path.Combine(backupDir, BackupFileNameFor(f)))
-                    .ConfigureAwait(true);
+                string destination = Path.Combine(backupDir, BackupFileNameFor(f));
+                string clearError = TryClear(destination);
+
+                if (clearError != null)
+                {
+                    steps.Add(StepResult.Failed(f,
+                        "could not clear the previous backup file at " + destination + ": " + clearError));
+                    continue;
+                }
+
+                CopyResult copy = await Utils.CopyFile(f, destination).ConfigureAwait(true);
 
                 // The live path as the step target, not the Title: these modules carry several
                 // files each, so a per-file row saying only "Windows Terminal" would leave the

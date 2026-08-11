@@ -1,0 +1,343 @@
+<UserControl x:Class="WinRestoreKit.Wpf.Views.BackupWorkspaceView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             MinWidth="1024"
+             AutomationProperties.Name="Create snapshot"
+             AutomationProperties.AutomationId="BackupWorkspace">
+  <UserControl.Resources>
+    <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+
+    <!-- Scope rows are cards, not highlighted list entries: the check box carries selection,
+         so a selection highlight would state a second, conflicting truth. -->
+    <Style x:Key="ScopeCardContainerStyle" TargetType="{x:Type ListBoxItem}">
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="{x:Type ListBoxItem}">
+            <Border x:Name="ScopeCard"
+                    Margin="0,0,0,8"
+                    Padding="14,12,14,14"
+                    CornerRadius="8"
+                    SnapsToDevicePixels="True"
+                    Background="{DynamicResource SurfaceBrush}"
+                    BorderBrush="{DynamicResource DividerBrush}"
+                    BorderThickness="1">
+              <ContentPresenter />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="ScopeCard" Property="BorderBrush"
+                        Value="{DynamicResource AccentBrush}" />
+              </Trigger>
+              <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                <Setter TargetName="ScopeCard" Property="BorderBrush"
+                        Value="{DynamicResource AccentBrush}" />
+                <Setter TargetName="ScopeCard" Property="BorderThickness" Value="2" />
+                <Setter TargetName="ScopeCard" Property="Padding" Value="13,11,13,13" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- The validation line is an error surface, so it must not leave an empty frame behind
+         when the view model has nothing to report. -->
+    <Style x:Key="ValidationCalloutStyle" TargetType="{x:Type Border}">
+      <Setter Property="Visibility" Value="Visible" />
+      <Setter Property="Padding" Value="12,8,14,9" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}" />
+      <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+      <Setter Property="HorizontalAlignment" Value="Left" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding ValidationMessage}" Value="{x:Null}">
+          <Setter Property="Visibility" Value="Collapsed" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding ValidationMessage}" Value="">
+          <Setter Property="Visibility" Value="Collapsed" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+  </UserControl.Resources>
+
+  <Border Background="{DynamicResource WindowBackgroundBrush}" Padding="32,26,32,24">
+    <Grid>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="*" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
+
+      <StackPanel Margin="0,0,0,20">
+        <TextBlock Text="Create snapshot"
+                   Style="{DynamicResource PageTitleStyle}"
+                   Foreground="{DynamicResource TextBrush}"
+                   FontSize="24"
+                   FontWeight="SemiBold" />
+        <TextBlock Text="Choose what this machine captures, then name the snapshot and pick where it is written."
+                   Style="{DynamicResource BodyTextStyle}"
+                   Foreground="{DynamicResource MutedTextBrush}"
+                   TextWrapping="Wrap"
+                   MaxWidth="720"
+                   HorizontalAlignment="Left"
+                   Margin="0,6,0,0" />
+      </StackPanel>
+
+      <Grid Grid.Row="1">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" MinWidth="520" />
+          <ColumnDefinition Width="20" />
+          <ColumnDefinition Width="360" />
+        </Grid.ColumnDefinitions>
+
+        <Border Style="{DynamicResource CardBorderStyle}" Padding="18,16,18,16">
+          <Grid>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <StackPanel>
+              <TextBlock Text="What to capture"
+                         Style="{DynamicResource SectionTitleStyle}"
+                         Foreground="{DynamicResource TextBrush}"
+                         FontSize="16"
+                         FontWeight="SemiBold" />
+              <TextBlock Text="Each group lists the modules it writes. Groups marked with a caution are opt-in."
+                         Style="{DynamicResource CaptionTextStyle}"
+                         Foreground="{DynamicResource MutedTextBrush}"
+                         TextWrapping="Wrap"
+                         Margin="0,4,0,0" />
+            </StackPanel>
+
+            <WrapPanel Grid.Row="1" Margin="0,14,0,14"
+                       AutomationProperties.Name="Scope presets">
+              <Button x:Name="SelectAllButton"
+                      Content="Select all"
+                      Command="{Binding SelectAllCommand}"
+                      Style="{DynamicResource SecondaryButtonStyle}"
+                      TabIndex="6"
+                      Margin="0,0,8,8"
+                      AutomationProperties.Name="Select all backup scopes"
+                      AutomationProperties.AutomationId="BackupSelectAllButton" />
+              <Button x:Name="ClearSelectionButton"
+                      Content="Clear"
+                      Command="{Binding ClearCommand}"
+                      Style="{DynamicResource SecondaryButtonStyle}"
+                      TabIndex="7"
+                      Margin="0,0,8,8"
+                      AutomationProperties.Name="Clear backup scopes"
+                      AutomationProperties.AutomationId="BackupClearSelectionButton" />
+              <Button x:Name="DeveloperMachineButton"
+                      Content="Developer machine"
+                      Command="{Binding DeveloperMachineCommand}"
+                      Style="{DynamicResource SecondaryButtonStyle}"
+                      TabIndex="8"
+                      Margin="0,0,8,8"
+                      AutomationProperties.Name="Developer machine preset"
+                      AutomationProperties.AutomationId="BackupDeveloperMachineButton" />
+              <Button x:Name="MinimalPrivacySafeButton"
+                      Content="Minimal privacy-safe"
+                      Command="{Binding MinimalPrivacySafeCommand}"
+                      Style="{DynamicResource SecondaryButtonStyle}"
+                      TabIndex="9"
+                      Margin="0,0,0,8"
+                      AutomationProperties.Name="Minimal privacy-safe preset"
+                      AutomationProperties.AutomationId="BackupMinimalPrivacySafeButton" />
+            </WrapPanel>
+
+            <ListBox x:Name="BackupScopeList"
+                     Grid.Row="2"
+                     ItemsSource="{Binding Scopes}"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     Padding="0"
+                     TabIndex="1"
+                     HorizontalContentAlignment="Stretch"
+                     ItemContainerStyle="{StaticResource ScopeCardContainerStyle}"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                     AutomationProperties.Name="Backup scopes"
+                     AutomationProperties.AutomationId="BackupScopeList">
+              <ListBox.ItemTemplate>
+                <DataTemplate>
+                  <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                            VerticalContentAlignment="Top"
+                            AutomationProperties.Name="{Binding Name}">
+                    <StackPanel Margin="8,0,0,0">
+                      <TextBlock Text="{Binding Name}"
+                                 Foreground="{DynamicResource TextBrush}"
+                                 FontWeight="SemiBold"
+                                 TextWrapping="Wrap" />
+                      <TextBlock Text="{Binding Detail}"
+                                 Style="{DynamicResource BodyTextStyle}"
+                                 Foreground="{DynamicResource MutedTextBrush}"
+                                 TextWrapping="Wrap"
+                                 Margin="0,3,0,0" />
+                      <ItemsControl ItemsSource="{Binding Modules}"
+                                    Margin="0,8,0,0"
+                                    AutomationProperties.Name="Modules in this group">
+                        <ItemsControl.ItemsPanel>
+                          <ItemsPanelTemplate>
+                            <WrapPanel />
+                          </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate>
+                            <Border Style="{DynamicResource PillBorderStyle}" Margin="0,0,6,6">
+                              <TextBlock Text="{Binding Title}"
+                                         Style="{DynamicResource PillTextStyle}"
+                                         Foreground="{DynamicResource MutedTextBrush}" />
+                            </Border>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                      <Border Margin="0,6,0,0"
+                              Padding="10,7,12,8"
+                              CornerRadius="6"
+                              BorderThickness="1"
+                              BorderBrush="{DynamicResource WarningBrush}"
+                              Background="{DynamicResource SurfaceAltBrush}"
+                              Visibility="{Binding HasCaution, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <StackPanel>
+                          <TextBlock Text="Caution"
+                                     Style="{DynamicResource CaptionTextStyle}"
+                                     FontWeight="SemiBold"
+                                     Foreground="{DynamicResource WarningTextBrush}" />
+                          <TextBlock Text="{Binding CautionNote}"
+                                     Style="{DynamicResource BodyTextStyle}"
+                                     Foreground="{DynamicResource WarningTextBrush}"
+                                     TextWrapping="Wrap"
+                                     Margin="0,2,0,0" />
+                        </StackPanel>
+                      </Border>
+                    </StackPanel>
+                  </CheckBox>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </Grid>
+        </Border>
+
+        <Border Grid.Column="2" Style="{DynamicResource CardBorderStyle}" Padding="18,16,18,18">
+          <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel>
+              <TextBlock Text="Snapshot details"
+                         Style="{DynamicResource SectionTitleStyle}"
+                         Foreground="{DynamicResource TextBrush}"
+                         FontSize="16"
+                         FontWeight="SemiBold"
+                         Margin="0,0,0,14" />
+
+              <Label Content="Snapshot name (optional)"
+                     Padding="0"
+                     Margin="0,0,0,4"
+                     FontSize="12"
+                     Foreground="{DynamicResource MutedTextBrush}"
+                     Target="{Binding ElementName=SnapshotNameTextBox}" />
+              <TextBox x:Name="SnapshotNameTextBox"
+                       Text="{Binding SnapshotName, UpdateSourceTrigger=PropertyChanged}"
+                       Padding="8,6"
+                       TabIndex="2"
+                       AutomationProperties.Name="Snapshot name"
+                       AutomationProperties.AutomationId="SnapshotNameTextBox" />
+              <TextBlock Text="Left blank, the run names the snapshot from its start time."
+                         Style="{DynamicResource CaptionTextStyle}"
+                         Foreground="{DynamicResource MutedTextBrush}"
+                         TextWrapping="Wrap"
+                         Margin="0,5,0,0" />
+
+              <Label Content="Destination folder"
+                     Padding="0"
+                     Margin="0,18,0,4"
+                     FontSize="12"
+                     Foreground="{DynamicResource MutedTextBrush}"
+                     Target="{Binding ElementName=DestinationTextBox}" />
+              <DockPanel LastChildFill="True">
+                <Button x:Name="BrowseDestinationButton"
+                        Content="Browse"
+                        Click="BrowseDestination_Click"
+                        DockPanel.Dock="Right"
+                        Style="{DynamicResource SecondaryButtonStyle}"
+                        TabIndex="4"
+                        Margin="8,0,0,0"
+                        AutomationProperties.Name="Browse destination"
+                        AutomationProperties.AutomationId="BrowseDestinationButton" />
+                <TextBox x:Name="DestinationTextBox"
+                         Text="{Binding Destination, UpdateSourceTrigger=PropertyChanged}"
+                         Padding="8,6"
+                         TabIndex="3"
+                         AutomationProperties.Name="Destination folder"
+                         AutomationProperties.AutomationId="BackupDestinationTextBox" />
+              </DockPanel>
+
+              <Label Content="Compression"
+                     Padding="0"
+                     Margin="0,18,0,4"
+                     FontSize="12"
+                     Foreground="{DynamicResource MutedTextBrush}"
+                     Target="{Binding ElementName=CompressionComboBox}" />
+              <ComboBox x:Name="CompressionComboBox"
+                        ItemsSource="{Binding CompressionOptions}"
+                        SelectedItem="{Binding Compression}"
+                        Padding="8,6"
+                        TabIndex="5"
+                        AutomationProperties.Name="Compression"
+                        AutomationProperties.AutomationId="CompressionComboBox" />
+              <TextBlock Text="Compression trades snapshot size against the time the run takes."
+                         Style="{DynamicResource CaptionTextStyle}"
+                         Foreground="{DynamicResource MutedTextBrush}"
+                         TextWrapping="Wrap"
+                         Margin="0,5,0,0" />
+            </StackPanel>
+          </ScrollViewer>
+        </Border>
+      </Grid>
+
+      <Border Grid.Row="2"
+              Margin="0,20,0,0"
+              Padding="0,18,0,0"
+              BorderThickness="0,1,0,0"
+              BorderBrush="{DynamicResource DividerBrush}">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <Border Style="{StaticResource ValidationCalloutStyle}"
+                  Margin="0,0,20,0"
+                  VerticalAlignment="Center">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Text="Cannot start"
+                         Style="{DynamicResource CaptionTextStyle}"
+                         FontWeight="SemiBold"
+                         Foreground="{DynamicResource WarningTextBrush}"
+                         Margin="0,0,10,0"
+                         VerticalAlignment="Center" />
+              <TextBlock Text="{Binding ValidationMessage}"
+                         Style="{DynamicResource BodyTextStyle}"
+                         TextWrapping="Wrap"
+                         MaxWidth="520"
+                         Foreground="{DynamicResource WarningTextBrush}"
+                         AutomationProperties.LiveSetting="Polite"
+                         AutomationProperties.Name="Snapshot validation"
+                         AutomationProperties.AutomationId="BackupValidationMessage" />
+            </StackPanel>
+          </Border>
+          <Button x:Name="CreateSnapshotButton"
+                  Grid.Column="1"
+                  Content="Create snapshot"
+                  Command="{Binding StartCommand}"
+                  Style="{DynamicResource PrimaryButtonStyle}"
+                  TabIndex="10"
+                  MinWidth="160"
+                  AutomationProperties.Name="Create snapshot"
+                  AutomationProperties.AutomationId="CreateSnapshotButton" />
+        </Grid>
+      </Border>
+    </Grid>
+  </Border>
+</UserControl>

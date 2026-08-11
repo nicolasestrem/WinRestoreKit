@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using Views;
 
@@ -40,7 +39,6 @@ namespace WinRestoreKit
             homePage = new HomePageView(GoToBackUp, GoToHistory, ShowRestoreWizard);
             navigationButtons = new[] { btnHome, btnBackUp, btnProgress, btnRestore, btnHistory, btnAbout };
 
-            backupPage.ShowRestoreView = ShowRestoreWizard;
             backupPage.StartBackupRequested = StartBackup;
             wizardStep2.StartRestoreRequested = StartRestore;
             navigation.Root = homePage;
@@ -55,7 +53,7 @@ namespace WinRestoreKit
 
         private void MainForm_Shown(object sender, EventArgs e)
         {
-            lblVersion.Text = GetMinorVersion(Program.GetCurrentVersionTostring());
+            lblVersion.Text = GetMinorVersion(VersionInfo.GetCurrentVersion(typeof(MainForm).Assembly));
             RefreshDestinationStatus();
             ShowHome();
             Theme.ApplyTitleBar(this);
@@ -381,21 +379,6 @@ namespace WinRestoreKit
             return secondDotIndex == -1 ? "Version " + version : "Version " + version.Substring(0, secondDotIndex);
         }
 
-        /// <summary>
-        /// Runs the existing interactive update check without leaking an exception to a future About page.
-        /// </summary>
-        internal async Task<string> CheckForUpdatesAsync()
-        {
-            try
-            {
-                await UpdateCheck.CheckForUpdatesAsync();
-                return "Update check completed.";
-            }
-            catch (Exception)
-            {
-                return "Update check failed.";
-            }
-        }
 
         private void MainForm_FormClosed(object sender, FormClosedEventArgs e)
         {

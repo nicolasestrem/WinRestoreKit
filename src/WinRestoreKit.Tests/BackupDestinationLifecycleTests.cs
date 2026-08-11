@@ -3,9 +3,9 @@ using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Windows.Forms;
 using Views;
 using Xunit;
 
@@ -57,6 +57,27 @@ namespace WinRestoreKit.Tests
         }
 
         [Fact]
+        public async Task RunBackup_ManifestUsesTheEntryShellAssemblyVersion()
+        {
+            using (BackupRunIsolation isolation = new BackupRunIsolation())
+            {
+                BackupRestoreOrchestrator runner = new BackupRestoreOrchestrator(new TestRunUi());
+
+                await runner.RunBackup(
+                    new BackupBase[] { new RootObservingModule(isolation.DestinationRoot) },
+                    isolation.DestinationRoot,
+                    "entry-version",
+                    SnapshotCompression.None);
+
+                ManifestData manifest = BackupManifest.TryParse(File.ReadAllText(Path.Combine(
+                    runner.BackupOutputPath, BackupManifest.FileName)));
+
+                Assert.NotNull(manifest);
+                Assert.Equal(VersionInfo.GetCurrentVersion(Assembly.GetEntryAssembly()), manifest.AppVersion);
+            }
+        }
+
+        [Fact]
         public async Task RunBackup_CancelledInExistingFolderRetainsTheExistingFolder()
         {
             string root = Path.Combine(Path.GetTempPath(), "WinRestoreKitTests", Guid.NewGuid().ToString("N"));
@@ -72,6 +93,7 @@ namespace WinRestoreKit.Tests
                     BackupRestoreOrchestrator runner = new BackupRestoreOrchestrator(new TestRunUi(), control);
 
                     await runner.RunBackup(new BackupBase[] { new CancellingModule(control) }, backupPath);
+                    Assert.Equal(backupPath, runner.BackupOutputPath);
                 }
 
                 Assert.True(Directory.Exists(backupPath));
@@ -123,7 +145,7 @@ namespace WinRestoreKit.Tests
 
         private sealed class TestRunUi : IRunUi
         {
-            public IWin32Window Owner => null;
+            public object DialogOwner => null;
 
             public void SetProgressText(string text) { }
             public void SetProgressPercent(int percent) { }

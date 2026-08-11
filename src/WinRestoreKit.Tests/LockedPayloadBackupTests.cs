@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
-using System.Windows.Forms;
 using Xunit;
 
 namespace WinRestoreKit.Tests
@@ -29,6 +28,7 @@ namespace WinRestoreKit.Tests
 
                     await runner.RunBackup(new BackupBase[] { module }, isolation.DestinationRoot,
                         "locked-payload", SnapshotCompression.Fast);
+                    Assert.Equal(backupPath, runner.BackupOutputPath);
 
                     Assert.NotNull(ui.Summary);
                     Assert.Equal(RunState.DidNotRun, ui.Summary.State);
@@ -56,6 +56,7 @@ namespace WinRestoreKit.Tests
 
                 await runner.RunBackup(new BackupBase[] { module }, isolation.DestinationRoot,
                     "unlocked-payload", SnapshotCompression.None);
+                Assert.Equal(backupPath, runner.BackupOutputPath);
 
                 Assert.NotNull(ui.Summary);
                 Assert.Equal(RunState.Done, ui.Summary.State);
@@ -86,7 +87,7 @@ namespace WinRestoreKit.Tests
         {
             internal RunSummary Summary { get; private set; }
 
-            public IWin32Window Owner => null;
+            public object DialogOwner => null;
 
             public void SetProgressText(string text) { }
             public void SetProgressPercent(int percent) { }

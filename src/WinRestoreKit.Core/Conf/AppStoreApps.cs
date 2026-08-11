@@ -184,12 +184,9 @@ namespace Conf
         /// </summary>
         /// <remarks>
         /// The base RestoreAsync wraps Restore in Task.Run, and this is the one module whose Restore
-        /// opens a window. Thread-pool threads are MTA; Windows Forms requires STA, which Program.Main
-        /// declares. ShowDialog from the pool therefore spins up a second message loop on a thread
-        /// that is not apartment-correct: the dialog has no owner and can paint behind the main
-        /// window, and the COM-backed parts of it (clipboard, drag and drop, shell dialogs) are
-        /// unreliable. Every caller reaches this through an await on the UI thread, so returning a
-        /// completed Task keeps the dialog on the thread that owns the window.
+        /// opens a window. Thread-pool threads are MTA; Windows Forms requires the application's STA
+        /// UI thread. The orchestrator therefore calls the owner-aware overload below and this
+        /// completed task keeps the dialog on the thread that owns that window.
         ///
         /// Not marked async on purpose: there is nothing to await, and async here would move the
         /// body back off the caller's thread in every case but the first.
@@ -197,11 +194,17 @@ namespace Conf
         public override Task<ModuleResult> RestoreAsync(string path)
             => Task.FromResult(Restore(path));
 
+        /// <summary>Runs the dialog on the caller's thread with its modal owner.</summary>
+        internal Task<ModuleResult> RestoreAsync(string path, object owner)
+            => Task.FromResult(Restore(path, owner));
+
         /// <summary>
-        /// Opens the app reinstall dialog for <paramref name="path"/>. Registered by the app at
-        /// startup; null in any process that has no UI to open it with.
+        /// Opens the app reinstall dialog for <paramref name="path"/> with its modal owner.
+        /// Registered by the app at startup; null in any process that has no UI to open it with.
         /// </summary>
         /// <remarks>
+        /// The owner remains <see cref="object"/> here so Core stays WinForms-free. The app passes
+        /// its <c>IWin32Window</c> through this seam and casts it only at the ShowDialog call site.
         /// A delegate rather than a constructor argument because this module is constructed by
         /// Activator.CreateInstance(type) with no arguments in nine test sites, and every module in
         /// the app is enumerated that way. A parameterless constructor is not negotiable here.
@@ -210,27 +213,29 @@ namespace Conf
         /// path below is not reachable from the running app. It exists for the test suite and for
         /// any future headless host, where failing closed is the point.
         /// </remarks>
-        internal static Action<string> RestoreDialog;
+        internal static Action<string, object> RestoreDialog;
 
         /// <remarks>
         /// This module restores nothing itself. It opens the app restore dialog, and the installs
         /// happen later from inside it, so Skipped is the only honest answer available here -
         /// claiming a result it does not have would be a new lie in a phase built to remove them.
         ///
-        /// When no dialog is registered the answer is Failed, NOT Skipped, and the distinction is
-        /// the whole reason this seam is written out longhand. Skipped already means something
-        /// specific and true on this module - "the dialog took it from here" - so reusing it for
-        /// "there was no dialog and nothing was offered" would make a total no-op indistinguishable
-        /// from the ordinary success path, in the one module whose success is defined by a window
-        /// having opened. That is the unverified-success claim this architecture exists to prevent.
+        /// When no dialog is registered or no owner is supplied the answer is Failed, NOT Skipped.
+        /// Skipped already means something specific and true on this module - "the dialog took it
+        /// from here" - so reusing it for a total no-op would make a missing dialog or unowned
+        /// dialog indistinguishable from the ordinary interactive path.
         ///
         /// Call this only from the UI thread - see RestoreAsync above.
         /// </remarks>
         public override ModuleResult Restore(string path)
+            => Restore(path, null);
+
+        /// <summary>Opens the registered dialog with an application-owned modal window.</summary>
+        internal ModuleResult Restore(string path, object owner)
         {
             // Read the delegate once: it is static and mutable, and a null check against one read
             // followed by an invoke of another is a race with whatever cleared it.
-            Action<string> dialog = RestoreDialog;
+            Action<string, object> dialog = RestoreDialog;
 
             if (dialog == null)
             {
@@ -242,7 +247,17 @@ namespace Conf
                 });
             }
 
-            dialog(path);
+            if (owner == null)
+            {
+                return ModuleResult.Aggregate(new[]
+                {
+                    StepResult.Failed(Title,
+                        "the app restore dialog requires an owning application window, so nothing " +
+                        "could be offered for reinstall")
+                });
+            }
+
+            dialog(path, owner);
 
             return ModuleResult.Aggregate(new[]
             {

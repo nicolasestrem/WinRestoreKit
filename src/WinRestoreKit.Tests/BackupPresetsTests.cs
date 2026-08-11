@@ -15,7 +15,7 @@ namespace WinRestoreKit.Tests
         {
             Assert.Equal(
                 new[] { "ETerminal", "EVSCode", "ESsh", "EEnvironment", "EHosts" },
-                Views.BackupPresets.DeveloperMachine);
+                BackupPresets.DeveloperMachine);
         }
 
         [Fact]
@@ -23,18 +23,18 @@ namespace WinRestoreKit.Tests
         {
             Assert.Equal(
                 new[] { "WUpdates", "EEnvironment", "EEnvironmentFiltered", "CWiFiConf" },
-                Views.BackupPresets.MinimalPrivacySafeExclusions);
+                BackupPresets.MinimalPrivacySafeExclusions);
         }
 
         [Fact]
         public void PresetNames_AllResolveToRegisteredModules()
         {
-            System.Collections.Generic.HashSet<string> registered = ModuleCatalog.CreateAll()
+            System.Collections.Generic.HashSet<string> registered = BackupModuleCatalog.CreateAll()
                 .Select(r => r.Module.GetType().Name)
                 .ToHashSet();
 
-            foreach (string name in Views.BackupPresets.DeveloperMachine
-                .Concat(Views.BackupPresets.MinimalPrivacySafeExclusions))
+            foreach (string name in BackupPresets.DeveloperMachine
+                .Concat(BackupPresets.MinimalPrivacySafeExclusions))
             {
                 Assert.True(registered.Contains(name),
                     "preset names a module not in the catalog: " + name);

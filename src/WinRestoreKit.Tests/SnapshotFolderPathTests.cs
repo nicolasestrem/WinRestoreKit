@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Windows.Forms;
 using Views;
 using Xunit;
 
@@ -39,7 +38,8 @@ namespace WinRestoreKit.Tests
                 await runner.RunBackup(new BackupBase[] { new EmptyModule() }, root, "before-driver-update",
                     SnapshotCompression.None);
 
-                string timestampFolder = Path.Combine(root, Data.NowShort);
+                string timestampFolder = runner.BackupOutputPath;
+                Assert.Equal(Path.Combine(root, Data.NowShort), timestampFolder);
                 Assert.True(Directory.Exists(timestampFolder));
                 Assert.False(Directory.Exists(Path.Combine(root, "before-driver-update")));
 
@@ -91,7 +91,7 @@ namespace WinRestoreKit.Tests
                 await runner.RunBackup(new BackupBase[] { new EmptyModule() }, root, "custom-root",
                     SnapshotCompression.None);
 
-                string timestampFolder = Path.Combine(root, Data.NowShort);
+                string timestampFolder = runner.BackupOutputPath;
                 BackupFolders folders = BackupFolders.Read();
 
                 Assert.Contains(folders.Backups, folder =>
@@ -122,7 +122,7 @@ namespace WinRestoreKit.Tests
 
         private sealed class TestRunUi : IRunUi
         {
-            public IWin32Window Owner => null;
+            public object DialogOwner => null;
 
             public void SetProgressText(string text) { }
             public void SetProgressPercent(int percent) { }

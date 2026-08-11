@@ -3,7 +3,6 @@ using Microsoft.Win32;
 using System;
 using System.IO;
 using System.Linq;
-using Views;
 using Xunit;
 
 namespace WinRestoreKit.Tests
@@ -37,7 +36,40 @@ namespace WinRestoreKit.Tests
         }
 
         [Fact]
-        public void Read_UnreadableDefaultRootReportsFatalReason()
+        public void Read_UnreadableDefaultRootKeepsReadableCustomRoot()
+        {
+            string parent = NewTempDirectory();
+            string unreadableDefaultRoot = Path.Combine(parent, "default-root-file");
+            string customRoot = Directory.CreateDirectory(Path.Combine(parent, "custom")).FullName;
+            string backup = Directory.CreateDirectory(
+                Path.Combine(customRoot, "2024-01-02 - 03.04 (3)")).FullName;
+            File.WriteAllText(unreadableDefaultRoot, "not a directory");
+
+            try
+            {
+                RunWithConfiguredRoots(unreadableDefaultRoot, new[] { customRoot }, () =>
+                {
+                    BackupFolders folders = BackupFolders.Read();
+
+                    // The unreadable default root must not abort the scan: the custom root's backup
+                    // is still listed, the failure is retained for diagnostics, and no reason is
+                    // surfaced because at least one root was readable.
+                    Assert.Null(folders.UnreadableReason);
+                    Assert.Contains(folders.Backups, folder =>
+                        string.Equals(folder.Path, backup, StringComparison.OrdinalIgnoreCase));
+                    UnreadableBackupRoot failed = Assert.Single(folders.UnreadableRoots);
+                    Assert.EndsWith("default-root-file", failed.CanonicalPath,
+                        StringComparison.OrdinalIgnoreCase);
+                });
+            }
+            finally
+            {
+                Directory.Delete(parent, true);
+            }
+        }
+
+        [Fact]
+        public void Read_UnreadableDefaultRootReportsActualReason()
         {
             string parent = NewTempDirectory();
             string unreadableDefaultRoot = Path.Combine(parent, "default-root-file");
@@ -45,11 +77,14 @@ namespace WinRestoreKit.Tests
 
             try
             {
+                Exception expected = Record.Exception(() => Directory.GetDirectories(unreadableDefaultRoot));
+                Assert.NotNull(expected);
+
                 RunWithConfiguredRoots(unreadableDefaultRoot, Array.Empty<string>(), () =>
                 {
                     BackupFolders folders = BackupFolders.Read();
 
-                    Assert.NotNull(folders.UnreadableReason);
+                    Assert.Equal(expected.Message, folders.UnreadableReason);
                 });
             }
             finally
@@ -119,6 +154,21 @@ namespace WinRestoreKit.Tests
 
                 Assert.Contains(folders.Backups, folder =>
                     string.Equals(folder.Path, legacy, StringComparison.OrdinalIgnoreCase));
+            });
+        }
+
+        [Fact]
+        public void Read_MalformedManifestKeepsValidationReason()
+        {
+            RunWithRoots((defaultRoot, customRoot) =>
+            {
+                string folder = Directory.CreateDirectory(Path.Combine(defaultRoot, "bad-manifest")).FullName;
+                File.WriteAllText(Path.Combine(folder, BackupManifest.FileName), "{ not json");
+
+                BackupFolder found = Assert.Single(BackupFolders.Read().Backups);
+
+                Assert.Null(found.ReadManifest());
+                Assert.Equal("The backup manifest is invalid or uses an unsupported schema.", found.ManifestError);
             });
         }
 

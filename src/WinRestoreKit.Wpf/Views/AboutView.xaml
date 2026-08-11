@@ -1,0 +1,57 @@
+<UserControl x:Class="WinRestoreKit.Wpf.Views.AboutView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             AutomationProperties.Name="About workspace">
+  <!-- Shared keys use DynamicResource so the view also loads without an Application instance. -->
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+    <StackPanel MaxWidth="720" HorizontalAlignment="Left" Margin="24,20,24,24">
+      <TextBlock Text="About" Style="{DynamicResource PageTitleStyle}"
+                 Foreground="{DynamicResource TextBrush}" />
+
+      <Border Style="{DynamicResource CardBorderStyle}" Margin="0,18,0,0">
+        <StackPanel>
+          <TextBlock Text="WinRestoreKit" FontSize="18" FontWeight="SemiBold"
+                     Foreground="{DynamicResource TextBrush}" />
+          <TextBlock Text="Create, compare, and restore local snapshots of your Windows setup."
+                     TextWrapping="Wrap" FontSize="13" Margin="0,4,0,0"
+                     Foreground="{DynamicResource MutedTextBrush}" />
+          <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0" Margin="0,16,0,0" />
+          <Grid Margin="0,14,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="Version" FontSize="13" FontWeight="SemiBold" MinWidth="96"
+                       Foreground="{DynamicResource TextBrush}" />
+            <TextBlock Grid.Column="1" Foreground="{DynamicResource MutedTextBrush}" FontSize="13"
+                       AutomationProperties.Name="Version">
+              <Run Text="Version " />
+              <Run Text="{Binding CurrentVersion, Mode=OneWay}" />
+            </TextBlock>
+          </Grid>
+          <StackPanel Orientation="Horizontal" Margin="0,20,0,0">
+            <Button Content="Check for updates" Command="{Binding CheckForUpdatesCommand}"
+                    Style="{DynamicResource PrimaryButtonStyle}"
+                    AutomationProperties.Name="Check for updates" />
+            <Button Content="Release notes" Command="{Binding OpenReleaseNotesCommand}" Margin="8,0,0,0"
+                    Style="{DynamicResource SecondaryButtonStyle}"
+                    AutomationProperties.Name="Release notes" />
+          </StackPanel>
+          <TextBlock Text="Update checks run only when you ask. Release notes open in your browser."
+                     TextWrapping="Wrap" FontSize="12" Margin="0,10,0,0"
+                     Foreground="{DynamicResource MutedTextBrush}" />
+        </StackPanel>
+      </Border>
+
+      <Border Style="{DynamicResource CardBorderStyle}" Margin="0,12,0,0">
+        <StackPanel>
+          <TextBlock Text="How restore stays safe" Style="{DynamicResource SectionTitleStyle}"
+                     Foreground="{DynamicResource TextBrush}" />
+          <TextBlock Text="Comparing a snapshot never writes to your PC or to the snapshot. Before anything is restored you are shown what will be overwritten, which applications must close, and you consent again in a separate dialog."
+                     TextWrapping="Wrap" FontSize="13" Margin="0,8,0,0"
+                     Foreground="{DynamicResource MutedTextBrush}" />
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

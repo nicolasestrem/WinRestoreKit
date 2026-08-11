@@ -1,0 +1,98 @@
+<UserControl x:Class="WinRestoreKit.Wpf.Views.TimelineView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:WinRestoreKit.Wpf.Views.Controls"
+             Loaded="OnLoaded"
+             AutomationProperties.Name="Timeline">
+  <UserControl.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="/WinRestoreKit.Wpf;component/Resources/SnapshotEventTemplates.xaml" />
+      </ResourceDictionary.MergedDictionaries>
+
+      <Style x:Key="TimelineEmptyStateStyle" TargetType="{x:Type Border}">
+        <Setter Property="Visibility" Value="Collapsed" />
+        <Style.Triggers>
+          <DataTrigger Binding="{Binding Events.Count}" Value="0">
+            <Setter Property="Visibility" Value="Visible" />
+          </DataTrigger>
+        </Style.Triggers>
+      </Style>
+    </ResourceDictionary>
+  </UserControl.Resources>
+  <Border Background="{DynamicResource WindowBackgroundBrush}"
+          TextElement.Foreground="{DynamicResource TextBrush}"
+          TextElement.FontFamily="{DynamicResource ApplicationFont}"
+          Padding="32,26,32,24">
+    <!-- Reading column, left aligned. The page is a list of moments, not a dashboard pane. -->
+    <Grid MaxWidth="1000" HorizontalAlignment="Left">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="*" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
+
+      <StackPanel>
+        <TextBlock Text="Timeline" Style="{DynamicResource PageTitleStyle}" />
+        <TextBlock Text="Every restore point recorded on this PC, newest first. Select one to compare it with the current system."
+                   Margin="0,6,0,0" MaxWidth="640" HorizontalAlignment="Left"
+                   FontSize="13" TextWrapping="Wrap"
+                   Foreground="{DynamicResource MutedTextBrush}" />
+      </StackPanel>
+
+      <Grid Grid.Row="1" Margin="0,22,0,0">
+        <controls:SnapshotEventList x:Name="SnapshotEventListControl" />
+
+        <Border x:Name="TimelineEmptyState"
+                Style="{StaticResource TimelineEmptyStateStyle}"
+                HorizontalAlignment="Left" VerticalAlignment="Top"
+                MaxWidth="580" Padding="22,19,24,21"
+                Background="{DynamicResource SurfaceBrush}"
+                BorderBrush="{DynamicResource DividerBrush}"
+                BorderThickness="1" CornerRadius="8"
+                SnapsToDevicePixels="True"
+                AutomationProperties.Name="No restore points yet"
+                AutomationProperties.LiveSetting="Polite">
+          <StackPanel>
+            <StackPanel Orientation="Horizontal">
+              <!-- An empty rail: the same axis and node language the populated list uses. -->
+              <Grid Width="16" Height="18" VerticalAlignment="Center">
+                <Border Width="2" HorizontalAlignment="Center"
+                        Background="{DynamicResource DividerBrush}" />
+                <Ellipse Width="12" Height="12" HorizontalAlignment="Center" VerticalAlignment="Center"
+                         Fill="{DynamicResource SurfaceBrush}"
+                         Stroke="{DynamicResource StrongDividerBrush}" StrokeThickness="2" />
+              </Grid>
+              <TextBlock Text="No restore points yet"
+                         Margin="12,0,0,0" VerticalAlignment="Center"
+                         FontSize="15" FontWeight="SemiBold"
+                         Foreground="{DynamicResource TextBrush}" />
+            </StackPanel>
+            <TextBlock Text="Nothing has been captured on this PC. Choose Create snapshot in the command bar above to record the current system; it appears here as a verified restore point you can compare against."
+                       Margin="0,10,0,0" FontSize="12.5" TextWrapping="Wrap"
+                       Foreground="{DynamicResource MutedTextBrush}" />
+            <TextBlock Text="Failed and unreadable attempts are listed here too, so problems stay visible instead of looking like nothing happened."
+                       Margin="0,8,0,0" FontSize="12" TextWrapping="Wrap"
+                       Foreground="{DynamicResource MutedTextBrush}" />
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <Border Grid.Row="2"
+              Visibility="{Binding HasSelectionError, Converter={StaticResource BooleanToVisibilityConverter}}"
+              Margin="48,14,0,0" Padding="12,9,14,10"
+              CornerRadius="6" BorderThickness="3,0,0,0"
+              Background="{DynamicResource DangerSoftBrush}"
+              BorderBrush="{DynamicResource DangerBrush}"
+              SnapsToDevicePixels="True">
+        <TextBlock x:Name="SelectionErrorText"
+                   Text="{Binding SelectionError}"
+                   Visibility="{Binding HasSelectionError, Converter={StaticResource BooleanToVisibilityConverter}}"
+                   AutomationProperties.LiveSetting="Polite"
+                   Foreground="{DynamicResource DangerTextBrush}"
+                   FontSize="12.5"
+                   TextWrapping="Wrap" />
+      </Border>
+    </Grid>
+  </Border>
+</UserControl>

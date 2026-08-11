@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
-using System.Windows.Forms;
 using WinRestoreKit;
 using Xunit;
 
@@ -23,11 +22,12 @@ namespace WinRestoreKit.Tests
 
                 await runner.RunRestore(new BackupBase[] { new TestModule() }, restorePath);
 
+                Assert.Null(ui.DialogOwner);
                 RunSummary summary = Assert.IsType<RunSummary>(ui.Summary);
                 Assert.Equal(1, ui.SummaryCount);
                 Assert.NotEqual(RunState.Problems, summary.State);
                 Assert.NotEqual(RunState.DidNotRun, summary.State);
-                Assert.Equal(MessageBoxIcon.Information, summary.Icon);
+                Assert.Equal(RunSeverity.Information, summary.Severity);
                 Assert.Contains("canceled", summary.Headline, StringComparison.OrdinalIgnoreCase);
                 Assert.Contains("no changes", summary.Headline + " " + summary.Detail,
                     StringComparison.OrdinalIgnoreCase);
@@ -54,7 +54,7 @@ namespace WinRestoreKit.Tests
             public RunSummary Summary { get; private set; }
             public int SummaryCount { get; private set; }
 
-            public IWin32Window Owner => null;
+            public object DialogOwner => null;
             public void SetProgressText(string text) { }
             public void SetProgressPercent(int percent) { }
             public void SetProgressDetail(string groupInfo, string elapsed, string remaining, string throughput,

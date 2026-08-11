@@ -192,13 +192,13 @@ namespace WinRestoreKit.Tests
         }
 
         [Fact]
-        public void Gate_AllSkipped_ProceedsButSaysNothingWasCaptured()
+        public void Gate_AllSkipped_RequiresOverrideAndSaysNothingWasCaptured()
         {
             SnapshotDecision d = SnapshotGate.Evaluate(Outcomes(
                 new ModuleOutcome("Mouse", Skipped()),
                 new ModuleOutcome("Touchpad", Skipped())));
 
-            Assert.False(d.RequiresOverride);
+            Assert.True(d.RequiresOverride);
             Assert.Equal(SnapshotVerdict.NothingCaptured, d.Verdict);
             Assert.Contains("captured nothing", d.Summary);
 
@@ -243,19 +243,17 @@ namespace WinRestoreKit.Tests
             Assert.Contains("2", d.Summary);
         }
 
-        // Rule 4's shape on the snapshot side: some captured, some legitimately absent. Nothing
-        // failed, so demanding an override here would be the cry-wolf direction - but it is not
-        // Complete either, and it must name what it did not capture. A skipped module is one the
-        // restore is about to overwrite with no fallback for it, and this branch previously dropped
-        // it silently and then reported the run as complete.
+        // Rule 4's shape on the snapshot side: some captured, some legitimately absent. The
+        // absence means a restore would write without a fallback, so the user must explicitly
+        // accept that gap. It is not Complete and it must name what it did not capture.
         [Fact]
-        public void Gate_SucceededPlusSkipped_ProceedsButDoesNotClaimCompleteness()
+        public void Gate_SucceededPlusSkipped_RequiresOverrideButDoesNotClaimCompleteness()
         {
             SnapshotDecision d = SnapshotGate.Evaluate(Outcomes(
                 new ModuleOutcome("Mouse", Ok()),
                 new ModuleOutcome("Gaming", Skipped())));
 
-            Assert.False(d.RequiresOverride);
+            Assert.True(d.RequiresOverride);
             Assert.Equal(SnapshotVerdict.PartiallyCaptured, d.Verdict);
 
             // Named, not merely counted: the user has to know WHICH item has no fallback.

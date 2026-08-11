@@ -565,7 +565,7 @@ namespace Views
             summaryShown = true;
             kickerLabel.Text = SummaryKicker(summary);
             titleLabel.Text = summary.Headline.ToUpperInvariant();
-            titleLabel.ForeColor = summary.State == RunState.Problems || summary.State == RunState.DidNotRun
+            titleLabel.ForeColor = summary.Severity == RunSeverity.Warning
                 ? Theme.Current.Accent2_600
                 : Theme.Current.Text;
             resultsHeadline.Text = summary.Headline;
@@ -740,7 +740,7 @@ namespace Views
             });
         }
 
-        IWin32Window IRunUi.Owner => (IWin32Window)FindForm() ?? this;
+        object IRunUi.DialogOwner => (object)FindForm() ?? this;
 
         void IRunUi.ShowSummary(RunSummary summary, string caption, IReadOnlyList<ModuleOutcome> outcomes)
         {

@@ -22,7 +22,7 @@ namespace WinRestoreKit.Tests
                     scope.Checked = false;
 
                 CustomCheckbox explorerScope = view.Controls
-                    .Find("scopeToggle1", true)
+                    .Find("scopeToggle0", true)
                     .OfType<CustomCheckbox>()
                     .Single();
                 explorerScope.Checked = true;
