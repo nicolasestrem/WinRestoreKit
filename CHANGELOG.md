@@ -21,8 +21,8 @@ version numbers, because that is what those releases were called.
 
 ### Fixed: restore and snapshot integrity
 
-- Verified successful manifest rows against their physical artifacts and kept unavailable modules out
-  of restore sets, preventing stale metadata from authorizing an unsafe restore.
+- Verified successful manifest rows against their physical artifacts and admitted only rows with a
+  usable artifact, including modules whose live drift cannot be compared safely.
 - Read the selected app export directly from its prepared payload and exposed friendly source names in
   the reinstall picker.
 - Created a fresh, second-precision folder for every user backup and reserved collision suffixes

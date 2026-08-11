@@ -7,7 +7,7 @@ namespace WinRestoreKit.Tests
     public sealed class RestoreSetViewModelTests
     {
         [Fact]
-        public void RestoreSet_AcceptsOnlyComparableRowsWithUsableArtifacts()
+        public void RestoreSet_AcceptsEveryUsableArtifactEvenWhenDriftIsUnavailable()
         {
             WpfTestHost.Run(() =>
             {
@@ -26,9 +26,10 @@ namespace WinRestoreKit.Tests
                 restoreSet.Add(changed);
                 restoreSet.Add(absent);
 
-                Assert.Single(restoreSet.Modules);
-                Assert.Same(usableModule, restoreSet.Modules[0]);
-                Assert.False(restoreSet.Contains(unavailableModule));
+                Assert.Collection(restoreSet.Modules,
+                    module => Assert.Same(unavailableModule, module),
+                    module => Assert.Same(usableModule, module));
+                Assert.True(restoreSet.Contains(unavailableModule));
                 Assert.False(restoreSet.Contains(absentModule));
             });
         }

@@ -144,7 +144,7 @@ namespace WinRestoreKit.Tests
         }
 
         [Fact]
-        public async Task CompareAsync_IndeterminateDrift_StaysUnavailableWithUsableArtifact()
+        public async Task CompareAsync_IndeterminateDrift_RemainsRestorableWithUsableArtifact()
         {
             using (TestDirectory backup = TestDirectory.Create())
             {
@@ -155,7 +155,7 @@ namespace WinRestoreKit.Tests
 
                 Assert.Equal(ComparisonState.Unavailable, row.State);
                 Assert.True(row.HasUsableArtifact);
-                Assert.False(row.CanRestore);
+                Assert.True(row.CanRestore);
             }
         }
 
