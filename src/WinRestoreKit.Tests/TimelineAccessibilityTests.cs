@@ -19,9 +19,9 @@ namespace WinRestoreKit.Tests
     public sealed class TimelineAccessibilityTests
     {
         [Fact]
-        public void TimelineView_ExposesEquivalentNamedListAndKeyboardSelection()
+        public async Task TimelineView_ExposesEquivalentMouseAndKeyboardActivation()
         {
-            WpfTestHost.Run(() =>
+            await WpfTestHost.RunAsync(async () =>
             {
                 FakePreparationService service = new FakePreparationService();
                 TimelineViewModel viewModel = NewTimelineViewModel(service);
@@ -31,13 +31,16 @@ namespace WinRestoreKit.Tests
                 host.Show();
                 try
                 {
+                    await viewModel.RefreshAsync();
                     Layout(view);
 
                     ListBox list = Assert.IsType<ListBox>(view.FindName("TimelineEventList"));
                     Assert.Equal("Snapshots", AutomationProperties.GetName(list));
+                    Assert.Equal("TimelineEventList", AutomationProperties.GetAutomationId(list));
                     Assert.Equal(SelectionMode.Single, list.SelectionMode);
                     Assert.Equal(KeyboardNavigationMode.Continue, KeyboardNavigation.GetDirectionalNavigation(list));
                     Assert.Contains("Enter", AutomationProperties.GetHelpText(list));
+                    Assert.Contains("Double-click", AutomationProperties.GetHelpText(list));
                     list.SelectedIndex = 0;
                     RaiseKey(list, Key.Right);
                     Assert.Equal(1, list.SelectedIndex);
@@ -45,6 +48,11 @@ namespace WinRestoreKit.Tests
                     Assert.Equal(0, list.SelectedIndex);
                     RaiseKey(list, Key.Enter);
                     Assert.Equal(1, service.Calls);
+
+                    ListBoxItem selected = Assert.IsType<ListBoxItem>(
+                        list.ItemContainerGenerator.ContainerFromIndex(0));
+                    RaiseDoubleClick(selected);
+                    Assert.Equal(2, service.Calls);
                 }
                 finally
                 {
@@ -54,9 +62,9 @@ namespace WinRestoreKit.Tests
         }
 
         [Fact]
-        public void TimelineView_ExposesEveryRowStateAndSelectionFailureAsAccessibleText()
+        public async Task TimelineView_ExposesOnlyTheActiveAlternateStateToAccessibility()
         {
-            WpfTestHost.Run(() =>
+            await WpfTestHost.RunAsync(async () =>
             {
                 TimelineViewModel viewModel = NewTimelineViewModel();
                 TimelineView view = new TimelineView { DataContext = viewModel };
@@ -65,6 +73,7 @@ namespace WinRestoreKit.Tests
                 host.Show();
                 try
                 {
+                    await viewModel.RefreshAsync();
                     Layout(view);
 
                     ListBox list = Assert.IsType<ListBox>(view.FindName("TimelineEventList"));
@@ -77,6 +86,27 @@ namespace WinRestoreKit.Tests
 
                     TextBlock selectionError = Assert.IsType<TextBlock>(view.FindName("SelectionErrorText"));
                     Assert.Equal(AutomationLiveSetting.Polite, AutomationProperties.GetLiveSetting(selectionError));
+
+                    Border empty = Assert.IsType<Border>(view.FindName("TimelineEmptyState"));
+                    Border loading = Assert.IsType<Border>(view.FindName("TimelineLoadingState"));
+                    Border error = Assert.IsType<Border>(view.FindName("TimelineSelectionError"));
+                    Assert.Equal(Visibility.Collapsed, empty.Visibility);
+                    Assert.Equal(IsOffscreenBehavior.Offscreen,
+                        AutomationProperties.GetIsOffscreenBehavior(empty));
+                    Assert.Equal(Visibility.Collapsed, loading.Visibility);
+                    Assert.Equal(IsOffscreenBehavior.Offscreen,
+                        AutomationProperties.GetIsOffscreenBehavior(loading));
+                    Assert.Equal(Visibility.Collapsed, error.Visibility);
+                    Assert.Equal(IsOffscreenBehavior.Offscreen,
+                        AutomationProperties.GetIsOffscreenBehavior(error));
+
+                    viewModel.SelectedEvent = viewModel.Events[0];
+                    await viewModel.OpenSelectedAsync();
+                    Layout(view);
+
+                    Assert.Equal(Visibility.Visible, error.Visibility);
+                    Assert.Equal(IsOffscreenBehavior.Onscreen,
+                        AutomationProperties.GetIsOffscreenBehavior(error));
                 }
                 finally
                 {
@@ -91,7 +121,6 @@ namespace WinRestoreKit.Tests
             SnapshotEvent failed = NewEvent(SnapshotEventKind.Failed, @"C:\timeline\failed", "TEST-PC", "disk full");
             TimelineViewModel viewModel = new TimelineViewModel(
                 new FakeCatalog(verified, failed), service ?? new FakePreparationService(), new RecordingNavigator());
-            viewModel.RefreshAsync().GetAwaiter().GetResult();
             return viewModel;
         }
 
@@ -106,6 +135,16 @@ namespace WinRestoreKit.Tests
             target.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, inputSource, 0, key)
             {
                 RoutedEvent = Keyboard.PreviewKeyDownEvent
+            });
+        }
+
+        private static void RaiseDoubleClick(Control target)
+        {
+            PresentationSource inputSource = PresentationSource.FromVisual(target);
+            Assert.NotNull(inputSource);
+            target.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, 0, MouseButton.Left)
+            {
+                RoutedEvent = Control.MouseDoubleClickEvent
             });
         }
 

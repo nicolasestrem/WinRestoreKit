@@ -1,3 +1,4 @@
+using System;
 using System.Windows;
 using WinRestoreKit;
 
@@ -13,7 +14,17 @@ namespace WinRestoreKit.Wpf.Services
                 MessageBoxResult.No) == MessageBoxResult.Yes;
 
         public void ShowSnapshotDiagnostic(Window owner, SnapshotEvent snapshot)
-            => MessageBox.Show(owner, snapshot.DiagnosticReason, "Snapshot diagnostic",
+            => MessageBox.Show(owner, DiagnosticTextFor(snapshot), "Snapshot diagnostic",
                 MessageBoxButton.OK, MessageBoxImage.Error);
+
+        internal static string DiagnosticTextFor(SnapshotEvent snapshot)
+        {
+            if (snapshot == null)
+                throw new ArgumentNullException(nameof(snapshot));
+
+            return string.IsNullOrWhiteSpace(snapshot.DiagnosticReason)
+                ? "No additional diagnostic details were recorded for this snapshot."
+                : snapshot.DiagnosticReason;
+        }
     }
 }

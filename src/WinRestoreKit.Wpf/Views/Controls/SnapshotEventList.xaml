@@ -20,6 +20,7 @@
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
         <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <EventSetter Event="MouseDoubleClick" Handler="OnItemMouseDoubleClick" />
         <Setter Property="Template">
           <Setter.Value>
             <ControlTemplate TargetType="{x:Type ListBoxItem}">
@@ -46,7 +47,8 @@
              SelectedItem="{Binding SelectedEvent, Mode=TwoWay}"
              SelectionMode="Single"
              AutomationProperties.Name="Snapshots"
-             AutomationProperties.HelpText="Left and Right Arrow move snapshots. Enter opens a verified or partial snapshot; failed and unreadable entries open details."
+             AutomationProperties.AutomationId="TimelineEventList"
+             AutomationProperties.HelpText="Left and Right Arrow move snapshots. Double-click or press Enter to open a verified or partial snapshot; failed and unreadable entries open details."
              KeyboardNavigation.DirectionalNavigation="Continue"
              ItemTemplate="{StaticResource SnapshotEventRowTemplate}"
              ItemContainerStyle="{StaticResource TimelineEventItemStyle}"
