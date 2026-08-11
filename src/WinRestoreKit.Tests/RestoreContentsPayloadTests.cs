@@ -108,7 +108,7 @@ namespace WinRestoreKit.Tests
         }
 
         [Fact]
-        public void For_CompleteManifest_DoesNotExtractPayloadOrProbeArtifacts()
+        public void For_CompleteManifest_ExtractsOnceAndVerifiesSucceededArtifacts()
         {
             string root = CreateCompressedBackup();
 
@@ -128,9 +128,10 @@ namespace WinRestoreKit.Tests
                             Entry(skipped, BackupManifest.StateSkipped),
                             Entry(failed, BackupManifest.StateFailed)));
 
-                    Assert.False(monitor.WaitForExtraction());
-                    Assert.Equal(0, monitor.ExtractionCount);
-                    Assert.Empty(succeeded.ProbePaths);
+                    Assert.True(monitor.WaitForExtraction());
+                    Assert.Equal(1, monitor.ExtractionCount);
+                    Assert.Single(succeeded.ProbePaths);
+                    Assert.True(succeeded.SawPayloadArtifact);
                     Assert.Empty(skipped.ProbePaths);
                     Assert.Empty(failed.ProbePaths);
                     Assert.True(rows[0].HasBackup);
@@ -192,9 +193,11 @@ namespace WinRestoreKit.Tests
 
                     Assert.True(monitor.WaitForExtraction());
                     Assert.Equal(1, monitor.ExtractionCount);
-                    Assert.Empty(succeeded.ProbePaths);
+                    Assert.Single(succeeded.ProbePaths);
+                    Assert.True(succeeded.SawPayloadArtifact);
                     Assert.Single(first.ProbePaths);
                     Assert.Single(second.ProbePaths);
+                    Assert.Equal(succeeded.ProbePaths[0], first.ProbePaths[0]);
                     Assert.Equal(first.ProbePaths[0], second.ProbePaths[0]);
                     Assert.True(first.SawPayloadArtifact);
                     Assert.True(second.SawPayloadArtifact);

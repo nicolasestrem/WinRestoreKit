@@ -161,35 +161,38 @@ namespace WinRestoreKit
             if (IsManifestWithoutArtifact(entry))
                 return NotCapturedFromManifest(module, entry);
 
+            bool manifestSucceeded = entry?.State == BackupManifest.StateSucceeded;
+            bool? probe;
+            try
+            {
+                probe = module.HasArtifactIn(payloadPath);
+            }
+            catch (Exception ex)
+            {
+                LogHelper.Instance.LogMessage("Comparison artifact probe failed for " + module.Title
+                    + ": " + ex.Message);
+                return new ModuleComparison(module, ComparisonState.Unavailable, false,
+                    "Artifact presence could not be determined.", ex.Message);
+            }
+
+            if (probe == false)
+            {
+                string reason = manifestSucceeded
+                    ? "The manifest records this module as captured, but its restore artifact is missing."
+                    : "The module proved that this snapshot has no restore artifact.";
+                return new ModuleComparison(module, ComparisonState.NotCaptured, false, reason, string.Empty);
+            }
+
             bool usableArtifact;
             string artifactSummary;
-            if (entry?.State == BackupManifest.StateSucceeded)
+            if (!probe.HasValue)
             {
-                usableArtifact = true;
-                artifactSummary = "The snapshot manifest records this module as captured.";
-            }
-            else
-            {
-                bool? probe;
-                try
+                if (manifestSucceeded)
                 {
-                    probe = module.HasArtifactIn(payloadPath);
+                    usableArtifact = true;
+                    artifactSummary = "The manifest records this module as captured; the module has no physical artifact probe.";
                 }
-                catch (Exception ex)
-                {
-                    LogHelper.Instance.LogMessage("Comparison artifact probe failed for " + module.Title
-                        + ": " + ex.Message);
-                    return new ModuleComparison(module, ComparisonState.Unavailable, false,
-                        "Artifact presence could not be determined.", ex.Message);
-                }
-
-                if (probe == false)
-                {
-                    return new ModuleComparison(module, ComparisonState.NotCaptured, false,
-                        "The module proved that this snapshot has no restore artifact.", string.Empty);
-                }
-
-                if (!probe.HasValue)
+                else
                 {
                     if (manifest != null)
                     {
@@ -202,11 +205,13 @@ namespace WinRestoreKit
                     usableArtifact = true;
                     artifactSummary = "No manifest is available and the module cannot disprove a legacy artifact.";
                 }
-                else
-                {
-                    usableArtifact = true;
-                    artifactSummary = "The module verified a captured artifact.";
-                }
+            }
+            else
+            {
+                usableArtifact = true;
+                artifactSummary = manifestSucceeded
+                    ? "The manifest and the module both verify a captured artifact."
+                    : "The module verified a captured artifact.";
             }
 
             try

@@ -14,12 +14,12 @@ namespace WinRestoreKit.Tests
         [Theory]
         [InlineData(true, ComparisonState.Changed)]
         [InlineData(false, ComparisonState.Same)]
-        public async Task CompareAsync_ManifestSucceeded_MapsDriftWithoutArtifactProbe(
+        public async Task CompareAsync_ManifestSucceeded_MapsDriftAfterArtifactProbe(
             bool drifted, ComparisonState expected)
         {
             using (TestDirectory backup = TestDirectory.Create())
             {
-                ProbeModule module = new ProbeModule("Display", artifact: false, drifted: drifted);
+                ProbeModule module = new ProbeModule("Display", artifact: true, drifted: drifted);
                 SnapshotEvent snapshot = Snapshot(backup.Path, Manifest(Entry(module, BackupManifest.StateSucceeded)));
 
                 ModuleComparison row = Assert.Single(await new SnapshotComparisonService()
@@ -27,7 +27,28 @@ namespace WinRestoreKit.Tests
 
                 Assert.Equal(expected, row.State);
                 Assert.True(row.HasUsableArtifact);
-                Assert.Equal(0, module.ArtifactProbeCount);
+                Assert.True(row.CanRestore);
+                Assert.Equal(1, module.ArtifactProbeCount);
+            }
+        }
+
+        [Fact]
+        public async Task CompareAsync_ManifestSucceededButArtifactMissing_IsNotRestorable()
+        {
+            using (TestDirectory backup = TestDirectory.Create())
+            {
+                ProbeModule module = new ProbeModule("Missing", artifact: false, drifted: true);
+
+                ModuleComparison row = Assert.Single(await new SnapshotComparisonService().CompareAsync(
+                    Snapshot(backup.Path, Manifest(Entry(module, BackupManifest.StateSucceeded))),
+                    new[] { (BackupBase)module }, CancellationToken.None));
+
+                Assert.Equal(ComparisonState.NotCaptured, row.State);
+                Assert.False(row.HasUsableArtifact);
+                Assert.False(row.CanRestore);
+                Assert.Contains("artifact is missing", row.ArtifactSummary);
+                Assert.Equal(1, module.ArtifactProbeCount);
+                Assert.Equal(0, module.DriftProbeCount);
             }
         }
 
@@ -134,6 +155,7 @@ namespace WinRestoreKit.Tests
 
                 Assert.Equal(ComparisonState.Unavailable, row.State);
                 Assert.True(row.HasUsableArtifact);
+                Assert.False(row.CanRestore);
             }
         }
 

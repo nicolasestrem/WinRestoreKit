@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 
 namespace WinRestoreKit
@@ -14,6 +15,10 @@ namespace WinRestoreKit
     internal static class BackupNaming
     {
         private const int MaxSegmentLength = 120;
+        private const string TimestampFormat = "yyyy-MM-dd - HH.mm.ss";
+
+        internal static string TimestampNameFor(DateTime now)
+            => now.ToString(TimestampFormat, CultureInfo.InvariantCulture);
 
         internal static bool TryValidateCustomName(string value, out string name)
         {

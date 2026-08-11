@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using WinRestoreKit.Wpf.ViewModels;
 using Xunit;
 
 namespace WinRestoreKit.Tests
@@ -28,8 +29,49 @@ namespace WinRestoreKit.Tests
 
             Assert.Equal(2, sources.Count);
             Assert.True(sources[0].IsSelectedRestoreSource);
+            Assert.True(sources[0].IsPreparedPayload);
+            Assert.Equal("Selected restore source", sources[0].ToString());
             Assert.Equal(Path.GetFullPath(selected), sources[0].Path, StringComparer.OrdinalIgnoreCase);
+            Assert.False(sources[1].IsPreparedPayload);
             Assert.Equal(Path.GetFullPath(alternate), sources[1].Path, StringComparer.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public void ReadFromSource_PreparedPayloadDoesNotTryToExtractItAgain()
+        {
+            string root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(),
+                Guid.NewGuid().ToString("N"))).FullName;
+            try
+            {
+                File.WriteAllText(AppStoreApps.ExportPathIn(root),
+                    "{\"Sources\":[{\"Packages\":[{\"PackageIdentifier\":\"A.One\"}]}]}");
+                File.WriteAllText(Path.Combine(root, BackupManifest.FileName), BackupManifest.Compose(
+                    new BackupBase[] { new AppStoreApps() },
+                    new[] { ModuleResult.Aggregate(new[] { StepResult.Succeeded("Apps", "captured") }) },
+                    DateTime.UtcNow, "TEST-PC", "tester", "test-os", "0.0.1",
+                    compression: SnapshotCompression.Fast, payloadFile: BackupPayload.FileName));
+
+                AppRestoreSource prepared = new AppRestoreSource(
+                    root, "Prepared payload", true, isPreparedPayload: true);
+                AppRestoreSource archiveRoot = new AppRestoreSource(
+                    root, "Archive root", false, isPreparedPayload: false);
+
+                AppExport preparedExport = AppRestoreService.ReadFromSourceEntry(prepared);
+                AppExport archiveExport = AppRestoreService.ReadFromSourceEntry(archiveRoot);
+
+                Assert.Equal(AppExportState.Ok, preparedExport.State);
+                Assert.Equal(new[] { "A.One" }, preparedExport.PackageIdentifiers);
+                Assert.Equal(AppExportState.Unreadable, archiveExport.State);
+                Assert.Contains("payload", archiveExport.Message, StringComparison.OrdinalIgnoreCase);
+
+                var viewModel = new AppRestoreDialogViewModel(root, Array.Empty<SnapshotEvent>());
+                Assert.Equal("Selected restore source", viewModel.SelectedSource.ToString());
+                Assert.Equal("A.One", Assert.Single(viewModel.Packages).Identifier);
+            }
+            finally
+            {
+                Directory.Delete(root, true);
+            }
         }
 
         [Fact]

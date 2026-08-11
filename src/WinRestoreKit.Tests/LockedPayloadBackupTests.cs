@@ -26,8 +26,7 @@ namespace WinRestoreKit.Tests
                 {
                     BackupRestoreOrchestrator runner = new BackupRestoreOrchestrator(ui);
 
-                    await runner.RunBackup(new BackupBase[] { module }, isolation.DestinationRoot,
-                        "locked-payload", SnapshotCompression.Fast);
+                    await runner.RunBackup(new BackupBase[] { module }, backupPath);
                     Assert.Equal(backupPath, runner.BackupOutputPath);
 
                     Assert.NotNull(ui.Summary);
@@ -54,8 +53,7 @@ namespace WinRestoreKit.Tests
                 ArtifactModule module = new ArtifactModule();
                 BackupRestoreOrchestrator runner = new BackupRestoreOrchestrator(ui);
 
-                await runner.RunBackup(new BackupBase[] { module }, isolation.DestinationRoot,
-                    "unlocked-payload", SnapshotCompression.None);
+                await runner.RunBackup(new BackupBase[] { module }, backupPath);
                 Assert.Equal(backupPath, runner.BackupOutputPath);
 
                 Assert.NotNull(ui.Summary);
@@ -92,7 +90,8 @@ namespace WinRestoreKit.Tests
             public void SetProgressText(string text) { }
             public void SetProgressPercent(int percent) { }
             public void SetProgressDetail(string groupInfo, string elapsed, string remaining, string throughput,
-                                          long bytesWritten, int errors, int warnings) { }
+                                          long bytesWritten, int errors, int warnings)
+            { }
 
             public void ShowSummary(RunSummary summary, string caption, IReadOnlyList<ModuleOutcome> outcomes)
             {

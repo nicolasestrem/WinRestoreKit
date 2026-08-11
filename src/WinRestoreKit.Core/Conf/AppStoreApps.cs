@@ -47,25 +47,12 @@ namespace Conf
             Info = "This will export all installed winget package identifiers as a .json file.\nThe import process allows you to restore specific apps themselves based on this file.";
         }
 
-        // HasBackupIn is deliberately NOT overridden to test for ExportPathIn(restorePath).
-        //
-        // This module opens RestAppsForm, which starts with the selected restore source but also
-        // lets the user choose another backup folder from its own dropdown. Answering "no" here
-        // would make RestoreScope drop the module, so the dialog would never open for a user whose
-        // selected folder happens to hold no export, while the dialog could have offered another
-        // backup. It would also break RestoreDeclarationTests.ModulesThatCloseNothing_AssumeTheBackupHasSomethingForThem.
-        //
-        // The same reasoning binds HasArtifactIn, added later for the restore wizard, and binds it
-        // HARDER: where HasBackupIn made RestoreScope drop the module after the fact, the wizard
-        // greys the checkbox out in front of the user and labels it "(nothing in this backup)".
-        // That would be a false statement about a dialog that can read a folder of the user's
-        // choosing.
-        //
-        // So it is overridden to a flat TRUE rather than left at the null default. Null would mean
-        // "cannot tell", and the wizard resolves that to false whenever a manifest exists without
-        // naming this module, which happens on any second backup within one app session. This is
-        // not uncertainty; it is a module for which folder contents are not the only question.
-        public override bool? HasArtifactIn(string backupPath) => true;
+        // HasBackupIn keeps the base fail-open restore behavior because this module closes no
+        // processes and writes no settings itself. HasArtifactIn serves a different purpose: it
+        // decides whether Compare may claim that the selected snapshot contains a usable app list.
+        // That answer must describe this snapshot, not another source the later dialog might offer.
+        public override bool? HasArtifactIn(string backupPath)
+            => !string.IsNullOrWhiteSpace(backupPath) && File.Exists(ExportPathIn(backupPath));
 
         public override IReadOnlyList<RestoreTarget> RestoreTargets
             => new[]
@@ -87,12 +74,10 @@ namespace Conf
             // Execute winget command to list installed apps
             string outputFilePath = ExportPathIn(path);
 
-            // Clear the target before running winget. ConfPageView reuses one timestamped folder for
-            // every Backup click in an app session, so a second click can find a valid export from
-            // the first still sitting there. winget has a documented-here failure mode of exiting 0
-            // having written nothing (no source configured), and Verify would then be handed last
-            // run's file: every check passes, the run reports success, and the user keeps an
-            // outdated package list believing it was refreshed.
+            // Clear the target before running winget. A direct-path caller or a folder from an older
+            // build can be reused, so a later run can find a valid export from the first still
+            // sitting there. winget can exit 0 while writing nothing when no source is configured.
+            // Without this clear, Verify would accept the previous package list as the new one.
             try
             {
                 if (File.Exists(outputFilePath))

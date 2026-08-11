@@ -24,16 +24,21 @@ namespace WinRestoreKit
 
     internal sealed class AppRestoreSource
     {
-        internal AppRestoreSource(string path, string displayName, bool isSelectedRestoreSource)
+        internal AppRestoreSource(string path, string displayName, bool isSelectedRestoreSource,
+                                  bool isPreparedPayload)
         {
             Path = path ?? string.Empty;
             DisplayName = displayName ?? string.Empty;
             IsSelectedRestoreSource = isSelectedRestoreSource;
+            IsPreparedPayload = isPreparedPayload;
         }
 
         public string Path { get; }
         public string DisplayName { get; }
         public bool IsSelectedRestoreSource { get; }
+        internal bool IsPreparedPayload { get; }
+
+        public override string ToString() => DisplayName;
     }
 
     internal sealed class AppExport
@@ -88,14 +93,14 @@ namespace WinRestoreKit
             IReadOnlyList<SnapshotEvent> snapshots)
         {
             var sources = new List<AppRestoreSource>();
-            AddDistinct(sources, selectedRestorePath, "Selected restore source", true);
+            AddDistinct(sources, selectedRestorePath, "Selected restore source", true, true);
 
             foreach (SnapshotEvent snapshot in snapshots ?? Array.Empty<SnapshotEvent>())
             {
                 if (snapshot == null || !snapshot.IsRestorable)
                     continue;
 
-                AddDistinct(sources, snapshot.CanonicalPath, snapshot.DisplayName, false);
+                AddDistinct(sources, snapshot.CanonicalPath, snapshot.DisplayName, false, false);
             }
 
             return Array.AsReadOnly(sources.ToArray());
@@ -121,6 +126,16 @@ namespace WinRestoreKit
 
             using (scope)
                 return ReadExport(AppStoreApps.ExportPathIn(scope.Path));
+        }
+
+        internal static AppExport ReadFromSourceEntry(AppRestoreSource source)
+        {
+            if (source == null)
+                return AppExport.Unreadable("No app backup source is selected.");
+
+            return source.IsPreparedPayload
+                ? ReadExport(AppStoreApps.ExportPathIn(source.Path))
+                : ReadFromSource(source.Path);
         }
 
         internal static Task<AppRestoreOutcome> InstallAsync(IReadOnlyList<string> packageIdentifiers,
@@ -197,7 +212,7 @@ namespace WinRestoreKit
         }
 
         private static void AddDistinct(List<AppRestoreSource> sources, string path, string displayName,
-            bool isSelectedRestoreSource)
+            bool isSelectedRestoreSource, bool isPreparedPayload)
         {
             if (string.IsNullOrWhiteSpace(path))
                 return;
@@ -216,7 +231,8 @@ namespace WinRestoreKit
                 StringComparison.OrdinalIgnoreCase)))
                 return;
 
-            sources.Add(new AppRestoreSource(canonicalPath, displayName, isSelectedRestoreSource));
+            sources.Add(new AppRestoreSource(canonicalPath, displayName, isSelectedRestoreSource,
+                isPreparedPayload));
         }
 
         private static AppExport ReadExport(string path)

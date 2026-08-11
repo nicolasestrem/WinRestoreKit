@@ -1,4 +1,3 @@
-using DataHelper;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -21,7 +20,8 @@ namespace WinRestoreKit.Tests
                     "archive-progress", SnapshotCompression.Fast);
 
                 string backupPath = runner.BackupOutputPath;
-                Assert.Equal(Path.Combine(isolation.DestinationRoot, Data.NowShort), backupPath);
+                Assert.Equal(Path.GetFullPath(isolation.DestinationRoot), Path.GetDirectoryName(backupPath),
+                    StringComparer.OrdinalIgnoreCase);
                 ManifestData manifest = BackupManifest.TryParse(
                     File.ReadAllText(Path.Combine(backupPath, BackupManifest.FileName)));
 
@@ -56,7 +56,8 @@ namespace WinRestoreKit.Tests
             public void SetProgressText(string text) => ProgressTexts.Add(text);
             public void SetProgressPercent(int percent) { }
             public void SetProgressDetail(string groupInfo, string elapsed, string remaining, string throughput,
-                                          long bytesWritten, int errors, int warnings) { }
+                                          long bytesWritten, int errors, int warnings)
+            { }
             public void ShowSummary(RunSummary summary, string caption, IReadOnlyList<ModuleOutcome> outcomes) { }
             public IReadOnlyList<string> ShowConsentDialog(RestorePlan plan) => null;
             public bool ConfirmSnapshotOverride(string text, string caption) => false;
