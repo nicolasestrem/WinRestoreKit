@@ -3,50 +3,45 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
-    <UseWindowsForms>true</UseWindowsForms>
-    <RootNamespace>WinRestoreKit</RootNamespace>
+    <UseWPF>true</UseWPF>
+    <!-- The shell code keeps its WinRestoreKit.Wpf C# namespace; only the assembly and executable
+         identity is WinRestoreKit. RootNamespace and AssemblyName need not match, and pack URIs
+         resolve by assembly name (WinRestoreKit), not root namespace. -->
+    <RootNamespace>WinRestoreKit.Wpf</RootNamespace>
     <AssemblyName>WinRestoreKit</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>WinRestoreKit.ico</ApplicationIcon>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <PublishTrimmed>false</PublishTrimmed>
     <!--
-      MANDATORY. src/WinRestoreKit/Properties/AssemblyInfo.cs is downloaded as raw text from GitHub
-      by the update checker's fallback path (Helpers/DataHelper.cs URL_ASSEMBLY, fetched by
-      UpdateCheck.ReadLatestVersionAsync), which string-parses
-      [assembly: AssemblyFileVersion("x.y.z")] out of it via Data.ParseLatestVersion.
-      That file must stay at its exact path with its exact line format, so the SDK must not
-      generate competing assembly attributes (which would also be CS0579 duplicate errors).
-      Never set Version/AssemblyVersion/FileVersion/InformationalVersion here either: AssemblyInfo.cs
-      is the single source of truth that both sides of the update check read, and a csproj-set version
-      would create a second, silently diverging one.
+      MANDATORY. src/WinRestoreKit/Properties/AssemblyInfo.cs is the update checker's raw fallback
+      version source (Helpers/DataHelper.cs URL_ASSEMBLY, fetched by UpdateCheckService and parsed by
+      Data.ParseLatestVersion), which string-parses
+      [assembly: AssemblyFileVersion("x.y.z")] out of it. That file must stay at its exact path with
+      its exact line format, so the SDK must not generate competing assembly attributes (which would
+      also be CS0579 duplicate errors). GenerateAssemblyInfo stays false and Version/AssemblyVersion/
+      FileVersion/InformationalVersion are never set here: AssemblyInfo.cs is the single source of truth
+      that both sides of the update check read, and a csproj-set version would create a second,
+      silently diverging one.
     -->
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <Platforms>AnyCPU</Platforms>
     <Deterministic>true</Deterministic>
-    <!--
-      Leave ApplicationHighDpiMode / ApplicationVisualStyles / ApplicationUseCompatibleTextRendering
-      / ApplicationDefaultFont UNSET, and do not introduce ApplicationConfiguration.Initialize()
-      in Program.cs. DPI awareness is now set in exactly ONE place - the
-      Application.SetHighDpiMode(PerMonitorV2) call at the top of Program.Main (Phase 4 PR 9), with
-      the app.manifest <dpiAware> element deliberately removed because a manifest setting overrides
-      the runtime call. Any of the properties above would emit a competing generated config and give
-      this two sources of truth again.
-    -->
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Include="Fonts\*.otf" />
-    <EmbeddedResource Include="Fonts\*.ttf" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\WinRestoreKit.Core\WinRestoreKit.Core.csproj" />
     <ProjectReference Include="..\WinRestoreKit.Application\WinRestoreKit.Application.csproj" />
+    <ProjectReference Include="..\WinRestoreKit.Core\WinRestoreKit.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Fonts\IBMPlexMono-Regular.ttf" />
   </ItemGroup>
 
 </Project>

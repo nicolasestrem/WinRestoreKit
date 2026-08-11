@@ -6,7 +6,7 @@
   <UserControl.Resources>
     <ResourceDictionary>
       <ResourceDictionary.MergedDictionaries>
-        <ResourceDictionary Source="/WinRestoreKit.Wpf;component/Resources/SnapshotEventTemplates.xaml" />
+        <ResourceDictionary Source="/WinRestoreKit;component/Resources/SnapshotEventTemplates.xaml" />
       </ResourceDictionary.MergedDictionaries>
 
       <!-- Declared locally rather than derived from the app-level implicit style: views are

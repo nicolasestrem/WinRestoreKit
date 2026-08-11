@@ -3,9 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using System.Windows.Forms;
 using WinRestoreKit;
-using Views;
 using Xunit;
 
 namespace WinRestoreKit.Tests
@@ -130,14 +128,6 @@ namespace WinRestoreKit.Tests
             Assert.DoesNotContain("could not run winget", unknown);
         }
 
-        [Fact]
-        public void WinFormsCloseRulesRemainPresentationSpecific()
-        {
-            Assert.True(RestAppsForm.ShouldDeferClose(true, CloseReason.UserClosing));
-            Assert.False(RestAppsForm.ShouldDeferClose(true, CloseReason.ApplicationExitCall));
-            Assert.False(RestAppsForm.CanOwnADialog(false, false, false));
-            Assert.Contains("timeout", RestAppsForm.StoppingText, StringComparison.OrdinalIgnoreCase);
-        }
 
         [Fact]
         public void RestoreDialogCoreSeamRemainsInteractive()

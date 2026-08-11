@@ -42,8 +42,8 @@ using System.Runtime.Versioning;
 // Sie können alle Werte angeben oder Standardwerte für die Build- und Revisionsnummern verwenden,
 // indem Sie "*" wie unten gezeigt eingeben:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("0.0.1")]
-[assembly: AssemblyFileVersion("0.0.1")]
+[assembly: AssemblyVersion("0.1.0")]
+[assembly: AssemblyFileVersion("0.1.0")]
 
 // Most types in this assembly are internal. WinRestoreKit.Tests needs access to exercise the pure
 // logic (e.g. Data.ParseLatestVersion, Program.GetCurrentVersionTostring) without going through

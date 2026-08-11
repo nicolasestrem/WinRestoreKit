@@ -2,30 +2,12 @@ using Conf;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using ViewWatchedGroupSummary = Views.WatchedGroupSummary;
-using ViewWatchedGroups = Views.WatchedGroups;
 using Xunit;
 
 namespace WinRestoreKit.Tests
 {
     public class ViewDataHelperTests
     {
-        [Fact]
-        public void WatchedGroups_GetCurrent_ReflectsEveryCatalogCategory()
-        {
-            IReadOnlyList<ModuleRegistration> registrations = ModuleCatalog.CreateAll();
-            IReadOnlyList<ViewWatchedGroupSummary> groups = ViewWatchedGroups.GetCurrent();
-
-            Assert.Equal(
-                registrations.Select(registration => registration.Category).Distinct(),
-                groups.Select(group => group.Name));
-
-            foreach (ViewWatchedGroupSummary group in groups)
-            {
-                int expectedCount = registrations.Count(registration => registration.Category == group.Name);
-                Assert.Equal($"{expectedCount} items", group.Count);
-            }
-        }
 
         [Fact]
         public void ScopeGroups_Build_UsesSixFixedScopesAndAssignsEachCatalogModuleOnce()
